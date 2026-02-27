@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-02-27T20:31:44.270755",
+  "total_tests": 12,
+  "passed_tests": 12,
+  "success_rate": 1.0,
+  "results": [
+    {
+      "test": "Seed Demo Data",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Admin Login",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Driver Login",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Orders",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Orders Count Check",
+      "success": true,
+      "details": "Found 3 orders"
+    },
+    {
+      "test": "Get Drivers",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Drivers Count Check",
+      "success": true,
+      "details": "Found 4 drivers"
+    },
+    {
+      "test": "Get Driver Orders",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Orders for Assignment",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Assign Order to Driver",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Get Driver Orders for Status Update",
+      "success": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Update Order Status to ACCEPTED",
+      "success": true,
+      "details": "Status: 200"
+    }
+  ]
+}
