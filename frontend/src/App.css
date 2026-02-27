@@ -1,34 +1,127 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* ProDelivery App Styles */
+
+/* Driver action buttons */
+.driver-btn {
+  height: 4rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 100%;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  transition: transform 0.15s ease;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.driver-btn:active {
+  transform: scale(0.95);
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .mobile-full-height {
+    height: 100dvh;
+  }
 }
 
-.App-link {
-    color: #61dafb;
+/* Status colors */
+.status-new {
+  background-color: rgb(254 249 195);
+  color: rgb(133 77 14);
+  border-color: rgb(253 224 71);
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.status-assigned {
+  background-color: rgb(219 234 254);
+  color: rgb(30 64 175);
+  border-color: rgb(147 197 253);
+}
+
+.status-accepted {
+  background-color: rgb(243 232 255);
+  color: rgb(107 33 168);
+  border-color: rgb(216 180 254);
+}
+
+.status-picked-up {
+  background-color: rgb(255 237 213);
+  color: rgb(154 52 18);
+  border-color: rgb(253 186 116);
+}
+
+.status-delivered {
+  background-color: rgb(220 252 231);
+  color: rgb(22 101 52);
+  border-color: rgb(134 239 172);
+}
+
+/* Card hover effects */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
+}
+
+/* Leaflet map container */
+.leaflet-container {
+  font-family: var(--font-body);
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Pulse animation for notifications */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
