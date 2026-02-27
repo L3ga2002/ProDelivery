@@ -1,0 +1,136 @@
+{
+  "project_name": "ProDelivery_Phase1",
+  "design_philosophy": {
+    "persona": "E1 - The Performance Pro",
+    "core_concept": "Tactical Logistics Command",
+    "vibe": "High-Contrast, Industrial, Efficient, Reliable",
+    "principles": [
+      "Thumb-Zone First: Driver actions must be in the bottom 40% of the screen.",
+      "Status is King: Order status (Pending, Picked Up, Delivered) must be visible from 2 meters away.",
+      "Density vs. Clarity: Admin views are dense (data-rich); Driver views are sparse (focus-rich).",
+      "Tactical Contrast: Use high-contrast borders and shadows to separate layers, not just color."
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Barlow Condensed, sans-serif",
+      "body": "Public Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "google_fonts_import": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+    "usage_rules": {
+      "headings": "Uppercase, tracking-tight, font-bold. Use for page titles and status states.",
+      "body": "High legibility, standard tracking. Use for addresses and customer names.",
+      "data": "Use Mono font for Order IDs, Phone Numbers, and Timestamps."
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#2563EB",
+        "foreground": "#FFFFFF",
+        "hover": "#1D4ED8",
+        "active": "#1E40AF"
+      },
+      "secondary": {
+        "DEFAULT": "#F59E0B",
+        "foreground": "#000000",
+        "description": "Use for Pending/Warning states"
+      },
+      "success": {
+        "DEFAULT": "#10B981",
+        "foreground": "#FFFFFF",
+        "description": "Use for Delivered/Completed states"
+      },
+      "destructive": {
+        "DEFAULT": "#EF4444",
+        "foreground": "#FFFFFF"
+      },
+      "neutral": {
+        "surface": "#F8FAFC",
+        "border": "#E2E8F0",
+        "text_primary": "#0F172A",
+        "text_secondary": "#64748B"
+      },
+      "dark_mode": {
+        "background": "#020617",
+        "surface": "#0F172A",
+        "border": "#1E293B"
+      }
+    },
+    "semantic_rules": [
+      "Never use gradients for text.",
+      "Status badges must have a 10% opacity background of the status color + solid border.",
+      "Driver App buttons must be solid colors (Primary/Success) for maximum outdoor visibility."
+    ]
+  },
+  "layout_system": {
+    "spacing": {
+      "base": "0.25rem",
+      "container_padding": "p-4 md:p-8",
+      "section_gap": "gap-6 md:gap-8"
+    },
+    "grids": {
+      "admin_dashboard": "grid grid-cols-1 md:grid-cols-12 gap-4",
+      "driver_view": "flex flex-col h-[100dvh]"
+    },
+    "z_index": {
+      "map": 0,
+      "overlays": 40,
+      "bottom_sheet": 50,
+      "toast": 100
+    }
+  },
+  "components": {
+    "buttons": {
+      "driver_action": "h-16 text-xl font-bold uppercase tracking-wider w-full rounded-xl shadow-lg active:scale-95 transition-transform",
+      "admin_action": "h-10 px-4 font-medium rounded-md text-sm",
+      "icon_only": "p-3 rounded-full bg-secondary/10 hover:bg-secondary/20 text-secondary-foreground"
+    },
+    "cards": {
+      "order_card": "bg-card border border-border shadow-sm rounded-lg p-4 hover:border-primary/50 transition-colors",
+      "stat_card": "bg-card border border-border p-6 rounded-xl flex flex-col gap-2"
+    },
+    "inputs": {
+      "default": "h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 rounded-md"
+    },
+    "status_badges": {
+      "base": "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+      "pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
+      "assigned": "bg-blue-100 text-blue-800 border-blue-200",
+      "picked_up": "bg-purple-100 text-purple-800 border-purple-200",
+      "delivered": "bg-green-100 text-green-800 border-green-200"
+    }
+  },
+  "assets": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "Stroke width 2px for clarity"
+    },
+    "images": {
+      "login_bg": "https://images.unsplash.com/photo-1758384077159-29cad24750d8?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "courier_hero": "https://images.unsplash.com/photo-1768121496415-397a0a5daf8d?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "map_placeholder": "https://images.unsplash.com/photo-1748796011747-20f773d85947?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "empty_state": "https://images.unsplash.com/photo-1733048064126-87015f0d3751?crop=entropy&cs=srgb&fm=jpg&q=85"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-200 ease-out",
+    "hover_effects": "hover:-translate-y-0.5 hover:shadow-md",
+    "micro_interactions": "active:scale-95"
+  },
+  "accessibility": {
+    "contrast": "Ensure 4.5:1 contrast ratio for all text.",
+    "touch_targets": "Minimum 44x44px for all mobile interactive elements.",
+    "focus_states": "Visible ring-2 ring-offset-2 ring-primary on focus."
+  },
+  "universal_guidelines": [
+    "Do not use gradients for text.",
+    "Do not center align the app container.",
+    "Use 'sonner' for toasts.",
+    "All interactive elements must have data-testid attributes.",
+    "Driver App: Prioritize one-handed usage (bottom navigation).",
+    "Admin Dashboard: Prioritize data density and scanability."
+  ],
+  "instructions_to_main_agent": "Implement the Admin Dashboard as a desktop-first dense interface. Implement the Driver App as a mobile-first PWA with large touch targets. Use the provided image URLs for login screens and placeholders. Strictly follow the color palette for status indication."
+}
