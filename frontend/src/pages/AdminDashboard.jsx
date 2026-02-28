@@ -179,7 +179,10 @@ const AdminDashboard = () => {
   
   const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
   
-  const formatHour = (h) => `${h.toString().padStart(2, '0')}:00`;
+  const formatHour = (h) => {
+    const nextH = h === 23 ? 0 : h === 0 ? 1 : h === 1 ? 2 : h + 1;
+    return `${h.toString().padStart(2, '0')}-${nextH.toString().padStart(2, '0')}`;
+  };
   
   const getDriversAtHour = (hour) => {
     return checkIns.filter(c => c.checked_in && c.hours.includes(hour));
