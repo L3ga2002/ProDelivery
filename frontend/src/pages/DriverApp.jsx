@@ -50,6 +50,10 @@ const DriverApp = () => {
   const [canInstall, setCanInstall] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  
+  // Program ore de muncă (10:00 - 02:00)
+  const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
+  const [selectedHours, setSelectedHours] = useState([]);
 
   // Check if check-in time (23:00 - 00:00)
   useEffect(() => {
@@ -63,9 +67,33 @@ const DriverApp = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const toggleHour = (hour) => {
+    if (selectedHours.includes(hour)) {
+      setSelectedHours(selectedHours.filter(h => h !== hour));
+    } else {
+      setSelectedHours([...selectedHours, hour]);
+    }
+  };
+
+  const selectAllHours = () => {
+    if (selectedHours.length === workHours.length) {
+      setSelectedHours([]);
+    } else {
+      setSelectedHours([...workHours]);
+    }
+  };
+
   const doCheckIn = () => {
+    if (selectedHours.length === 0) {
+      toast.error('Selectează cel puțin o oră de lucru!');
+      return;
+    }
     setHasCheckedIn(true);
-    toast.success('Check-in realizat pentru mâine!');
+    toast.success(`Program confirmat: ${selectedHours.length} ore pentru mâine!`);
+  };
+
+  const formatHour = (h) => {
+    return `${h.toString().padStart(2, '0')}:00`;
   };
 
   // Check if PWA can be installed
