@@ -159,6 +159,11 @@ const DriverApp = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            {canInstall && (
+              <Button variant="outline" size="icon" onClick={installPWA} data-testid="install-pwa-button" title="Instalează aplicația">
+                <Download className="w-5 h-5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={fetchOrder} data-testid="refresh-button">
               <RefreshCw className="w-5 h-5" />
             </Button>
