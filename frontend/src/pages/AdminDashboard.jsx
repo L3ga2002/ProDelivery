@@ -419,7 +419,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="orders">Comenzi ({activeOrders.length})</TabsTrigger>
             <TabsTrigger value="map">Hartă</TabsTrigger>
             <TabsTrigger value="drivers">Livratori ({drivers.length})</TabsTrigger>
+            <TabsTrigger value="checkin">Check-in</TabsTrigger>
             <TabsTrigger value="restaurants">Restaurante ({restaurants.length})</TabsTrigger>
+            <TabsTrigger value="zones">Zone Livrare</TabsTrigger>
+            <TabsTrigger value="settings">Setări</TabsTrigger>
           </TabsList>
 
           {/* Orders Tab */}
