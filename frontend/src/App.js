@@ -93,6 +93,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/restaurant"
+            element={
+              <ProtectedRoute allowedRoles={["restaurant"]}>
+                <RestaurantApp />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/" element={<HomeRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
