@@ -198,7 +198,39 @@ const DriverApp = () => {
       <main className="flex-1 p-4">
         {!currentOrder ? (
           // No Order State
-          <div className="h-full flex flex-col items-center justify-center text-center py-16" data-testid="no-order-state">
+          <div className="h-full flex flex-col items-center justify-center text-center py-12" data-testid="no-order-state">
+            {/* Check-in Card */}
+            {(showCheckIn || true) && (  /* Always show for demo */
+              <Card className={`w-full mb-6 ${hasCheckedIn ? 'bg-green-50 border-green-300' : 'bg-orange-50 border-orange-300'} border-2`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <CalendarCheck className={`w-8 h-8 ${hasCheckedIn ? 'text-green-600' : 'text-orange-600'}`} />
+                    <div className="text-left">
+                      <h3 className="font-bold">Check-in pentru Mâine</h3>
+                      <p className="text-sm text-muted-foreground">23:00 - 00:00</p>
+                    </div>
+                  </div>
+                  
+                  {hasCheckedIn ? (
+                    <div className="text-center p-3 bg-green-100 rounded-lg">
+                      <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-1" />
+                      <p className="font-bold text-green-700">CHECK-IN REALIZAT!</p>
+                      <p className="text-sm text-green-600">Ești activ pentru mâine</p>
+                    </div>
+                  ) : (
+                    <Button 
+                      className="w-full h-14 text-lg font-bold bg-orange-500 hover:bg-orange-600"
+                      onClick={doCheckIn}
+                      data-testid="checkin-button"
+                    >
+                      <CalendarCheck className="w-6 h-6 mr-2" />
+                      CONFIRMĂ PENTRU MÂINE
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            
             <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
               <Package className="w-12 h-12 text-muted-foreground" />
             </div>
