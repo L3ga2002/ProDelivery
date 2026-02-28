@@ -154,6 +154,28 @@ const AdminDashboard = () => {
   
   // New restaurant form
   const [newRestaurant, setNewRestaurant] = useState({ name: "", address: "", phone: "" });
+  
+  // Settings (demo)
+  const [settings, setSettings] = useState({
+    autoAssign: false,
+    timeout: 60,
+    maxRadius: 5,
+    zones: [
+      { id: 1, name: "Zona 1 - Centru", price: 5 },
+      { id: 2, name: "Zona 2 - Semicentral", price: 8 },
+      { id: 3, name: "Zona 3 - Periferie", price: 12 },
+      { id: 4, name: "Zona 4 - Extins", price: 15 },
+    ]
+  });
+  
+  // Check-in status (demo)
+  const [checkIns, setCheckIns] = useState([
+    { driver_id: "driver-001", name: "Ion Popescu", checked_in: true, time: "23:15" },
+    { driver_id: "driver-002", name: "Maria Ionescu", checked_in: true, time: "23:42" },
+    { driver_id: "driver-003", name: "Andrei Popa", checked_in: false, time: null },
+    { driver_id: "driver-004", name: "Elena Dumitrescu", checked_in: true, time: "23:58" },
+    { driver_id: "driver-005", name: "Bogdan Stanescu", checked_in: false, time: null },
+  ]);
 
   const fetchData = useCallback(async () => {
     try {
