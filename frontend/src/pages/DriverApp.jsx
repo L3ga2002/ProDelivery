@@ -234,26 +234,73 @@ const DriverApp = () => {
                   <div className="flex items-center gap-3 mb-3">
                     <CalendarCheck className={`w-8 h-8 ${hasCheckedIn ? 'text-green-600' : 'text-orange-600'}`} />
                     <div className="text-left">
-                      <h3 className="font-bold">Check-in pentru Mâine</h3>
-                      <p className="text-sm text-muted-foreground">23:00 - 00:00</p>
+                      <h3 className="font-bold">Program pentru Mâine</h3>
+                      <p className="text-sm text-muted-foreground">Selectează orele în care vei lucra</p>
                     </div>
                   </div>
                   
                   {hasCheckedIn ? (
                     <div className="text-center p-3 bg-green-100 rounded-lg">
                       <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-1" />
-                      <p className="font-bold text-green-700">CHECK-IN REALIZAT!</p>
-                      <p className="text-sm text-green-600">Ești activ pentru mâine</p>
+                      <p className="font-bold text-green-700">PROGRAM CONFIRMAT!</p>
+                      <p className="text-sm text-green-600">{selectedHours.length} ore selectate pentru mâine</p>
+                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
+                        {selectedHours.sort((a,b) => {
+                          const aVal = a < 10 ? a + 24 : a;
+                          const bVal = b < 10 ? b + 24 : b;
+                          return aVal - bVal;
+                        }).map(h => (
+                          <Badge key={h} className="bg-green-600">{formatHour(h)}</Badge>
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <Button 
-                      className="w-full h-14 text-lg font-bold bg-orange-500 hover:bg-orange-600"
-                      onClick={doCheckIn}
-                      data-testid="checkin-button"
-                    >
-                      <CalendarCheck className="w-6 h-6 mr-2" />
-                      CONFIRMĂ PENTRU MÂINE
-                    </Button>
+                    <div className="space-y-3">
+                      {/* Select All Button */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={selectAllHours}
+                        className="w-full"
+                      >
+                        {selectedHours.length === workHours.length ? 'Deselectează Tot' : 'Selectează Toate Orele'}
+                      </Button>
+                      
+                      {/* Hours Grid */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {workHours.map((hour) => (
+                          <button
+                            key={hour}
+                            onClick={() => toggleHour(hour)}
+                            className={`p-2 rounded-lg text-sm font-bold transition-all ${
+                              selectedHours.includes(hour)
+                                ? 'bg-orange-500 text-white shadow-md scale-105'
+                                : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-orange-300'
+                            }`}
+                          >
+                            {formatHour(hour)}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {/* Selected Count */}
+                      <p className="text-center text-sm text-muted-foreground">
+                        {selectedHours.length > 0 
+                          ? `${selectedHours.length} ore selectate`
+                          : 'Nicio oră selectată'}
+                      </p>
+                      
+                      {/* Confirm Button */}
+                      <Button 
+                        className="w-full h-14 text-lg font-bold bg-orange-500 hover:bg-orange-600"
+                        onClick={doCheckIn}
+                        disabled={selectedHours.length === 0}
+                        data-testid="checkin-button"
+                      >
+                        <CalendarCheck className="w-6 h-6 mr-2" />
+                        CONFIRMĂ PROGRAMUL
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
