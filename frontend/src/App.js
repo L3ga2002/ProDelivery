@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import LoginPage from "./pages/LoginPage";
@@ -5,6 +6,19 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DriverApp from "./pages/DriverApp";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then((registration) => {
+        console.log('ProDelivery SW registered:', registration.scope);
+      })
+      .catch((error) => {
+        console.log('ProDelivery SW registration failed:', error);
+      });
+  });
+}
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
