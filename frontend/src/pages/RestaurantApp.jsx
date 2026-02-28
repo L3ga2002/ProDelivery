@@ -241,6 +241,14 @@ const RestaurantApp = () => {
                     <div className="grid grid-cols-3 gap-2">
                       <Button 
                         variant="outline" 
+                        onClick={() => setPreparationTime(order.id, 5)}
+                        className="h-12"
+                        data-testid={`prep-5-${order.id}`}
+                      >
+                        5 min
+                      </Button>
+                      <Button 
+                        variant="outline" 
                         onClick={() => setPreparationTime(order.id, 10)}
                         className="h-12"
                         data-testid={`prep-10-${order.id}`}
@@ -249,11 +257,27 @@ const RestaurantApp = () => {
                       </Button>
                       <Button 
                         variant="outline"
+                        onClick={() => setPreparationTime(order.id, 15)}
+                        className="h-12"
+                        data-testid={`prep-15-${order.id}`}
+                      >
+                        15 min
+                      </Button>
+                      <Button 
+                        variant="outline"
                         onClick={() => setPreparationTime(order.id, 20)}
                         className="h-12"
                         data-testid={`prep-20-${order.id}`}
                       >
                         20 min
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => setPreparationTime(order.id, 25)}
+                        className="h-12"
+                        data-testid={`prep-25-${order.id}`}
+                      >
+                        25 min
                       </Button>
                       <Button 
                         variant="outline"
