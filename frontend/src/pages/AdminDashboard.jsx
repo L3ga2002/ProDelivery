@@ -612,64 +612,150 @@ const AdminDashboard = () => {
 
           {/* Check-in Tab */}
           <TabsContent value="checkin">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarCheck className="w-5 h-5" />
-                  Check-in Livratori pentru Mâine
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Livratorii trebuie să facă check-in între <strong>23:00 - 00:00</strong> pentru a fi activi a doua zi
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {checkIns.map((item) => (
-                    <div 
-                      key={item.driver_id} 
-                      className={`p-4 rounded-lg border-2 ${
-                        item.checked_in 
-                          ? 'bg-green-50 border-green-300' 
-                          : 'bg-red-50 border-red-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Truck className={`w-6 h-6 ${item.checked_in ? 'text-green-600' : 'text-red-400'}`} />
-                          <span className="font-bold">{item.name}</span>
+            <div className="space-y-6">
+              {/* Summary Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarCheck className="w-5 h-5" />
+                    Program Livratori pentru Mâine
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Livratorii își selectează orele de lucru (10:00 - 02:00)
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {checkIns.map((item) => (
+                      <div 
+                        key={item.driver_id} 
+                        className={`p-4 rounded-lg border-2 ${
+                          item.checked_in 
+                            ? 'bg-green-50 border-green-300' 
+                            : 'bg-red-50 border-red-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Truck className={`w-6 h-6 ${item.checked_in ? 'text-green-600' : 'text-red-400'}`} />
+                            <span className="font-bold">{item.name}</span>
+                          </div>
+                          <Badge className={item.checked_in ? 'bg-green-500' : 'bg-red-500'}>
+                            {item.checked_in ? `${item.hours.length}h` : 'ABSENT'}
+                          </Badge>
                         </div>
-                        <Badge className={item.checked_in ? 'bg-green-500' : 'bg-red-500'}>
-                          {item.checked_in ? '✓ ACTIV' : '✗ ABSENT'}
-                        </Badge>
+                        {item.checked_in ? (
+                          <div className="flex flex-wrap gap-1">
+                            {item.hours.sort((a,b) => {
+                              const aVal = a < 10 ? a + 24 : a;
+                              const bVal = b < 10 ? b + 24 : b;
+                              return aVal - bVal;
+                            }).map(h => (
+                              <span key={h} className="text-xs bg-green-200 text-green-800 px-1.5 py-0.5 rounded">
+                                {formatHour(h)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-red-600">Nu a selectat program</p>
+                        )}
                       </div>
-                      {item.checked_in ? (
-                        <p className="text-sm text-green-700">Check-in la: {item.time}</p>
-                      ) : (
-                        <p className="text-sm text-red-600">Nu a făcut check-in</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-6 p-4 bg-muted rounded-lg">
-                  <h4 className="font-bold mb-2">Rezumat pentru mâine:</h4>
-                  <div className="flex gap-8">
-                    <div>
-                      <span className="text-2xl font-bold text-green-600">
-                        {checkIns.filter(c => c.checked_in).length}
-                      </span>
-                      <span className="text-sm text-muted-foreground ml-2">Livratori activi</span>
-                    </div>
-                    <div>
-                      <span className="text-2xl font-bold text-red-600">
-                        {checkIns.filter(c => !c.checked_in).length}
-                      </span>
-                      <span className="text-sm text-muted-foreground ml-2">Absenți</span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Hourly Coverage */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Acoperire pe Ore
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Câți livratori sunt disponibili în fiecare oră
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <div className="flex gap-1 min-w-max pb-2">
+                      {workHours.map((hour) => {
+                        const driversAtHour = getDriversAtHour(hour);
+                        const count = driversAtHour.length;
+                        return (
+                          <div 
+                            key={hour} 
+                            className={`flex flex-col items-center p-2 rounded-lg min-w-[60px] ${
+                              count === 0 ? 'bg-red-100' :
+                              count === 1 ? 'bg-yellow-100' :
+                              count === 2 ? 'bg-blue-100' :
+                              'bg-green-100'
+                            }`}
+                          >
+                            <span className="text-xs font-medium text-muted-foreground">{formatHour(hour)}</span>
+                            <span className={`text-2xl font-bold ${
+                              count === 0 ? 'text-red-600' :
+                              count === 1 ? 'text-yellow-600' :
+                              count === 2 ? 'text-blue-600' :
+                              'text-green-600'
+                            }`}>{count}</span>
+                            <span className="text-xs text-muted-foreground">livratori</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  
+                  {/* Legend */}
+                  <div className="flex gap-4 mt-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-red-100 border border-red-300"></div>
+                      <span>0 - Neacoperit</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></div>
+                      <span>1 - Minim</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></div>
+                      <span>2 - OK</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded bg-green-100 border border-green-300"></div>
+                      <span>3+ - Bine</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-green-600">
+                      {checkIns.filter(c => c.checked_in).length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Livratori activi</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-red-600">
+                      {checkIns.filter(c => !c.checked_in).length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Absenți</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold text-blue-600">
+                      {checkIns.reduce((sum, c) => sum + c.hours.length, 0)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Total ore-livrator</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
 
           {/* Zones Tab */}
