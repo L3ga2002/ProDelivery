@@ -47,6 +47,25 @@ const DriverApp = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
+  const [showCheckIn, setShowCheckIn] = useState(false);
+
+  // Check if check-in time (23:00 - 00:00)
+  useEffect(() => {
+    const checkTime = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      setShowCheckIn(hour >= 23 || hour === 0);
+    };
+    checkTime();
+    const interval = setInterval(checkTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const doCheckIn = () => {
+    setHasCheckedIn(true);
+    toast.success('Check-in realizat pentru mâine!');
+  };
 
   // Check if PWA can be installed
   useEffect(() => {
