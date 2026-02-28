@@ -71,6 +71,9 @@ const LoginPage = () => {
     if (role === "admin") {
       demoEmail = "admin@delivery.ro";
       demoPassword = "admin123";
+    } else if (role === "restaurant") {
+      demoEmail = "rest-001@delivery.ro";
+      demoPassword = "restaurant123";
     } else {
       demoEmail = "driver-001@delivery.ro";
       demoPassword = "driver123";
@@ -82,6 +85,8 @@ const LoginPage = () => {
       toast.success(`Bine ai venit, ${result.user.name}!`);
       if (result.user.role === "admin") {
         navigate("/admin");
+      } else if (result.user.role === "restaurant") {
+        navigate("/restaurant");
       } else {
         navigate("/driver");
       }
