@@ -601,6 +601,222 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Check-in Tab */}
+          <TabsContent value="checkin">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarCheck className="w-5 h-5" />
+                  Check-in Livratori pentru Mâine
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Livratorii trebuie să facă check-in între <strong>23:00 - 00:00</strong> pentru a fi activi a doua zi
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {checkIns.map((item) => (
+                    <div 
+                      key={item.driver_id} 
+                      className={`p-4 rounded-lg border-2 ${
+                        item.checked_in 
+                          ? 'bg-green-50 border-green-300' 
+                          : 'bg-red-50 border-red-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Truck className={`w-6 h-6 ${item.checked_in ? 'text-green-600' : 'text-red-400'}`} />
+                          <span className="font-bold">{item.name}</span>
+                        </div>
+                        <Badge className={item.checked_in ? 'bg-green-500' : 'bg-red-500'}>
+                          {item.checked_in ? '✓ ACTIV' : '✗ ABSENT'}
+                        </Badge>
+                      </div>
+                      {item.checked_in ? (
+                        <p className="text-sm text-green-700">Check-in la: {item.time}</p>
+                      ) : (
+                        <p className="text-sm text-red-600">Nu a făcut check-in</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-6 p-4 bg-muted rounded-lg">
+                  <h4 className="font-bold mb-2">Rezumat pentru mâine:</h4>
+                  <div className="flex gap-8">
+                    <div>
+                      <span className="text-2xl font-bold text-green-600">
+                        {checkIns.filter(c => c.checked_in).length}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-2">Livratori activi</span>
+                    </div>
+                    <div>
+                      <span className="text-2xl font-bold text-red-600">
+                        {checkIns.filter(c => !c.checked_in).length}
+                      </span>
+                      <span className="text-sm text-muted-foreground ml-2">Absenți</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Zones Tab */}
+          <TabsContent value="zones">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPinned className="w-5 h-5" />
+                  Zone de Livrare - Bacău
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Configurează zonele și tarifele de livrare
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {settings.zones.map((zone) => (
+                    <div key={zone.id} className="p-4 rounded-lg border bg-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-lg">{zone.name}</h4>
+                        <Badge variant="outline" className="text-lg px-3 py-1">
+                          {zone.price} RON
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="number" 
+                          value={zone.price}
+                          onChange={(e) => {
+                            const newZones = settings.zones.map(z => 
+                              z.id === zone.id ? {...z, price: parseFloat(e.target.value) || 0} : z
+                            );
+                            setSettings({...settings, zones: newZones});
+                          }}
+                          className="w-24"
+                        />
+                        <span className="flex items-center text-muted-foreground">RON / livrare</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>💡 Notă:</strong> Zonele vor fi configurate pe hartă în faza următoare. 
+                    Clientul va defini granițele exacte pentru fiecare zonă.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Setări Sistem
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Auto Assign */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-bold">Alocare Automată</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Sistemul alocă automat comenzile către cel mai apropiat livrator
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={settings.autoAssign ? 'text-green-600' : 'text-muted-foreground'}>
+                      {settings.autoAssign ? 'ACTIV' : 'INACTIV'}
+                    </span>
+                    <Switch 
+                      checked={settings.autoAssign}
+                      onCheckedChange={(checked) => setSettings({...settings, autoAssign: checked})}
+                    />
+                  </div>
+                </div>
+
+                {/* Timeout */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-bold flex items-center gap-2">
+                        <Timer className="w-4 h-4" />
+                        Timeout Acceptare
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Timp de așteptare până la reatribuire automată
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-lg">
+                      {settings.timeout} secunde
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Input 
+                      type="number" 
+                      value={settings.timeout}
+                      onChange={(e) => setSettings({...settings, timeout: parseInt(e.target.value) || 60})}
+                      className="w-24"
+                      disabled={!settings.autoAssign}
+                    />
+                    <span className="text-muted-foreground">secunde</span>
+                    {!settings.autoAssign && (
+                      <span className="text-sm text-orange-600 ml-4">
+                        (Activează alocarea automată pentru a folosi timeout)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Max Radius */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-bold flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        Rază Maximă Alocare
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Distanța maximă între livrator și restaurant
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-lg">
+                      {settings.maxRadius} km
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Input 
+                      type="number" 
+                      value={settings.maxRadius}
+                      onChange={(e) => setSettings({...settings, maxRadius: parseFloat(e.target.value) || 5})}
+                      className="w-24"
+                    />
+                    <span className="text-muted-foreground">kilometri</span>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <Button className="w-full" onClick={() => toast.success('Setări salvate (demo)')}>
+                  Salvează Setările
+                </Button>
+
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>⚠️ Mod Demo:</strong> Setările sunt afișate pentru demonstrație. 
+                    Funcționalitatea completă va fi activată în fazele următoare.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
 
