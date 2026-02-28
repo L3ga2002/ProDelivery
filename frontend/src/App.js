@@ -65,6 +65,7 @@ const HomeRedirect = () => {
 
   if (user.role === "admin") return <Navigate to="/admin" replace />;
   if (user.role === "driver") return <Navigate to="/driver" replace />;
+  if (user.role === "restaurant") return <Navigate to="/restaurant" replace />;
   
   return <Navigate to="/login" replace />;
 };
