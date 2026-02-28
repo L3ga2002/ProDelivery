@@ -621,107 +621,145 @@ async def seed_data():
         rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
         await db.users.insert_one(rest_user_doc)
     
-    # Create demo orders
-    orders_data = [
-        {
-            "order_number": "S.0001",
-            "source": "S",
-            "restaurant_id": "rest-001",
-            "restaurant_name": "Pizza Roma",
-            "customer_name": "Alexandru Marinescu",
-            "customer_phone": "0744123456",
-            "customer_address": "Str. Lipscani 23, Ap. 5, București",
-            "items": [{"name": "Pizza Margherita", "quantity": 2, "price": 35.0}, {"name": "Cola 500ml", "quantity": 2, "price": 8.0}],
-            "total_amount": 86.0,
-            "payment_type": "CASH",
-            "notes": "Etaj 3, sună la interfon 5",
-            "status": "NEW"
-        },
-        {
-            "order_number": "G.0002",
-            "source": "G",
-            "restaurant_id": "rest-002",
-            "restaurant_name": "Burger House",
-            "customer_name": "Cristina Voicu",
-            "customer_phone": "0755234567",
-            "customer_address": "Bd. Magheru 50, București",
-            "items": [{"name": "Burger Classic", "quantity": 1, "price": 28.0}, {"name": "Cartofi Prăjiți", "quantity": 1, "price": 12.0}],
-            "total_amount": 40.0,
-            "payment_type": "CARD",
-            "notes": "",
-            "status": "NEW"
-        },
-        {
-            "order_number": "W.0003",
-            "source": "W",
-            "restaurant_id": "rest-003",
-            "restaurant_name": "Sushi Master",
-            "customer_name": "Mihai Rădulescu",
-            "customer_phone": "0766345678",
-            "customer_address": "Str. Primăverii 15, București",
-            "items": [{"name": "Sushi Set 24 piese", "quantity": 1, "price": 95.0}],
-            "total_amount": 95.0,
-            "payment_type": "CASH",
-            "notes": "Să sune când ajunge jos",
-            "status": "NEW"
-        },
-        {
-            "order_number": "B.0004",
-            "source": "B",
-            "restaurant_id": "rest-004",
-            "restaurant_name": "La Mama",
-            "customer_name": "Ana Georgescu",
-            "customer_phone": "0777456789",
-            "customer_address": "Str. Polonă 12, București",
-            "items": [{"name": "Ciorbă de burtă", "quantity": 2, "price": 25.0}, {"name": "Sarmale", "quantity": 3, "price": 30.0}],
-            "total_amount": 140.0,
-            "payment_type": "CASH",
-            "notes": "Fără ardei iute",
-            "status": "NEW"
-        },
-        {
-            "order_number": "S.0005",
-            "source": "S",
-            "restaurant_id": "rest-005",
-            "restaurant_name": "KFC Express",
-            "customer_name": "Vlad Munteanu",
-            "customer_phone": "0788567890",
-            "customer_address": "Bd. Dacia 80, București",
-            "items": [{"name": "Bucket 8 Crispy", "quantity": 1, "price": 75.0}, {"name": "Pepsi 1L", "quantity": 2, "price": 10.0}],
-            "total_amount": 95.0,
-            "payment_type": "CARD",
-            "notes": "",
-            "status": "NEW"
-        },
-        {
-            "order_number": "G.0006",
-            "source": "G",
-            "restaurant_id": "rest-001",
-            "restaurant_name": "Pizza Roma",
-            "customer_name": "Diana Petre",
-            "customer_phone": "0799678901",
-            "customer_address": "Calea Victoriei 155, București",
-            "items": [{"name": "Pizza Quattro Stagioni", "quantity": 1, "price": 45.0}, {"name": "Tiramisu", "quantity": 2, "price": 20.0}],
-            "total_amount": 85.0,
-            "payment_type": "CASH",
-            "notes": "Fără ciuperci pe pizza",
-            "status": "NEW"
-        },
+    # Create demo orders - 100 orders
+    import random
+    
+    first_names = ["Alexandru", "Maria", "Ion", "Elena", "Andrei", "Ana", "Mihai", "Cristina", "Bogdan", "Diana", 
+                   "Vlad", "Ioana", "George", "Raluca", "Dan", "Adriana", "Florin", "Simona", "Radu", "Laura",
+                   "Stefan", "Gabriela", "Marius", "Alina", "Cosmin", "Monica", "Adrian", "Daniela", "Ciprian", "Roxana"]
+    
+    last_names = ["Popescu", "Ionescu", "Popa", "Dumitrescu", "Stan", "Gheorghe", "Stoica", "Marin", "Constantin", "Dinu",
+                  "Radu", "Marinescu", "Voicu", "Matei", "Florea", "Rusu", "Munteanu", "Mihai", "Nistor", "Tudor"]
+    
+    streets = ["Str. Victoriei", "Bd. Unirii", "Calea Dorobanți", "Str. Academiei", "Bd. Magheru", "Str. Lipscani",
+               "Calea Victoriei", "Str. Primăverii", "Bd. Dacia", "Str. Polonă", "Bd. Carol I", "Str. Franceza",
+               "Bd. Regina Elisabeta", "Str. Smârdan", "Calea Moșilor", "Str. Batiștei", "Bd. Aviatorilor"]
+    
+    food_items = {
+        "rest-001": [  # Pizza Roma
+            {"name": "Pizza Margherita", "price": 35.0},
+            {"name": "Pizza Quattro Stagioni", "price": 45.0},
+            {"name": "Pizza Diavola", "price": 42.0},
+            {"name": "Pizza Carbonara", "price": 48.0},
+            {"name": "Tiramisu", "price": 20.0},
+            {"name": "Cola 500ml", "price": 8.0},
+            {"name": "Fanta 500ml", "price": 8.0},
+        ],
+        "rest-002": [  # Burger House
+            {"name": "Burger Classic", "price": 28.0},
+            {"name": "Burger BBQ", "price": 32.0},
+            {"name": "Cheeseburger", "price": 30.0},
+            {"name": "Cartofi Prăjiți", "price": 12.0},
+            {"name": "Onion Rings", "price": 15.0},
+            {"name": "Milkshake", "price": 18.0},
+        ],
+        "rest-003": [  # Sushi Master
+            {"name": "Sushi Set 24 piese", "price": 95.0},
+            {"name": "Sushi Set 12 piese", "price": 55.0},
+            {"name": "Sashimi Salmon", "price": 45.0},
+            {"name": "Ramen", "price": 38.0},
+            {"name": "Edamame", "price": 15.0},
+            {"name": "Miso Soup", "price": 12.0},
+        ],
+        "rest-004": [  # La Mama
+            {"name": "Ciorbă de burtă", "price": 25.0},
+            {"name": "Sarmale", "price": 30.0},
+            {"name": "Mici 10 buc", "price": 35.0},
+            {"name": "Papanași", "price": 22.0},
+            {"name": "Plăcintă cu brânză", "price": 18.0},
+        ],
+        "rest-005": [  # KFC Express
+            {"name": "Bucket 8 Crispy", "price": 75.0},
+            {"name": "Wings 6 buc", "price": 28.0},
+            {"name": "Strips 5 buc", "price": 32.0},
+            {"name": "Twister", "price": 25.0},
+            {"name": "Cartofi mari", "price": 12.0},
+            {"name": "Pepsi 1L", "price": 10.0},
+        ],
+    }
+    
+    notes_options = [
+        "", "", "", "",  # 40% fără note
+        "Etaj 3, sună la interfon",
+        "Să sune când ajunge jos",
+        "Fără ardei iute",
+        "Livrare la poartă",
+        "Bloc nou, intrarea din spate",
+        "Apartament la parter",
+        "Să aducă și șervețele extra",
+        "Fără ceapă",
+        "Plată exact, nu am rest",
     ]
     
-    for o in orders_data:
-        order = Order(**o)
+    sources = ["S", "G", "W", "B"]  # Site, Glovo, Wolt, Bolt
+    source_weights = [30, 35, 25, 10]  # Distribution
+    
+    restaurants_ids = ["rest-001", "rest-002", "rest-003", "rest-004", "rest-005"]
+    restaurant_names = {
+        "rest-001": "Pizza Roma",
+        "rest-002": "Burger House",
+        "rest-003": "Sushi Master",
+        "rest-004": "La Mama",
+        "rest-005": "KFC Express"
+    }
+    
+    for i in range(1, 101):
+        source = random.choices(sources, weights=source_weights)[0]
+        restaurant_id = random.choice(restaurants_ids)
+        
+        # Generate customer
+        first_name = random.choice(first_names)
+        last_name = random.choice(last_names)
+        customer_name = f"{first_name} {last_name}"
+        customer_phone = f"07{random.randint(20, 99)}{random.randint(100000, 999999)}"
+        customer_address = f"{random.choice(streets)} {random.randint(1, 150)}, Ap. {random.randint(1, 50)}, București"
+        
+        # Generate items
+        available_items = food_items[restaurant_id]
+        num_items = random.randint(1, 4)
+        selected_items = random.sample(available_items, min(num_items, len(available_items)))
+        items = []
+        total = 0
+        for item in selected_items:
+            qty = random.randint(1, 3)
+            items.append({"name": item["name"], "quantity": qty, "price": item["price"]})
+            total += item["price"] * qty
+        
+        payment_type = random.choice(["CASH", "CASH", "CARD"])  # 66% cash
+        notes = random.choice(notes_options)
+        
+        order_data = {
+            "order_number": f"{source}.{i:04d}",
+            "source": source,
+            "restaurant_id": restaurant_id,
+            "restaurant_name": restaurant_names[restaurant_id],
+            "customer_name": customer_name,
+            "customer_phone": customer_phone,
+            "customer_address": customer_address,
+            "items": items,
+            "total_amount": total,
+            "payment_type": payment_type,
+            "notes": notes,
+            "status": "NEW"
+        }
+        
+        order = Order(**order_data)
         doc = order.model_dump()
         doc["created_at"] = doc["created_at"].isoformat()
         doc["updated_at"] = doc["updated_at"].isoformat()
         await db.orders.insert_one(doc)
     
     return {
-        "message": "Demo data seeded successfully",
+        "message": "Demo data seeded successfully - 100 orders created",
         "credentials": {
             "admin": {"email": "admin@delivery.ro", "password": "admin123"},
             "drivers": {"email": "driver-001@delivery.ro", "password": "driver123"},
             "restaurants": {"email": "rest-001@delivery.ro", "password": "restaurant123"}
+        },
+        "data": {
+            "orders": 100,
+            "drivers": 5,
+            "restaurants": 5
         }
     }
 
