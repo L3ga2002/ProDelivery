@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import LoginPage from "./pages/LoginPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import DriverApp from "./pages/DriverApp";
+import RestaurantApp from "./pages/RestaurantApp";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
