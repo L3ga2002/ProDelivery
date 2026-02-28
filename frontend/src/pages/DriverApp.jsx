@@ -46,6 +46,28 @@ const DriverApp = () => {
   const [currentOrder, setCurrentOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [canInstall, setCanInstall] = useState(false);
+
+  // Check if PWA can be installed
+  useEffect(() => {
+    const checkInstall = () => {
+      setCanInstall(!!deferredPrompt);
+    };
+    checkInstall();
+    window.addEventListener('beforeinstallprompt', checkInstall);
+    return () => window.removeEventListener('beforeinstallprompt', checkInstall);
+  }, []);
+
+  const installPWA = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast.success('Aplicație instalată cu succes!');
+      setCanInstall(false);
+    }
+    deferredPrompt = null;
+  };
 
   const fetchOrder = useCallback(async () => {
     if (!user?.driver_id) {
