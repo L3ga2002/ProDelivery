@@ -61,11 +61,22 @@ const RestaurantApp = () => {
     }
   }, [fetchOrders, user?.restaurant_id]);
 
-  // Play sound on new order
+  // Play sound only once when NEW orders appear for the first time
+  const [seenOrderIds, setSeenOrderIds] = useState(new Set());
+  
   useEffect(() => {
     const newOrders = orders.filter(o => o.status === 'NEW');
-    if (newOrders.length > 0) {
-      // Simple beep notification
+    const unseenNewOrders = newOrders.filter(o => !seenOrderIds.has(o.id));
+    
+    if (unseenNewOrders.length > 0) {
+      // Mark as seen
+      setSeenOrderIds(prev => {
+        const updated = new Set(prev);
+        unseenNewOrders.forEach(o => updated.add(o.id));
+        return updated;
+      });
+      
+      // Play sound only for truly new orders
       try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -81,7 +92,7 @@ const RestaurantApp = () => {
         console.log('Audio not supported');
       }
     }
-  }, [orders]);
+  }, [orders, seenOrderIds]);
 
   const setPreparationTime = async (orderId, minutes) => {
     try {
