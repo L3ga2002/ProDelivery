@@ -19,9 +19,17 @@ import {
   RefreshCw,
   FileText,
   Clock,
+  Download,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// PWA Install prompt
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
 
 const getStatusConfig = (status) => {
   const config = {
