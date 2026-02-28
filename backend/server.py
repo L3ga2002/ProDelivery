@@ -41,6 +41,8 @@ class UserBase(BaseModel):
     name: str
     role: str  # admin, driver, restaurant
     phone: Optional[str] = None
+    restaurant_id: Optional[str] = None
+    restaurant_name: Optional[str] = None
 
 class UserCreate(BaseModel):
     email: str
@@ -48,6 +50,7 @@ class UserCreate(BaseModel):
     name: str
     role: str
     phone: Optional[str] = None
+    restaurant_id: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: str
@@ -68,6 +71,8 @@ class Driver(BaseModel):
     latitude: float = 44.4268
     longitude: float = 26.1025
     current_order_id: Optional[str] = None
+    total_deliveries: int = 0
+    total_earnings: float = 0
 
 class Restaurant(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -87,6 +92,7 @@ class Order(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     order_number: str
+    source: str = "S"  # S=Site, G=Glovo, W=Wolt, B=Bolt
     restaurant_id: str
     restaurant_name: str
     driver_id: Optional[str] = None
@@ -98,7 +104,8 @@ class Order(BaseModel):
     total_amount: float
     payment_type: str  # CASH or CARD
     notes: Optional[str] = None
-    status: str = "NEW"  # NEW, ASSIGNED, ACCEPTED, PICKED_UP, DELIVERED
+    status: str = "NEW"  # NEW, PREPARING, READY, ASSIGNED, ACCEPTED, PICKED_UP, DELIVERED
+    preparation_time: Optional[int] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -111,12 +118,28 @@ class OrderCreate(BaseModel):
     total_amount: float
     payment_type: str = "CASH"
     notes: Optional[str] = None
+    source: str = "S"
 
 class AssignOrder(BaseModel):
     driver_id: str
 
 class UpdateOrderStatus(BaseModel):
     status: str
+
+class PreparationTime(BaseModel):
+    preparation_time: int
+
+class DriverCreate(BaseModel):
+    name: str
+    phone: str
+    email: str
+
+class RestaurantCreate(BaseModel):
+    name: str
+    address: str
+    phone: str
+    latitude: float = 44.4268
+    longitude: float = 26.1025
 
 # ============ AUTH HELPERS ============
 
@@ -132,6 +155,8 @@ def create_token(user_data: dict) -> str:
         "email": user_data["email"],
         "role": user_data["role"],
         "name": user_data["name"],
+        "restaurant_id": user_data.get("restaurant_id"),
+        "restaurant_name": user_data.get("restaurant_name"),
         "exp": datetime.now(timezone.utc).timestamp() + 86400 * 7  # 7 days
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -158,7 +183,8 @@ async def register(user_data: UserCreate):
         email=user_data.email,
         name=user_data.name,
         role=user_data.role,
-        phone=user_data.phone
+        phone=user_data.phone,
+        restaurant_id=user_data.restaurant_id
     )
     
     doc = user.model_dump()
@@ -197,6 +223,13 @@ async def login(credentials: UserLogin):
         if driver:
             driver_id = driver["id"]
     
+    # If restaurant, get restaurant name
+    restaurant_name = None
+    if user["role"] == "restaurant" and user.get("restaurant_id"):
+        restaurant = await db.restaurants.find_one({"id": user["restaurant_id"]}, {"_id": 0})
+        if restaurant:
+            restaurant_name = restaurant["name"]
+    
     return {
         "token": token,
         "user": {
@@ -204,7 +237,9 @@ async def login(credentials: UserLogin):
             "email": user["email"],
             "name": user["name"],
             "role": user["role"],
-            "driver_id": driver_id
+            "driver_id": driver_id,
+            "restaurant_id": user.get("restaurant_id"),
+            "restaurant_name": restaurant_name
         }
     }
 
@@ -214,7 +249,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 # ============ DRIVERS ENDPOINTS ============
 
-@api_router.get("/drivers", response_model=List[Driver])
+@api_router.get("/drivers")
 async def get_drivers(current_user: dict = Depends(get_current_user)):
     drivers = await db.drivers.find({}, {"_id": 0}).to_list(100)
     return drivers
@@ -225,6 +260,42 @@ async def get_driver(driver_id: str, current_user: dict = Depends(get_current_us
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
     return driver
+
+@api_router.post("/drivers")
+async def create_driver(data: DriverCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    driver_id = str(uuid.uuid4())
+    
+    user_doc = {
+        "id": user_id,
+        "email": data.email,
+        "name": data.name,
+        "role": "driver",
+        "phone": data.phone,
+        "password_hash": hash_password("driver123"),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    driver_doc = {
+        "id": driver_id,
+        "user_id": user_id,
+        "name": data.name,
+        "phone": data.phone,
+        "is_active": False,
+        "latitude": 44.4268 + (hash(data.name) % 100) / 1000,
+        "longitude": 26.1025 + (hash(data.phone) % 100) / 1000,
+        "current_order_id": None,
+        "total_deliveries": 0,
+        "total_earnings": 0
+    }
+    await db.drivers.insert_one(driver_doc)
+    
+    return {"message": "Driver created", "driver_id": driver_id, "password": "driver123"}
 
 @api_router.put("/drivers/{driver_id}/location")
 async def update_driver_location(driver_id: str, latitude: float, longitude: float, current_user: dict = Depends(get_current_user)):
@@ -244,25 +315,57 @@ async def update_driver_status(driver_id: str, is_active: bool, current_user: di
 
 # ============ RESTAURANTS ENDPOINTS ============
 
-@api_router.get("/restaurants", response_model=List[Restaurant])
+@api_router.get("/restaurants")
 async def get_restaurants(current_user: dict = Depends(get_current_user)):
     restaurants = await db.restaurants.find({}, {"_id": 0}).to_list(100)
     return restaurants
 
 @api_router.post("/restaurants")
-async def create_restaurant(restaurant: Restaurant, current_user: dict = Depends(get_current_user)):
+async def create_restaurant(data: RestaurantCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    doc = restaurant.model_dump()
-    await db.restaurants.insert_one(doc)
-    return restaurant
+    
+    restaurant_id = str(uuid.uuid4())
+    
+    restaurant_doc = {
+        "id": restaurant_id,
+        "name": data.name,
+        "address": data.address,
+        "phone": data.phone,
+        "latitude": data.latitude,
+        "longitude": data.longitude
+    }
+    await db.restaurants.insert_one(restaurant_doc)
+    
+    # Create restaurant user
+    user_id = str(uuid.uuid4())
+    email = f"restaurant-{restaurant_id[:8]}@delivery.ro"
+    
+    user_doc = {
+        "id": user_id,
+        "email": email,
+        "name": data.name,
+        "role": "restaurant",
+        "phone": data.phone,
+        "restaurant_id": restaurant_id,
+        "restaurant_name": data.name,
+        "password_hash": hash_password("restaurant123"),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    return {
+        "message": "Restaurant created", 
+        "restaurant_id": restaurant_id,
+        "login_email": email,
+        "password": "restaurant123"
+    }
 
 # ============ ORDERS ENDPOINTS ============
 
 @api_router.get("/orders")
 async def get_orders(current_user: dict = Depends(get_current_user)):
     orders = await db.orders.find({}, {"_id": 0}).to_list(1000)
-    # Convert datetime strings back
     for order in orders:
         if isinstance(order.get('created_at'), str):
             order['created_at'] = datetime.fromisoformat(order['created_at'])
@@ -276,6 +379,14 @@ async def get_driver_orders(driver_id: str, current_user: dict = Depends(get_cur
         {"driver_id": driver_id, "status": {"$nin": ["DELIVERED"]}},
         {"_id": 0}
     ).to_list(100)
+    return orders
+
+@api_router.get("/orders/restaurant/{restaurant_id}")
+async def get_restaurant_orders(restaurant_id: str, current_user: dict = Depends(get_current_user)):
+    orders = await db.orders.find(
+        {"restaurant_id": restaurant_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
     return orders
 
 @api_router.get("/orders/{order_id}")
@@ -292,12 +403,13 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
-    # Generate order number
+    # Generate order number with source prefix
     count = await db.orders.count_documents({})
-    order_number = f"CMD-{count + 1:04d}"
+    order_number = f"{order_data.source}.{count + 1:04d}"
     
     order = Order(
         order_number=order_number,
+        source=order_data.source,
         restaurant_id=order_data.restaurant_id,
         restaurant_name=restaurant["name"],
         customer_name=order_data.customer_name,
@@ -318,22 +430,26 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
 
 @api_router.put("/orders/{order_id}/assign")
 async def assign_order(order_id: str, data: AssignOrder, current_user: dict = Depends(get_current_user)):
-    # Get driver info
     driver = await db.drivers.find_one({"id": data.driver_id}, {"_id": 0})
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
+    
+    # Check current order status
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    new_status = "ASSIGNED"
+    if order and order.get("status") == "READY":
+        new_status = "ASSIGNED"
     
     await db.orders.update_one(
         {"id": order_id},
         {"$set": {
             "driver_id": data.driver_id,
             "driver_name": driver["name"],
-            "status": "ASSIGNED",
+            "status": new_status,
             "updated_at": datetime.now(timezone.utc).isoformat()
         }}
     )
     
-    # Update driver's current order
     await db.drivers.update_one(
         {"id": data.driver_id},
         {"$set": {"current_order_id": order_id}}
@@ -341,9 +457,32 @@ async def assign_order(order_id: str, data: AssignOrder, current_user: dict = De
     
     return {"message": "Order assigned"}
 
+@api_router.put("/orders/{order_id}/preparing")
+async def set_preparing(order_id: str, data: PreparationTime, current_user: dict = Depends(get_current_user)):
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": "PREPARING",
+            "preparation_time": data.preparation_time,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "Order preparing"}
+
+@api_router.put("/orders/{order_id}/ready")
+async def set_ready(order_id: str, current_user: dict = Depends(get_current_user)):
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": "READY",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "Order ready"}
+
 @api_router.put("/orders/{order_id}/status")
 async def update_order_status(order_id: str, data: UpdateOrderStatus, current_user: dict = Depends(get_current_user)):
-    valid_statuses = ["NEW", "ASSIGNED", "ACCEPTED", "PICKED_UP", "DELIVERED"]
+    valid_statuses = ["NEW", "PREPARING", "READY", "ASSIGNED", "ACCEPTED", "PICKED_UP", "DELIVERED"]
     if data.status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Invalid status")
     
@@ -354,16 +493,48 @@ async def update_order_status(order_id: str, data: UpdateOrderStatus, current_us
     
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
     
-    # If delivered, clear driver's current order
+    # If delivered, update driver stats
     if data.status == "DELIVERED":
         order = await db.orders.find_one({"id": order_id}, {"_id": 0})
         if order and order.get("driver_id"):
             await db.drivers.update_one(
                 {"id": order["driver_id"]},
-                {"$set": {"current_order_id": None}}
+                {
+                    "$set": {"current_order_id": None},
+                    "$inc": {"total_deliveries": 1, "total_earnings": order.get("total_amount", 0) * 0.1}
+                }
             )
     
     return {"message": "Status updated"}
+
+# ============ STATS ============
+
+@api_router.get("/stats")
+async def get_stats(current_user: dict = Depends(get_current_user)):
+    total_orders = await db.orders.count_documents({})
+    active_orders = await db.orders.count_documents({"status": {"$nin": ["DELIVERED"]}})
+    delivered_orders = await db.orders.count_documents({"status": "DELIVERED"})
+    active_drivers = await db.drivers.count_documents({"is_active": True})
+    total_drivers = await db.drivers.count_documents({})
+    total_restaurants = await db.restaurants.count_documents({})
+    
+    # Revenue
+    pipeline = [
+        {"$match": {"status": "DELIVERED"}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+    ]
+    revenue_result = await db.orders.aggregate(pipeline).to_list(1)
+    total_revenue = revenue_result[0]["total"] if revenue_result else 0
+    
+    return {
+        "total_orders": total_orders,
+        "active_orders": active_orders,
+        "delivered_orders": delivered_orders,
+        "active_drivers": active_drivers,
+        "total_drivers": total_drivers,
+        "total_restaurants": total_restaurants,
+        "total_revenue": total_revenue
+    }
 
 # ============ SEED DATA ============
 
@@ -395,6 +566,7 @@ async def seed_data():
         {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 44.4168, "lng": 26.1125, "active": True},
         {"id": "driver-003", "name": "Andrei Popa", "phone": "0722555666", "lat": 44.4468, "lng": 26.0825, "active": False},
         {"id": "driver-004", "name": "Elena Dumitrescu", "phone": "0722777888", "lat": 44.4068, "lng": 26.1225, "active": True},
+        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 44.4200, "lng": 26.0950, "active": True},
     ]
     
     for d in drivers_data:
@@ -421,21 +593,39 @@ async def seed_data():
         )
         await db.drivers.insert_one(driver.model_dump())
     
-    # Create restaurants
+    # Create restaurants with users
     restaurants_data = [
         {"id": "rest-001", "name": "Pizza Roma", "address": "Str. Victoriei 45, București", "phone": "021111222", "lat": 44.4308, "lng": 26.1005},
         {"id": "rest-002", "name": "Burger House", "address": "Bd. Unirii 78, București", "phone": "021333444", "lat": 44.4228, "lng": 26.0985},
         {"id": "rest-003", "name": "Sushi Master", "address": "Calea Dorobanți 120, București", "phone": "021555666", "lat": 44.4508, "lng": 26.0895},
+        {"id": "rest-004", "name": "La Mama", "address": "Str. Academiei 33, București", "phone": "021777888", "lat": 44.4350, "lng": 26.1050},
+        {"id": "rest-005", "name": "KFC Express", "address": "Bd. Magheru 25, București", "phone": "021999111", "lat": 44.4400, "lng": 26.0970},
     ]
     
     for r in restaurants_data:
         restaurant = Restaurant(**r)
         await db.restaurants.insert_one(restaurant.model_dump())
+        
+        # Create restaurant user
+        rest_user = User(
+            id=f"user-{r['id']}",
+            email=f"{r['id']}@delivery.ro",
+            name=r["name"],
+            role="restaurant",
+            phone=r["phone"],
+            restaurant_id=r["id"],
+            restaurant_name=r["name"]
+        )
+        rest_user_doc = rest_user.model_dump()
+        rest_user_doc["password_hash"] = hash_password("restaurant123")
+        rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
+        await db.users.insert_one(rest_user_doc)
     
     # Create demo orders
     orders_data = [
         {
-            "order_number": "CMD-0001",
+            "order_number": "S.0001",
+            "source": "S",
             "restaurant_id": "rest-001",
             "restaurant_name": "Pizza Roma",
             "customer_name": "Alexandru Marinescu",
@@ -448,7 +638,8 @@ async def seed_data():
             "status": "NEW"
         },
         {
-            "order_number": "CMD-0002",
+            "order_number": "G.0002",
+            "source": "G",
             "restaurant_id": "rest-002",
             "restaurant_name": "Burger House",
             "customer_name": "Cristina Voicu",
@@ -461,7 +652,8 @@ async def seed_data():
             "status": "NEW"
         },
         {
-            "order_number": "CMD-0003",
+            "order_number": "W.0003",
+            "source": "W",
             "restaurant_id": "rest-003",
             "restaurant_name": "Sushi Master",
             "customer_name": "Mihai Rădulescu",
@@ -473,6 +665,48 @@ async def seed_data():
             "notes": "Să sune când ajunge jos",
             "status": "NEW"
         },
+        {
+            "order_number": "B.0004",
+            "source": "B",
+            "restaurant_id": "rest-004",
+            "restaurant_name": "La Mama",
+            "customer_name": "Ana Georgescu",
+            "customer_phone": "0777456789",
+            "customer_address": "Str. Polonă 12, București",
+            "items": [{"name": "Ciorbă de burtă", "quantity": 2, "price": 25.0}, {"name": "Sarmale", "quantity": 3, "price": 30.0}],
+            "total_amount": 140.0,
+            "payment_type": "CASH",
+            "notes": "Fără ardei iute",
+            "status": "NEW"
+        },
+        {
+            "order_number": "S.0005",
+            "source": "S",
+            "restaurant_id": "rest-005",
+            "restaurant_name": "KFC Express",
+            "customer_name": "Vlad Munteanu",
+            "customer_phone": "0788567890",
+            "customer_address": "Bd. Dacia 80, București",
+            "items": [{"name": "Bucket 8 Crispy", "quantity": 1, "price": 75.0}, {"name": "Pepsi 1L", "quantity": 2, "price": 10.0}],
+            "total_amount": 95.0,
+            "payment_type": "CARD",
+            "notes": "",
+            "status": "NEW"
+        },
+        {
+            "order_number": "G.0006",
+            "source": "G",
+            "restaurant_id": "rest-001",
+            "restaurant_name": "Pizza Roma",
+            "customer_name": "Diana Petre",
+            "customer_phone": "0799678901",
+            "customer_address": "Calea Victoriei 155, București",
+            "items": [{"name": "Pizza Quattro Stagioni", "quantity": 1, "price": 45.0}, {"name": "Tiramisu", "quantity": 2, "price": 20.0}],
+            "total_amount": 85.0,
+            "payment_type": "CASH",
+            "notes": "Fără ciuperci pe pizza",
+            "status": "NEW"
+        },
     ]
     
     for o in orders_data:
@@ -482,7 +716,14 @@ async def seed_data():
         doc["updated_at"] = doc["updated_at"].isoformat()
         await db.orders.insert_one(doc)
     
-    return {"message": "Demo data seeded successfully"}
+    return {
+        "message": "Demo data seeded successfully",
+        "credentials": {
+            "admin": {"email": "admin@delivery.ro", "password": "admin123"},
+            "drivers": {"email": "driver-001@delivery.ro", "password": "driver123"},
+            "restaurants": {"email": "rest-001@delivery.ro", "password": "restaurant123"}
+        }
+    }
 
 # ============ ROOT ============
 
