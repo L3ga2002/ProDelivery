@@ -93,7 +93,8 @@ const DriverApp = () => {
   };
 
   const formatHour = (h) => {
-    return `${h.toString().padStart(2, '0')}:00`;
+    const nextH = h === 23 ? 0 : h === 0 ? 1 : h === 1 ? 2 : h + 1;
+    return `${h.toString().padStart(2, '0')}-${nextH.toString().padStart(2, '0')}`;
   };
 
   // Check if PWA can be installed
