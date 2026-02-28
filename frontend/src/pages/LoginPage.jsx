@@ -206,6 +206,12 @@ const LoginPage = () => {
               Instalează Aplicația
             </Button>
           )}
+
+          <div className="text-xs text-center text-muted-foreground p-3 bg-muted/50 rounded-lg">
+            <p className="font-medium mb-1">📱 Instalare pe telefon:</p>
+            <p>Android: Menu Chrome → "Adaugă pe ecranul principal"</p>
+            <p>iPhone: Safari → Share → "Add to Home Screen"</p>
+          </div>
         </CardContent>
       </Card>
     </div>
