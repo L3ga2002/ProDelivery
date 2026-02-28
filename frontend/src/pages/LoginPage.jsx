@@ -169,7 +169,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <Button
               variant="outline"
               onClick={() => handleDemoLogin("admin")}
@@ -188,11 +188,21 @@ const LoginPage = () => {
             >
               Demo Livrator
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDemoLogin("restaurant")}
+              disabled={isLoading}
+              className="h-11"
+              data-testid="demo-restaurant-button"
+            >
+              Demo Restaurant
+            </Button>
           </div>
 
           <p className="text-xs text-center text-muted-foreground">
             Admin: admin@delivery.ro / admin123<br />
-            Livrator: driver-001@delivery.ro / driver123
+            Livrator: driver-001@delivery.ro / driver123<br />
+            Restaurant: rest-001@delivery.ro / restaurant123
           </p>
 
           {canInstall && (
