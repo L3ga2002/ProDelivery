@@ -168,14 +168,22 @@ const AdminDashboard = () => {
     ]
   });
   
-  // Check-in status (demo)
+  // Check-in status with schedule (demo)
   const [checkIns, setCheckIns] = useState([
-    { driver_id: "driver-001", name: "Ion Popescu", checked_in: true, time: "23:15" },
-    { driver_id: "driver-002", name: "Maria Ionescu", checked_in: true, time: "23:42" },
-    { driver_id: "driver-003", name: "Andrei Popa", checked_in: false, time: null },
-    { driver_id: "driver-004", name: "Elena Dumitrescu", checked_in: true, time: "23:58" },
-    { driver_id: "driver-005", name: "Bogdan Stanescu", checked_in: false, time: null },
+    { driver_id: "driver-001", name: "Ion Popescu", checked_in: true, hours: [10, 11, 12, 13, 14, 15, 16, 17, 18] },
+    { driver_id: "driver-002", name: "Maria Ionescu", checked_in: true, hours: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23] },
+    { driver_id: "driver-003", name: "Andrei Popa", checked_in: false, hours: [] },
+    { driver_id: "driver-004", name: "Elena Dumitrescu", checked_in: true, hours: [18, 19, 20, 21, 22, 23, 0, 1, 2] },
+    { driver_id: "driver-005", name: "Bogdan Stanescu", checked_in: false, hours: [] },
   ]);
+  
+  const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
+  
+  const formatHour = (h) => `${h.toString().padStart(2, '0')}:00`;
+  
+  const getDriversAtHour = (hour) => {
+    return checkIns.filter(c => c.checked_in && c.hours.includes(hour));
+  };
 
   const fetchData = useCallback(async () => {
     try {
