@@ -194,6 +194,18 @@ const LoginPage = () => {
             Admin: admin@delivery.ro / admin123<br />
             Livrator: driver-001@delivery.ro / driver123
           </p>
+
+          {canInstall && (
+            <Button
+              variant="outline"
+              onClick={installPWA}
+              className="w-full h-11"
+              data-testid="install-pwa-button"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Instalează Aplicația
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
