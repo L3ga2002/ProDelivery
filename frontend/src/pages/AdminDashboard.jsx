@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -27,6 +30,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -39,11 +48,14 @@ import {
   Truck,
   UserCheck,
   Clock,
+  Plus,
+  Store,
+  DollarSign,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Fix Leaflet default marker icon issue
+// Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
@@ -51,7 +63,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Custom driver icon
 const driverIcon = new L.Icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
@@ -70,36 +81,87 @@ const activeDriverIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+const restaurantIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
 const getStatusBadge = (status) => {
   const statusConfig = {
     NEW: { label: "Nouă", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-    ASSIGNED: { label: "Alocată", className: "bg-blue-100 text-blue-800 border-blue-300" },
-    ACCEPTED: { label: "Acceptată", className: "bg-purple-100 text-purple-800 border-purple-300" },
+    PREPARING: { label: "Pregătire", className: "bg-blue-100 text-blue-800 border-blue-300" },
+    READY: { label: "Gata", className: "bg-green-100 text-green-800 border-green-300" },
+    ASSIGNED: { label: "Alocată", className: "bg-purple-100 text-purple-800 border-purple-300" },
+    ACCEPTED: { label: "Acceptată", className: "bg-indigo-100 text-indigo-800 border-indigo-300" },
     PICKED_UP: { label: "Ridicată", className: "bg-orange-100 text-orange-800 border-orange-300" },
-    DELIVERED: { label: "Livrată", className: "bg-green-100 text-green-800 border-green-300" },
+    DELIVERED: { label: "Livrată", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
   };
-  
   const config = statusConfig[status] || { label: status, className: "" };
   return <Badge className={`${config.className} border`}>{config.label}</Badge>;
+};
+
+const getSourceBadge = (source) => {
+  const colors = {
+    S: "bg-gray-100 text-gray-800",
+    G: "bg-orange-100 text-orange-800",
+    W: "bg-cyan-100 text-cyan-800",
+    B: "bg-green-100 text-green-800",
+  };
+  const names = { S: "Site", G: "Glovo", W: "Wolt", B: "Bolt" };
+  return <Badge className={colors[source] || "bg-gray-100"}>{names[source] || source}</Badge>;
 };
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+  const [stats, setStats] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Dialogs
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState("");
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
+  const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
+  const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
+  
+  // New order form
+  const [newOrder, setNewOrder] = useState({
+    restaurant_id: "",
+    customer_name: "",
+    customer_phone: "",
+    customer_address: "",
+    items: [{ name: "", quantity: 1, price: 0 }],
+    total_amount: 0,
+    payment_type: "CASH",
+    notes: "",
+    source: "S"
+  });
+  
+  // New driver form
+  const [newDriver, setNewDriver] = useState({ name: "", phone: "", email: "" });
+  
+  // New restaurant form
+  const [newRestaurant, setNewRestaurant] = useState({ name: "", address: "", phone: "" });
 
   const fetchData = useCallback(async () => {
     try {
-      const [ordersRes, driversRes] = await Promise.all([
+      const [ordersRes, driversRes, restaurantsRes, statsRes] = await Promise.all([
         axios.get(`${API_URL}/api/orders`),
         axios.get(`${API_URL}/api/drivers`),
+        axios.get(`${API_URL}/api/restaurants`),
+        axios.get(`${API_URL}/api/stats`),
       ]);
       setOrders(ordersRes.data);
       setDrivers(driversRes.data);
+      setRestaurants(restaurantsRes.data);
+      setStats(statsRes.data);
     } catch (error) {
       toast.error("Eroare la încărcarea datelor");
     } finally {
@@ -109,7 +171,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000); // Refresh every 10s
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -124,16 +186,71 @@ const AdminDashboard = () => {
       toast.error("Selectează un livrator");
       return;
     }
-
     try {
-      await axios.put(`${API_URL}/api/orders/${selectedOrder.id}/assign`, {
-        driver_id: selectedDriver,
-      });
+      await axios.put(`${API_URL}/api/orders/${selectedOrder.id}/assign`, { driver_id: selectedDriver });
       toast.success("Comandă alocată cu succes!");
       setIsAssignDialogOpen(false);
       fetchData();
     } catch (error) {
       toast.error("Eroare la alocare");
+    }
+  };
+
+  const createOrder = async () => {
+    if (!newOrder.restaurant_id || !newOrder.customer_name || !newOrder.customer_phone) {
+      toast.error("Completează câmpurile obligatorii");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/api/orders`, newOrder);
+      toast.success("Comandă creată!");
+      setIsNewOrderDialogOpen(false);
+      setNewOrder({
+        restaurant_id: "",
+        customer_name: "",
+        customer_phone: "",
+        customer_address: "",
+        items: [{ name: "", quantity: 1, price: 0 }],
+        total_amount: 0,
+        payment_type: "CASH",
+        notes: "",
+        source: "S"
+      });
+      fetchData();
+    } catch (error) {
+      toast.error("Eroare la creare comandă");
+    }
+  };
+
+  const createDriver = async () => {
+    if (!newDriver.name || !newDriver.phone || !newDriver.email) {
+      toast.error("Completează toate câmpurile");
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_URL}/api/drivers`, newDriver);
+      toast.success(`Livrator creat! Parolă: ${res.data.password}`);
+      setIsNewDriverDialogOpen(false);
+      setNewDriver({ name: "", phone: "", email: "" });
+      fetchData();
+    } catch (error) {
+      toast.error("Eroare la creare livrator");
+    }
+  };
+
+  const createRestaurant = async () => {
+    if (!newRestaurant.name || !newRestaurant.address || !newRestaurant.phone) {
+      toast.error("Completează toate câmpurile");
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_URL}/api/restaurants`, newRestaurant);
+      toast.success(`Restaurant creat! Login: ${res.data.login_email} / ${res.data.password}`);
+      setIsNewRestaurantDialogOpen(false);
+      setNewRestaurant({ name: "", address: "", phone: "" });
+      fetchData();
+    } catch (error) {
+      toast.error("Eroare la creare restaurant");
     }
   };
 
@@ -166,7 +283,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={fetchData} data-testid="refresh-button">
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualizează
@@ -183,181 +300,148 @@ const AdminDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card data-testid="stat-active-orders">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Package className="w-5 h-5 text-yellow-700" />
-                </div>
+                <Package className="w-8 h-8 text-yellow-600" />
                 <div>
-                  <p className="text-2xl font-bold">{activeOrders.length}</p>
-                  <p className="text-xs text-muted-foreground">Comenzi Active</p>
+                  <p className="text-2xl font-bold">{stats.active_orders || 0}</p>
+                  <p className="text-xs text-muted-foreground">Active</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card data-testid="stat-total-orders">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-blue-700" />
-                </div>
+                <Clock className="w-8 h-8 text-blue-600" />
                 <div>
-                  <p className="text-2xl font-bold">{orders.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Comenzi</p>
+                  <p className="text-2xl font-bold">{stats.total_orders || 0}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card data-testid="stat-active-drivers">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <UserCheck className="w-5 h-5 text-green-700" />
-                </div>
+                <UserCheck className="w-8 h-8 text-green-600" />
                 <div>
-                  <p className="text-2xl font-bold">{activeDrivers.length}</p>
-                  <p className="text-xs text-muted-foreground">Livratori Activi</p>
+                  <p className="text-2xl font-bold">{stats.active_drivers || 0}</p>
+                  <p className="text-xs text-muted-foreground">Livratori</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card data-testid="stat-total-drivers">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-purple-700" />
-                </div>
+                <Store className="w-8 h-8 text-orange-600" />
                 <div>
-                  <p className="text-2xl font-bold">{drivers.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Livratori</p>
+                  <p className="text-2xl font-bold">{stats.total_restaurants || 0}</p>
+                  <p className="text-xs text-muted-foreground">Restaurante</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Package className="w-8 h-8 text-emerald-600" />
+                <div>
+                  <p className="text-2xl font-bold">{stats.delivered_orders || 0}</p>
+                  <p className="text-xs text-muted-foreground">Livrate</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-8 h-8 text-purple-600" />
+                <div>
+                  <p className="text-2xl font-bold">{(stats.total_revenue || 0).toFixed(0)}</p>
+                  <p className="text-xs text-muted-foreground">RON</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Map */}
-          <Card className="lg:row-span-2" data-testid="map-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <MapPin className="w-5 h-5" />
-                Hartă Livratori
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[400px] lg:h-[500px] rounded-lg overflow-hidden border">
-                <MapContainer
-                  center={[44.4268, 26.1025]}
-                  zoom={13}
-                  className="h-full w-full"
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  {drivers.map((driver) => (
-                    <Marker
-                      key={driver.id}
-                      position={[driver.latitude, driver.longitude]}
-                      icon={driver.is_active ? activeDriverIcon : driverIcon}
-                    >
-                      <Popup>
-                        <div className="text-sm">
-                          <p className="font-bold">{driver.name}</p>
-                          <p className="text-muted-foreground">{driver.phone}</p>
-                          <Badge className={driver.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                            {driver.is_active ? "Activ" : "Inactiv"}
-                          </Badge>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
-              </div>
-              
-              {/* Driver Legend */}
-              <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                {drivers.map((driver) => (
-                  <div key={driver.id} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${driver.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                    <span className={driver.is_active ? 'font-medium' : 'text-muted-foreground'}>
-                      {driver.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Button onClick={() => setIsNewOrderDialogOpen(true)} data-testid="new-order-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            Comandă Nouă
+          </Button>
+          <Button variant="outline" onClick={() => setIsNewDriverDialogOpen(true)} data-testid="new-driver-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            Livrator Nou
+          </Button>
+          <Button variant="outline" onClick={() => setIsNewRestaurantDialogOpen(true)} data-testid="new-restaurant-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            Restaurant Nou
+          </Button>
+        </div>
 
-          {/* Orders Table */}
-          <Card data-testid="orders-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Package className="w-5 h-5" />
-                Comenzi ({activeOrders.length} active)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
+        {/* Tabs */}
+        <Tabs defaultValue="orders" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="orders">Comenzi ({activeOrders.length})</TabsTrigger>
+            <TabsTrigger value="map">Hartă</TabsTrigger>
+            <TabsTrigger value="drivers">Livratori ({drivers.length})</TabsTrigger>
+            <TabsTrigger value="restaurants">Restaurante ({restaurants.length})</TabsTrigger>
+          </TabsList>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders">
+            <Card>
+              <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[100px]">Nr.</TableHead>
+                      <TableHead>Sursă</TableHead>
+                      <TableHead>Restaurant</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead>Sumă</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Livrator</TableHead>
                       <TableHead className="text-right">Acțiuni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {activeOrders.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Nu există comenzi active
                         </TableCell>
                       </TableRow>
                     ) : (
                       activeOrders.map((order) => (
-                        <TableRow key={order.id} data-testid={`order-row-${order.id}`}>
-                          <TableCell className="font-mono text-xs">
-                            {order.order_number}
-                          </TableCell>
+                        <TableRow key={order.id}>
+                          <TableCell className="font-mono text-xs">{order.order_number}</TableCell>
+                          <TableCell>{getSourceBadge(order.source)}</TableCell>
+                          <TableCell className="font-medium">{order.restaurant_name}</TableCell>
                           <TableCell>
                             <div>
                               <p className="font-medium text-sm">{order.customer_name}</p>
-                              <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                                {order.customer_address}
-                              </p>
+                              <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
                             </div>
                           </TableCell>
                           <TableCell>
                             <span className="font-semibold">{order.total_amount} RON</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {order.payment_type}
-                            </Badge>
+                            <Badge variant="outline" className="ml-2 text-xs">{order.payment_type}</Badge>
                           </TableCell>
                           <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell>{order.driver_name || "-"}</TableCell>
                           <TableCell className="text-right">
-                            {order.status === "NEW" ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleAssignOrder(order)}
-                                data-testid={`assign-button-${order.id}`}
-                              >
+                            {["NEW", "PREPARING", "READY"].includes(order.status) && (
+                              <Button size="sm" onClick={() => handleAssignOrder(order)}>
                                 Alocă
                               </Button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {order.driver_name || "-"}
-                              </span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -365,97 +449,299 @@ const AdminDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* Drivers List */}
-          <Card data-testid="drivers-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="w-5 h-5" />
-                Livratori
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {drivers.map((driver) => (
-                  <div
-                    key={driver.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      driver.is_active ? 'bg-green-50 border-green-200' : 'bg-muted/50'
-                    }`}
-                    data-testid={`driver-item-${driver.id}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        driver.is_active ? 'bg-green-500' : 'bg-gray-400'
-                      }`}>
-                        <Truck className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{driver.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{driver.phone}</p>
-                      </div>
-                    </div>
-                    <Badge className={driver.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                      {driver.is_active ? 'Activ' : 'Inactiv'}
-                    </Badge>
+          {/* Map Tab */}
+          <TabsContent value="map">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <MapPin className="w-5 h-5" />
+                  Hartă Live
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[500px] rounded-lg overflow-hidden border">
+                  <MapContainer center={[44.4268, 26.1025]} zoom={13} className="h-full w-full">
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {drivers.map((driver) => (
+                      <Marker
+                        key={driver.id}
+                        position={[driver.latitude, driver.longitude]}
+                        icon={driver.is_active ? activeDriverIcon : driverIcon}
+                      >
+                        <Popup>
+                          <div className="text-sm">
+                            <p className="font-bold">{driver.name}</p>
+                            <p>{driver.phone}</p>
+                            <Badge className={driver.is_active ? "bg-green-100" : "bg-gray-100"}>
+                              {driver.is_active ? "Activ" : "Inactiv"}
+                            </Badge>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+                    {restaurants.map((rest) => (
+                      <Marker key={rest.id} position={[rest.latitude, rest.longitude]} icon={restaurantIcon}>
+                        <Popup>
+                          <div className="text-sm">
+                            <p className="font-bold">{rest.name}</p>
+                            <p className="text-muted-foreground">{rest.address}</p>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+                  </MapContainer>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <span>Livrator Activ</span>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500" />
+                    <span>Livrator Inactiv</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-500" />
+                    <span>Restaurant</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Drivers Tab */}
+          <TabsContent value="drivers">
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {drivers.map((driver) => (
+                    <div
+                      key={driver.id}
+                      className={`p-4 rounded-lg border ${driver.is_active ? 'bg-green-50 border-green-200' : 'bg-muted/50'}`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${driver.is_active ? 'bg-green-500' : 'bg-gray-400'}`}>
+                          <Truck className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-bold">{driver.name}</p>
+                          <p className="text-sm text-muted-foreground font-mono">{driver.phone}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Livrări: {driver.total_deliveries || 0}</span>
+                        <span>Câștig: {(driver.total_earnings || 0).toFixed(0)} RON</span>
+                      </div>
+                      <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {driver.is_active ? 'Activ' : 'Inactiv'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Restaurants Tab */}
+          <TabsContent value="restaurants">
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {restaurants.map((rest) => (
+                    <div key={rest.id} className="p-4 rounded-lg border bg-orange-50 border-orange-200">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Store className="w-8 h-8 text-orange-600" />
+                        <p className="font-bold">{rest.name}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{rest.address}</p>
+                      <p className="text-sm font-mono mt-1">{rest.phone}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Login: {rest.id.replace("rest-", "rest-")}@delivery.ro
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
-      {/* Assign Order Dialog */}
+      {/* Assign Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent data-testid="assign-dialog">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Alocă Comandă</DialogTitle>
           </DialogHeader>
-          
           {selectedOrder && (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg">
                 <p className="font-mono text-sm mb-2">{selectedOrder.order_number}</p>
                 <p className="font-medium">{selectedOrder.customer_name}</p>
                 <p className="text-sm text-muted-foreground">{selectedOrder.customer_address}</p>
-                <p className="font-semibold mt-2">{selectedOrder.total_amount} RON ({selectedOrder.payment_type})</p>
+                <p className="font-semibold mt-2">{selectedOrder.total_amount} RON</p>
               </div>
-
               <div>
-                <label className="text-sm font-medium mb-2 block">Selectează Livrator</label>
+                <Label>Selectează Livrator</Label>
                 <Select value={selectedDriver} onValueChange={setSelectedDriver}>
-                  <SelectTrigger data-testid="driver-select">
-                    <SelectValue placeholder="Alege un livrator disponibil" />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Alege un livrator" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableDrivers.length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        Niciun livrator disponibil
+                    {availableDrivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.name} - {driver.phone}
                       </SelectItem>
-                    ) : (
-                      availableDrivers.map((driver) => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                          {driver.name} - {driver.phone}
-                        </SelectItem>
-                      ))
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-              Anulează
-            </Button>
-            <Button onClick={confirmAssign} disabled={!selectedDriver} data-testid="confirm-assign-button">
-              Alocă Comanda
-            </Button>
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>Anulează</Button>
+            <Button onClick={confirmAssign}>Alocă</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Order Dialog */}
+      <Dialog open={isNewOrderDialogOpen} onOpenChange={setIsNewOrderDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Comandă Nouă</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Restaurant *</Label>
+                <Select value={newOrder.restaurant_id} onValueChange={(v) => setNewOrder({...newOrder, restaurant_id: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selectează" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {restaurants.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Sursă</Label>
+                <Select value={newOrder.source} onValueChange={(v) => setNewOrder({...newOrder, source: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="S">Site/Telefon</SelectItem>
+                    <SelectItem value="G">Glovo</SelectItem>
+                    <SelectItem value="W">Wolt</SelectItem>
+                    <SelectItem value="B">Bolt Food</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Nume Client *</Label>
+              <Input value={newOrder.customer_name} onChange={(e) => setNewOrder({...newOrder, customer_name: e.target.value})} />
+            </div>
+            <div>
+              <Label>Telefon Client *</Label>
+              <Input value={newOrder.customer_phone} onChange={(e) => setNewOrder({...newOrder, customer_phone: e.target.value})} />
+            </div>
+            <div>
+              <Label>Adresă Livrare *</Label>
+              <Input value={newOrder.customer_address} onChange={(e) => setNewOrder({...newOrder, customer_address: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Sumă Totală (RON) *</Label>
+                <Input type="number" value={newOrder.total_amount} onChange={(e) => setNewOrder({...newOrder, total_amount: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div>
+                <Label>Plată</Label>
+                <Select value={newOrder.payment_type} onValueChange={(v) => setNewOrder({...newOrder, payment_type: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CASH">Cash</SelectItem>
+                    <SelectItem value="CARD">Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Observații</Label>
+              <Textarea value={newOrder.notes} onChange={(e) => setNewOrder({...newOrder, notes: e.target.value})} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewOrderDialogOpen(false)}>Anulează</Button>
+            <Button onClick={createOrder}>Creează Comandă</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Driver Dialog */}
+      <Dialog open={isNewDriverDialogOpen} onOpenChange={setIsNewDriverDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Livrator Nou</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nume *</Label>
+              <Input value={newDriver.name} onChange={(e) => setNewDriver({...newDriver, name: e.target.value})} />
+            </div>
+            <div>
+              <Label>Telefon *</Label>
+              <Input value={newDriver.phone} onChange={(e) => setNewDriver({...newDriver, phone: e.target.value})} />
+            </div>
+            <div>
+              <Label>Email *</Label>
+              <Input value={newDriver.email} onChange={(e) => setNewDriver({...newDriver, email: e.target.value})} />
+            </div>
+            <p className="text-sm text-muted-foreground">Parola implicită: driver123</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewDriverDialogOpen(false)}>Anulează</Button>
+            <Button onClick={createDriver}>Creează Livrator</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Restaurant Dialog */}
+      <Dialog open={isNewRestaurantDialogOpen} onOpenChange={setIsNewRestaurantDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restaurant Nou</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nume Restaurant *</Label>
+              <Input value={newRestaurant.name} onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})} />
+            </div>
+            <div>
+              <Label>Adresă *</Label>
+              <Input value={newRestaurant.address} onChange={(e) => setNewRestaurant({...newRestaurant, address: e.target.value})} />
+            </div>
+            <div>
+              <Label>Telefon *</Label>
+              <Input value={newRestaurant.phone} onChange={(e) => setNewRestaurant({...newRestaurant, phone: e.target.value})} />
+            </div>
+            <p className="text-sm text-muted-foreground">Se va crea automat un cont pentru restaurant cu parola: restaurant123</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewRestaurantDialogOpen(false)}>Anulează</Button>
+            <Button onClick={createRestaurant}>Creează Restaurant</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
