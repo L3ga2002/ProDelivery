@@ -188,6 +188,37 @@ const AdminDashboard = () => {
     return checkIns.filter(c => c.checked_in && c.hours.includes(hour));
   };
 
+  // Simulare mișcare livratori pe hartă
+  const [driverPositions, setDriverPositions] = useState({});
+  
+  useEffect(() => {
+    // Inițializare poziții livratori
+    const initialPositions = {};
+    drivers.forEach(d => {
+      initialPositions[d.id] = { lat: d.latitude, lng: d.longitude };
+    });
+    setDriverPositions(initialPositions);
+    
+    // Animație mișcare livratori activi
+    const moveInterval = setInterval(() => {
+      setDriverPositions(prev => {
+        const newPositions = { ...prev };
+        drivers.forEach(d => {
+          if (d.is_active && prev[d.id]) {
+            // Mișcare aleatorie mică
+            newPositions[d.id] = {
+              lat: prev[d.id].lat + (Math.random() - 0.5) * 0.002,
+              lng: prev[d.id].lng + (Math.random() - 0.5) * 0.002
+            };
+          }
+        });
+        return newPositions;
+      });
+    }, 3000);
+    
+    return () => clearInterval(moveInterval);
+  }, [drivers]);
+
   const fetchData = useCallback(async () => {
     try {
       const [ordersRes, driversRes, restaurantsRes, statsRes] = await Promise.all([
