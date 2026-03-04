@@ -1,4 +1,4 @@
-# ProDelivery - Platformă de Management Livrări
+# ProDelivery Bacău - Platformă de Management Livrări
 
 ## Problem Statement Original
 Platformă profesională de livrări cu:
@@ -13,9 +13,9 @@ Platformă profesională de livrări cu:
 
 ### Stack Tehnologic
 - **Backend**: FastAPI (Python) + MongoDB
-- **Frontend**: React + Tailwind CSS + Shadcn UI
+- **Frontend**: React + Tailwind CSS + Shadcn UI + Recharts
 - **Real-time**: Polling (WebSocket în faza următoare)
-- **Maps**: Leaflet + OpenStreetMap
+- **Maps**: Leaflet + OpenStreetMap (centrat pe Bacău)
 - **Auth**: JWT + bcrypt
 
 ### Structură Bază de Date
@@ -30,6 +30,7 @@ Platformă profesională de livrări cu:
 - Gestionează comenzi și livratori
 - Vizualizează hartă live cu poziții
 - Alocă manual/automat comenzile
+- Analizează grafice și statistici
 
 ### 2. Livrator
 - Primește comenzi pe telefon
@@ -37,84 +38,61 @@ Platformă profesională de livrări cu:
 - Apelare directă client
 - Navigație către adresă
 
-### 3. Restaurant (Faza 2)
+### 3. Restaurant
 - Vizualizează comenzi proprii
 - Marchează comenzi ca "gata"
 
-## Ce s-a implementat - FAZA 1 (Prototip)
+## Ce s-a implementat
 
-**Data: 27 Feb 2026**
-
-### ✅ Funcționalități Completate
-
-#### Dashboard Admin (Web)
-- [x] Login securizat
-- [x] Hartă interactivă cu livratori (Leaflet/OpenStreetMap)
-- [x] Markere colorate: verde=activ, albastru=inactiv
-- [x] Statistici: comenzi active, total comenzi, livratori activi
+### FAZA 1 - Prototip (27 Feb 2026)
+- [x] Login securizat JWT
+- [x] Dashboard Admin cu statistici
+- [x] Hartă interactivă Leaflet/OpenStreetMap
 - [x] Tabel comenzi cu status badges
-- [x] Alocare manuală comenzi către livratori
-- [x] Dialog selector livrator disponibil
-- [x] Auto-refresh date la 10 secunde
-
-#### Aplicație Livrator (PWA)
-- [x] Login cu email/parolă
-- [x] Vizualizare comandă alocată cu toate detaliile
-- [x] Detalii client: nume, telefon, adresă
-- [x] Detalii comandă: produse, sumă, tip plată, observații
-- [x] **Buton SUNĂ** - apelare directă client (tel:)
-- [x] **Buton Navigație** - deschide Google Maps
+- [x] Alocare manuală comenzi
+- [x] Aplicație Livrator PWA
+- [x] Buton SUNĂ + Navigație Google Maps
 - [x] Butoane status: ACCEPT → RIDICAT → LIVRAT
-- [x] State "Nicio Comandă" când nu are comenzi
-- [x] Auto-refresh la 5 secunde
+- [x] Panou Restaurant cu timp pregătire + GATA
+- [x] Seed 100 comenzi demo, 5 livratori, 5 restaurante
 
-#### Backend API
-- [x] Autentificare JWT
-- [x] CRUD pentru orders, drivers, restaurants
-- [x] Endpoint alocare comenzi
-- [x] Endpoint actualizare status
-- [x] Seed data demo
-- [x] CORS configurat
-
-### Date Demo Incluse
-- 1 Admin: admin@delivery.ro / admin123
-- 4 Livratori: driver-001@delivery.ro / driver123 (etc.)
-- 3 Restaurante: Pizza Roma, Burger House, Sushi Master
-- 3 Comenzi demo
+### FAZA 1.5 - WOW Features (4 Mar 2026)
+- [x] Hartă centrată pe Bacău cu restaurante reale
+- [x] Simulare mișcare livratori pe hartă (animație frontend)
+- [x] Grafice Admin: Comenzi/Oră (BarChart) + Venituri/Oră (AreaChart)
+- [x] Sumar Zi Curentă cu 4 KPIs
+- [x] Notificări audio Restaurant (fix sunet repetitiv)
+- [x] Notificări audio Driver (la comandă nouă + vibrație)
+- [x] Branding custom "ProDelivery Bacău" (deep navy + orange)
+- [x] Restaurante Bacău: Trattoria Da Vinci, La Cuptor, Sushi Room, Burger Craft, Casa Moldoveanu
+- [x] Adrese clienți cu străzi reale din Bacău
 
 ## Backlog Prioritizat
 
 ### P0 (Critical) - FAZA 2
-- [ ] Panou Restaurant cu login
-- [ ] Restaurant marchează comandă "Gata"
-- [ ] Buton "Ridicat" inactiv până restaurant confirmă
-- [ ] Notificare audio la comandă nouă
+- [ ] Salvare programări livratori în DB
+- [ ] Zone livrare geospațiale + taxe automate
+- [ ] Logica completă flux comenzi (blocare Ridicat până restaurant confirmă)
+- [ ] Istoric livrări livrator
 
 ### P1 (Important) - FAZA 3
 - [ ] GPS tracking live (WebSocket)
-- [ ] Poziție livrator în timp real pe hartă
 - [ ] Alocare automată (algoritm cel mai apropiat)
+- [ ] Poziție livrator în timp real pe hartă
 
 ### P2 (Nice to Have) - FAZA 4+
-- [ ] Push notifications
-- [ ] Istoric livrări livrator
-- [ ] Rapoarte și statistici
-- [ ] Export date
-- [ ] Calendar program livratori
-- [ ] Check-in cu poză echipament
+- [ ] Push notifications (Firebase)
+- [ ] Integrări Glovo/Wolt/Bolt (webhooks)
+- [ ] Rapoarte și statistici avansate
+- [ ] Export date (Excel/PDF)
 - [ ] Rating bidirecțional
 - [ ] Aplicație nativă Android/iOS
-
-## Next Tasks
-1. Implementare panou restaurant
-2. Logica "comanda gata" care activează butonul la livrator
-3. Notificare audio când apare comandă nouă
-4. WebSocket pentru actualizări în timp real
 
 ## Credențiale Test
 ```
 Admin: admin@delivery.ro / admin123
 Driver: driver-001@delivery.ro / driver123
+Restaurant: rest-001@delivery.ro / restaurant123
 ```
 
 ## API Endpoints
@@ -123,8 +101,13 @@ POST /api/auth/login - Autentificare
 POST /api/seed - Creare date demo
 GET /api/orders - Lista comenzi
 GET /api/orders/driver/{id} - Comenzile unui livrator
+GET /api/orders/restaurant/{id} - Comenzile unui restaurant
 PUT /api/orders/{id}/assign - Alocare comandă
 PUT /api/orders/{id}/status - Update status
+PUT /api/orders/{id}/preparing - Set timp pregătire
+PUT /api/orders/{id}/ready - Marcheaza gata
 GET /api/drivers - Lista livratori
 GET /api/restaurants - Lista restaurante
+GET /api/stats - Statistici dashboard
+GET /api/stats/hourly - Statistici pe oră (grafice)
 ```

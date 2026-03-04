@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { toast } from "sonner";
@@ -50,7 +50,7 @@ const DriverApp = () => {
   const [canInstall, setCanInstall] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
-  const [lastOrderId, setLastOrderId] = useState(null);
+  const lastOrderIdRef = useRef(null);
   
   // Program ore de muncă (10:00 - 02:00)
   const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
@@ -132,12 +132,12 @@ const DriverApp = () => {
       const activeOrder = orders.find((o) => o.status !== "DELIVERED");
       
       // Play notification sound for new order
-      if (activeOrder && activeOrder.id !== lastOrderId) {
-        setLastOrderId(activeOrder.id);
-        if (lastOrderId !== null) {
+      if (activeOrder && activeOrder.id !== lastOrderIdRef.current) {
+        const prevId = lastOrderIdRef.current;
+        lastOrderIdRef.current = activeOrder.id;
+        if (prevId !== null) {
           try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            // Two-tone notification
             const osc1 = ctx.createOscillator();
             const gain1 = ctx.createGain();
             osc1.connect(gain1);
@@ -150,7 +150,6 @@ const DriverApp = () => {
               osc1.frequency.value = 900;
               setTimeout(() => osc1.stop(), 200);
             }, 200);
-            // Vibrate if supported
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
           } catch (e) { /* audio not supported */ }
         }
