@@ -66,6 +66,7 @@ Platformă profesională de livrări cu:
 - [x] Branding custom "ProDelivery Bacău" (deep navy + orange)
 - [x] Restaurante Bacău: Trattoria Da Vinci, La Cuptor, Sushi Room, Burger Craft, Casa Moldoveanu
 - [x] Adrese clienți cu străzi reale din Bacău
+- [x] **MOD DEMO INTERACTIV** - buton "Simulare Demo" cu flux complet animat (7 pași: Creare → Pregătire → Gata → Alocare → Accept → Ridicare → Livrare)
 
 ## Backlog Prioritizat
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { toast } from "sonner";
@@ -58,6 +58,10 @@ import {
   CalendarCheck,
   BarChart3,
   TrendingUp,
+  Play,
+  CheckCircle2,
+  Loader2,
+  Circle,
 } from "lucide-react";
 import {
   BarChart,
@@ -151,6 +155,12 @@ const AdminDashboard = () => {
   
   // Hourly data for charts
   const [hourlyData, setHourlyData] = useState({ hourly_orders: [], hourly_revenue: [] });
+  
+  // Demo simulation
+  const [isSimDialogOpen, setIsSimDialogOpen] = useState(false);
+  const [simSteps, setSimSteps] = useState([]);
+  const [isSimRunning, setIsSimRunning] = useState(false);
+  const simAbort = useRef(false);
   
   // New order form
   const [newOrder, setNewOrder] = useState({
@@ -341,6 +351,120 @@ const AdminDashboard = () => {
     }
   };
 
+  // ============ DEMO SIMULATION ============
+  const SIM_STEPS_TEMPLATE = [
+    { key: "create", label: "Comandă nouă creată", icon: "Package", status: "pending" },
+    { key: "preparing", label: "Restaurant setează timp pregătire (10 min)", icon: "Clock", status: "pending" },
+    { key: "ready", label: "Restaurant marchează GATA", icon: "ChefHat", status: "pending" },
+    { key: "assign", label: "Admin alocă livrator", icon: "Truck", status: "pending" },
+    { key: "accept", label: "Livrator ACCEPTĂ comanda", icon: "CheckCircle", status: "pending" },
+    { key: "pickup", label: "Livrator RIDICĂ comanda", icon: "Package", status: "pending" },
+    { key: "deliver", label: "Livrator LIVREAZĂ cu succes", icon: "CheckCircle", status: "pending" },
+  ];
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const updateStep = (stepIndex, status) => {
+    setSimSteps((prev) => prev.map((s, i) => (i === stepIndex ? { ...s, status } : s)));
+  };
+
+  const runSimulation = async () => {
+    simAbort.current = false;
+    setSimSteps(SIM_STEPS_TEMPLATE.map((s) => ({ ...s })));
+    setIsSimRunning(true);
+    setIsSimDialogOpen(true);
+
+    const randomNames = ["Alexandru Marin", "Elena Radu", "Bogdan Stoica", "Ana Gheorghe", "Mihai Florea"];
+    const randomPhones = ["0722334455", "0733445566", "0744556677", "0755667788", "0766778899"];
+    const randomAddresses = [
+      "Calea Mărășești 45, Ap. 12, Bacău",
+      "Str. Republicii 78, Ap. 3, Bacău",
+      "Str. 9 Mai 22, Bacău",
+      "Bd. Unirii 101, Ap. 8, Bacău",
+      "Str. Mihai Eminescu 33, Bacău",
+    ];
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    try {
+      // Step 1: Create order
+      updateStep(0, "active");
+      await wait(1200);
+      const rest = restaurants.length > 0 ? restaurants[Math.floor(Math.random() * restaurants.length)] : null;
+      if (!rest) throw new Error("No restaurants");
+      const orderRes = await axios.post(`${API_URL}/api/orders`, {
+        restaurant_id: rest.id,
+        customer_name: pick(randomNames),
+        customer_phone: pick(randomPhones),
+        customer_address: pick(randomAddresses),
+        items: [{ name: "Pizza Margherita", quantity: 2, price: 35 }, { name: "Cola 500ml", quantity: 1, price: 8 }],
+        total_amount: 78,
+        payment_type: "CASH",
+        notes: "Simulare demo - comandă test",
+        source: "S",
+      });
+      const orderId = orderRes.data.id;
+      updateStep(0, "done");
+      if (simAbort.current) return;
+      fetchData();
+
+      // Step 2: Set preparing
+      updateStep(1, "active");
+      await wait(2000);
+      await axios.put(`${API_URL}/api/orders/${orderId}/preparing`, { preparation_time: 10 });
+      updateStep(1, "done");
+      if (simAbort.current) return;
+      fetchData();
+
+      // Step 3: Mark ready
+      updateStep(2, "active");
+      await wait(2000);
+      await axios.put(`${API_URL}/api/orders/${orderId}/ready`);
+      updateStep(2, "done");
+      if (simAbort.current) return;
+      fetchData();
+
+      // Step 4: Assign driver
+      updateStep(3, "active");
+      await wait(2000);
+      const avail = drivers.filter((d) => d.is_active && !d.current_order_id);
+      const driver = avail.length > 0 ? avail[0] : drivers.find((d) => d.is_active) || drivers[0];
+      await axios.put(`${API_URL}/api/orders/${orderId}/assign`, { driver_id: driver.id });
+      updateStep(3, "done");
+      if (simAbort.current) return;
+      fetchData();
+
+      // Step 5: Accept
+      updateStep(4, "active");
+      await wait(2000);
+      await axios.put(`${API_URL}/api/orders/${orderId}/status`, { status: "ACCEPTED" });
+      updateStep(4, "done");
+      if (simAbort.current) return;
+      fetchData();
+
+      // Step 6: Pick up
+      updateStep(5, "active");
+      await wait(2500);
+      await axios.put(`${API_URL}/api/orders/${orderId}/status`, { status: "PICKED_UP" });
+      updateStep(5, "done");
+      if (simAbort.current) return;
+      fetchData();
+
+      // Step 7: Deliver
+      updateStep(6, "active");
+      await wait(2500);
+      await axios.put(`${API_URL}/api/orders/${orderId}/status`, { status: "DELIVERED" });
+      updateStep(6, "done");
+      fetchData();
+
+      toast.success("Simulare completă! Comanda a parcurs tot fluxul.");
+    } catch (err) {
+      toast.error("Eroare în simulare: " + (err.message || "necunoscută"));
+    } finally {
+      setIsSimRunning(false);
+    }
+  };
+
   const activeOrders = orders.filter((o) => o.status !== "DELIVERED");
   const activeDrivers = drivers.filter((d) => d.is_active);
   const availableDrivers = drivers.filter((d) => d.is_active && !d.current_order_id);
@@ -459,6 +583,16 @@ const AdminDashboard = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 mb-6">
+          <Button
+            onClick={runSimulation}
+            disabled={isSimRunning}
+            className="gap-2 shadow-lg"
+            style={{ background: 'linear-gradient(135deg, hsl(24 95% 53%), hsl(24 95% 45%))', color: 'white' }}
+            data-testid="simulate-demo-btn"
+          >
+            {isSimRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {isSimRunning ? "Simulare în curs..." : "Simulare Demo"}
+          </Button>
           <Button onClick={() => setIsNewOrderDialogOpen(true)} data-testid="new-order-btn">
             <Plus className="w-4 h-4 mr-2" />
             Comandă Nouă
@@ -1225,6 +1359,54 @@ const AdminDashboard = () => {
             <Button variant="outline" onClick={() => setIsNewRestaurantDialogOpen(false)}>Anulează</Button>
             <Button onClick={createRestaurant}>Creează Restaurant</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Simulation Dialog */}
+      <Dialog open={isSimDialogOpen} onOpenChange={(open) => { if (!isSimRunning) setIsSimDialogOpen(open); else { simAbort.current = true; setIsSimRunning(false); setIsSimDialogOpen(false); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="w-5 h-5" style={{ color: 'hsl(24 95% 53%)' }} />
+              Simulare Flux Comandă
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2" data-testid="simulation-steps">
+            {simSteps.map((step, i) => (
+              <div key={step.key} className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-500 ${
+                step.status === "active" ? "bg-blue-50 border border-blue-200 scale-[1.02]" :
+                step.status === "done" ? "bg-green-50 border border-green-200" :
+                "bg-muted/30 border border-transparent"
+              }`}>
+                <div className="shrink-0">
+                  {step.status === "done" && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+                  {step.status === "active" && <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />}
+                  {step.status === "pending" && <Circle className="w-5 h-5 text-muted-foreground/30" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${
+                    step.status === "done" ? "text-green-700" :
+                    step.status === "active" ? "text-blue-700" :
+                    "text-muted-foreground"
+                  }`}>
+                    {step.label}
+                  </p>
+                </div>
+                <span className="text-xs shrink-0">
+                  {step.status === "done" && <Badge className="bg-green-100 text-green-700 border-0">OK</Badge>}
+                  {step.status === "active" && <Badge className="bg-blue-100 text-blue-700 border-0 animate-pulse">...</Badge>}
+                </span>
+              </div>
+            ))}
+          </div>
+          {!isSimRunning && simSteps.some(s => s.status === "done") && (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsSimDialogOpen(false)}>Închide</Button>
+              <Button onClick={runSimulation} className="gap-2" style={{ background: 'hsl(24 95% 53%)', color: 'white' }}>
+                <Play className="w-4 h-4" /> Rulează din nou
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>
