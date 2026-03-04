@@ -68,8 +68,8 @@ class Driver(BaseModel):
     name: str
     phone: str
     is_active: bool = False
-    latitude: float = 44.4268
-    longitude: float = 26.1025
+    latitude: float = 46.567
+    longitude: float = 26.913
     current_order_id: Optional[str] = None
     total_deliveries: int = 0
     total_earnings: float = 0
@@ -80,8 +80,8 @@ class Restaurant(BaseModel):
     name: str
     address: str
     phone: str
-    latitude: float = 44.4268
-    longitude: float = 26.1025
+    latitude: float = 46.567
+    longitude: float = 26.913
 
 class OrderItem(BaseModel):
     name: str
@@ -138,8 +138,8 @@ class RestaurantCreate(BaseModel):
     name: str
     address: str
     phone: str
-    latitude: float = 44.4268
-    longitude: float = 26.1025
+    latitude: float = 46.567
+    longitude: float = 26.913
 
 # ============ AUTH HELPERS ============
 
@@ -287,8 +287,8 @@ async def create_driver(data: DriverCreate, current_user: dict = Depends(get_cur
         "name": data.name,
         "phone": data.phone,
         "is_active": False,
-        "latitude": 44.4268 + (hash(data.name) % 100) / 1000,
-        "longitude": 26.1025 + (hash(data.phone) % 100) / 1000,
+        "latitude": 46.567 + (hash(data.name) % 100) / 10000,
+        "longitude": 26.913 + (hash(data.phone) % 100) / 10000,
         "current_order_id": None,
         "total_deliveries": 0,
         "total_earnings": 0
@@ -536,6 +536,31 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
         "total_revenue": total_revenue
     }
 
+@api_router.get("/stats/hourly")
+async def get_hourly_stats(current_user: dict = Depends(get_current_user)):
+    """Get hourly order and revenue stats for charts"""
+    import random as rnd
+    # Use today's date as seed for consistent data within a day
+    today_seed = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
+    rnd.seed(today_seed)
+    
+    hours = list(range(10, 24)) + [0, 1, 2]
+    hourly_orders = []
+    hourly_revenue = []
+    
+    # Simulate realistic order pattern (peak at lunch and dinner)
+    peak_hours = {12: 2.5, 13: 2.2, 19: 2.8, 20: 3.0, 21: 2.5, 22: 1.8}
+    
+    for h in hours:
+        multiplier = peak_hours.get(h, 1.0)
+        base_count = int(rnd.randint(4, 12) * multiplier)
+        revenue = base_count * rnd.uniform(35, 75)
+        hourly_orders.append({"hour": f"{h:02d}:00", "orders": base_count})
+        hourly_revenue.append({"hour": f"{h:02d}:00", "revenue": round(revenue, 0)})
+    
+    rnd.seed()  # Reset seed
+    return {"hourly_orders": hourly_orders, "hourly_revenue": hourly_revenue}
+
 # ============ SEED DATA ============
 
 @api_router.post("/seed")
@@ -560,13 +585,13 @@ async def seed_data():
     admin_doc["created_at"] = admin_doc["created_at"].isoformat()
     await db.users.insert_one(admin_doc)
     
-    # Create driver users and profiles
+    # Create driver users and profiles - Bacău
     drivers_data = [
-        {"id": "driver-001", "name": "Ion Popescu", "phone": "0722111222", "lat": 44.4368, "lng": 26.0925, "active": True},
-        {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 44.4168, "lng": 26.1125, "active": True},
-        {"id": "driver-003", "name": "Andrei Popa", "phone": "0722555666", "lat": 44.4468, "lng": 26.0825, "active": False},
-        {"id": "driver-004", "name": "Elena Dumitrescu", "phone": "0722777888", "lat": 44.4068, "lng": 26.1225, "active": True},
-        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 44.4200, "lng": 26.0950, "active": True},
+        {"id": "driver-001", "name": "Ion Popescu", "phone": "0722111222", "lat": 46.5690, "lng": 26.9100, "active": True},
+        {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 46.5640, "lng": 26.9180, "active": True},
+        {"id": "driver-003", "name": "Andrei Popa", "phone": "0722555666", "lat": 46.5730, "lng": 26.9050, "active": False},
+        {"id": "driver-004", "name": "Elena Dumitrescu", "phone": "0722777888", "lat": 46.5580, "lng": 26.9220, "active": True},
+        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 46.5710, "lng": 26.9150, "active": True},
     ]
     
     for d in drivers_data:
@@ -593,13 +618,13 @@ async def seed_data():
         )
         await db.drivers.insert_one(driver.model_dump())
     
-    # Create restaurants with users
+    # Create restaurants with users - Bacău
     restaurants_data = [
-        {"id": "rest-001", "name": "Pizza Roma", "address": "Str. Victoriei 45, București", "phone": "021111222", "lat": 44.4308, "lng": 26.1005},
-        {"id": "rest-002", "name": "Burger House", "address": "Bd. Unirii 78, București", "phone": "021333444", "lat": 44.4228, "lng": 26.0985},
-        {"id": "rest-003", "name": "Sushi Master", "address": "Calea Dorobanți 120, București", "phone": "021555666", "lat": 44.4508, "lng": 26.0895},
-        {"id": "rest-004", "name": "La Mama", "address": "Str. Academiei 33, București", "phone": "021777888", "lat": 44.4350, "lng": 26.1050},
-        {"id": "rest-005", "name": "KFC Express", "address": "Bd. Magheru 25, București", "phone": "021999111", "lat": 44.4400, "lng": 26.0970},
+        {"id": "rest-001", "name": "Trattoria Da Vinci", "address": "Calea Mărășești 12, Bacău", "phone": "0234111222", "latitude": 46.5670, "longitude": 26.9135},
+        {"id": "rest-002", "name": "La Cuptor Bacău", "address": "Str. Republicii 34, Bacău", "phone": "0234333444", "latitude": 46.5720, "longitude": 26.9070},
+        {"id": "rest-003", "name": "Sushi Room", "address": "Str. 9 Mai 18, Bacău", "phone": "0234555666", "latitude": 46.5610, "longitude": 26.9200},
+        {"id": "rest-004", "name": "Burger Craft", "address": "Bd. Unirii 56, Bacău", "phone": "0234777888", "latitude": 46.5750, "longitude": 26.9165},
+        {"id": "rest-005", "name": "Casa Moldoveanu", "address": "Str. Mihai Eminescu 8, Bacău", "phone": "0234999111", "latitude": 46.5630, "longitude": 26.9060},
     ]
     
     for r in restaurants_data:
@@ -631,50 +656,52 @@ async def seed_data():
     last_names = ["Popescu", "Ionescu", "Popa", "Dumitrescu", "Stan", "Gheorghe", "Stoica", "Marin", "Constantin", "Dinu",
                   "Radu", "Marinescu", "Voicu", "Matei", "Florea", "Rusu", "Munteanu", "Mihai", "Nistor", "Tudor"]
     
-    streets = ["Str. Victoriei", "Bd. Unirii", "Calea Dorobanți", "Str. Academiei", "Bd. Magheru", "Str. Lipscani",
-               "Calea Victoriei", "Str. Primăverii", "Bd. Dacia", "Str. Polonă", "Bd. Carol I", "Str. Franceza",
-               "Bd. Regina Elisabeta", "Str. Smârdan", "Calea Moșilor", "Str. Batiștei", "Bd. Aviatorilor"]
+    streets = ["Calea Mărășești", "Str. Republicii", "Str. 9 Mai", "Bd. Unirii", "Str. Mihai Eminescu",
+               "Str. Nicolae Bălcescu", "Str. Vasile Alecsandri", "Str. George Bacovia", "Calea Romanului",
+               "Str. Alexandru cel Bun", "Str. Letea", "Str. Ștefan cel Mare", "Aleea Parcului",
+               "Str. Mărășești", "Str. Pictor Aman", "Str. Costache Negri", "Str. Tecuciului"]
     
     food_items = {
-        "rest-001": [  # Pizza Roma
+        "rest-001": [  # Trattoria Da Vinci
             {"name": "Pizza Margherita", "price": 35.0},
             {"name": "Pizza Quattro Stagioni", "price": 45.0},
             {"name": "Pizza Diavola", "price": 42.0},
-            {"name": "Pizza Carbonara", "price": 48.0},
-            {"name": "Tiramisu", "price": 20.0},
+            {"name": "Paste Carbonara", "price": 38.0},
+            {"name": "Tiramisu", "price": 22.0},
+            {"name": "Bruschette", "price": 18.0},
             {"name": "Cola 500ml", "price": 8.0},
-            {"name": "Fanta 500ml", "price": 8.0},
         ],
-        "rest-002": [  # Burger House
-            {"name": "Burger Classic", "price": 28.0},
-            {"name": "Burger BBQ", "price": 32.0},
-            {"name": "Cheeseburger", "price": 30.0},
-            {"name": "Cartofi Prăjiți", "price": 12.0},
-            {"name": "Onion Rings", "price": 15.0},
-            {"name": "Milkshake", "price": 18.0},
-        ],
-        "rest-003": [  # Sushi Master
-            {"name": "Sushi Set 24 piese", "price": 95.0},
-            {"name": "Sushi Set 12 piese", "price": 55.0},
-            {"name": "Sashimi Salmon", "price": 45.0},
-            {"name": "Ramen", "price": 38.0},
-            {"name": "Edamame", "price": 15.0},
-            {"name": "Miso Soup", "price": 12.0},
-        ],
-        "rest-004": [  # La Mama
+        "rest-002": [  # La Cuptor Bacău
             {"name": "Ciorbă de burtă", "price": 25.0},
-            {"name": "Sarmale", "price": 30.0},
+            {"name": "Sarmale cu mămăligă", "price": 32.0},
             {"name": "Mici 10 buc", "price": 35.0},
+            {"name": "Tochitura moldovenească", "price": 38.0},
             {"name": "Papanași", "price": 22.0},
             {"name": "Plăcintă cu brânză", "price": 18.0},
         ],
-        "rest-005": [  # KFC Express
-            {"name": "Bucket 8 Crispy", "price": 75.0},
-            {"name": "Wings 6 buc", "price": 28.0},
-            {"name": "Strips 5 buc", "price": 32.0},
-            {"name": "Twister", "price": 25.0},
-            {"name": "Cartofi mari", "price": 12.0},
-            {"name": "Pepsi 1L", "price": 10.0},
+        "rest-003": [  # Sushi Room
+            {"name": "Sushi Set 24 piese", "price": 95.0},
+            {"name": "Sushi Set 12 piese", "price": 55.0},
+            {"name": "Sashimi Salmon", "price": 45.0},
+            {"name": "Ramen Tonkotsu", "price": 42.0},
+            {"name": "Edamame", "price": 15.0},
+            {"name": "Gyoza 8 buc", "price": 28.0},
+        ],
+        "rest-004": [  # Burger Craft
+            {"name": "Burger Classic", "price": 28.0},
+            {"name": "Burger BBQ Smoky", "price": 35.0},
+            {"name": "Cheeseburger Deluxe", "price": 32.0},
+            {"name": "Cartofi Prăjiți", "price": 14.0},
+            {"name": "Onion Rings", "price": 16.0},
+            {"name": "Milkshake Oreo", "price": 20.0},
+        ],
+        "rest-005": [  # Casa Moldoveanu
+            {"name": "Ciorbă rădăuțeană", "price": 28.0},
+            {"name": "Frigărui de porc", "price": 35.0},
+            {"name": "Ceafă la grătar", "price": 42.0},
+            {"name": "Salată moldovenească", "price": 18.0},
+            {"name": "Cozonac de casă", "price": 15.0},
+            {"name": "Vin de casă 500ml", "price": 25.0},
         ],
     }
     
@@ -696,11 +723,11 @@ async def seed_data():
     
     restaurants_ids = ["rest-001", "rest-002", "rest-003", "rest-004", "rest-005"]
     restaurant_names = {
-        "rest-001": "Pizza Roma",
-        "rest-002": "Burger House",
-        "rest-003": "Sushi Master",
-        "rest-004": "La Mama",
-        "rest-005": "KFC Express"
+        "rest-001": "Trattoria Da Vinci",
+        "rest-002": "La Cuptor Bacău",
+        "rest-003": "Sushi Room",
+        "rest-004": "Burger Craft",
+        "rest-005": "Casa Moldoveanu"
     }
     
     for i in range(1, 101):
@@ -712,7 +739,7 @@ async def seed_data():
         last_name = random.choice(last_names)
         customer_name = f"{first_name} {last_name}"
         customer_phone = f"07{random.randint(20, 99)}{random.randint(100000, 999999)}"
-        customer_address = f"{random.choice(streets)} {random.randint(1, 150)}, Ap. {random.randint(1, 50)}, București"
+        customer_address = f"{random.choice(streets)} {random.randint(1, 150)}, Ap. {random.randint(1, 50)}, Bacău"
         
         # Generate items
         available_items = food_items[restaurant_id]

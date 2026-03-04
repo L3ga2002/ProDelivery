@@ -56,7 +56,20 @@ import {
   MapPinned,
   Timer,
   CalendarCheck,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -135,6 +148,9 @@ const AdminDashboard = () => {
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
   const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
+  
+  // Hourly data for charts
+  const [hourlyData, setHourlyData] = useState({ hourly_orders: [], hourly_revenue: [] });
   
   // New order form
   const [newOrder, setNewOrder] = useState({
@@ -221,16 +237,18 @@ const AdminDashboard = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [ordersRes, driversRes, restaurantsRes, statsRes] = await Promise.all([
+      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes] = await Promise.all([
         axios.get(`${API_URL}/api/orders`),
         axios.get(`${API_URL}/api/drivers`),
         axios.get(`${API_URL}/api/restaurants`),
         axios.get(`${API_URL}/api/stats`),
+        axios.get(`${API_URL}/api/stats/hourly`),
       ]);
       setOrders(ordersRes.data);
       setDrivers(driversRes.data);
       setRestaurants(restaurantsRes.data);
       setStats(statsRes.data);
+      setHourlyData(hourlyRes.data);
     } catch (error) {
       toast.error("Eroare la încărcarea datelor");
     } finally {
@@ -341,12 +359,12 @@ const AdminDashboard = () => {
       <header className="bg-card border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Truck className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'hsl(215 75% 22%)' }}>
+              <Truck className="w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
-                PRODELIVERY
+                PRODELIVERY <span style={{ color: 'hsl(24 95% 53%)', fontSize: '0.7em' }}>BACAU</span>
               </h1>
               <p className="text-xs text-muted-foreground">Dashboard Admin</p>
             </div>
@@ -458,13 +476,14 @@ const AdminDashboard = () => {
         {/* Tabs */}
         <Tabs defaultValue="orders" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="orders">Comenzi ({activeOrders.length})</TabsTrigger>
-            <TabsTrigger value="map">Hartă</TabsTrigger>
-            <TabsTrigger value="drivers">Livratori ({drivers.length})</TabsTrigger>
-            <TabsTrigger value="checkin">Check-in</TabsTrigger>
-            <TabsTrigger value="restaurants">Restaurante ({restaurants.length})</TabsTrigger>
-            <TabsTrigger value="zones">Zone Livrare</TabsTrigger>
-            <TabsTrigger value="settings">Setări</TabsTrigger>
+            <TabsTrigger value="orders" data-testid="tab-orders">Comenzi ({activeOrders.length})</TabsTrigger>
+            <TabsTrigger value="analytics" data-testid="tab-analytics">Analize</TabsTrigger>
+            <TabsTrigger value="map" data-testid="tab-map">Hartă</TabsTrigger>
+            <TabsTrigger value="drivers" data-testid="tab-drivers">Livratori ({drivers.length})</TabsTrigger>
+            <TabsTrigger value="checkin" data-testid="tab-checkin">Check-in</TabsTrigger>
+            <TabsTrigger value="restaurants" data-testid="tab-restaurants">Restaurante ({restaurants.length})</TabsTrigger>
+            <TabsTrigger value="zones" data-testid="tab-zones">Zone Livrare</TabsTrigger>
+            <TabsTrigger value="settings" data-testid="tab-settings">Setări</TabsTrigger>
           </TabsList>
 
           {/* Orders Tab */}
@@ -525,39 +544,128 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" data-testid="analytics-tab">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                    Comenzi pe Oră
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">Distribuția comenzilor pe parcursul zilei</p>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={hourlyData.hourly_orders}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
+                      <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(220 15% 88%)', fontSize: '13px' }}
+                        labelStyle={{ fontWeight: 'bold' }}
+                      />
+                      <Bar dataKey="orders" name="Comenzi" fill="hsl(215 75% 22%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" style={{ color: 'hsl(24 95% 53%)' }} />
+                    Venituri pe Oră (RON)
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">Evoluția veniturilor pe parcursul zilei</p>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={hourlyData.hourly_revenue}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
+                      <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(220 15% 88%)', fontSize: '13px' }}
+                        labelStyle={{ fontWeight: 'bold' }}
+                        formatter={(value) => [`${value} RON`, 'Venituri']}
+                      />
+                      <Area type="monotone" dataKey="revenue" name="Venituri" stroke="hsl(24 95% 53%)" fill="hsl(24 95% 53%)" fillOpacity={0.15} strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Summary stats for today */}
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Sumar Zi Curentă</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 text-center">
+                      <p className="text-3xl font-bold text-primary">{stats.total_orders || 0}</p>
+                      <p className="text-sm text-muted-foreground mt-1">Total Comenzi</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-center">
+                      <p className="text-3xl font-bold text-green-600">{stats.delivered_orders || 0}</p>
+                      <p className="text-sm text-muted-foreground mt-1">Livrate</p>
+                    </div>
+                    <div className="p-4 rounded-lg border text-center" style={{ background: 'hsl(24 95% 53% / 0.05)', borderColor: 'hsl(24 95% 53% / 0.2)' }}>
+                      <p className="text-3xl font-bold" style={{ color: 'hsl(24 95% 53%)' }}>{(stats.total_revenue || 0).toFixed(0)}</p>
+                      <p className="text-sm text-muted-foreground mt-1">Venituri RON</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 text-center">
+                      <p className="text-3xl font-bold text-blue-600">
+                        {stats.total_orders > 0 ? ((stats.total_revenue || 0) / stats.total_orders).toFixed(0) : 0}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">Medie RON/Comandă</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           {/* Map Tab */}
           <TabsContent value="map">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <MapPin className="w-5 h-5" />
-                  Hartă Live
+                  Hartă Live - Bacău
+                  <Badge variant="outline" className="ml-2 text-xs animate-pulse border-green-400 text-green-600">
+                    LIVE
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[500px] rounded-lg overflow-hidden border">
-                  <MapContainer center={[44.4268, 26.1025]} zoom={13} className="h-full w-full">
+                  <MapContainer center={[46.567, 26.913]} zoom={14} className="h-full w-full">
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    {drivers.map((driver) => (
-                      <Marker
-                        key={driver.id}
-                        position={[driver.latitude, driver.longitude]}
-                        icon={driver.is_active ? activeDriverIcon : driverIcon}
-                      >
-                        <Popup>
-                          <div className="text-sm">
-                            <p className="font-bold">{driver.name}</p>
-                            <p>{driver.phone}</p>
-                            <Badge className={driver.is_active ? "bg-green-100" : "bg-gray-100"}>
-                              {driver.is_active ? "Activ" : "Inactiv"}
-                            </Badge>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
+                    {drivers.map((driver) => {
+                      const pos = driverPositions[driver.id];
+                      return (
+                        <Marker
+                          key={driver.id}
+                          position={[pos?.lat || driver.latitude, pos?.lng || driver.longitude]}
+                          icon={driver.is_active ? activeDriverIcon : driverIcon}
+                        >
+                          <Popup>
+                            <div className="text-sm">
+                              <p className="font-bold">{driver.name}</p>
+                              <p>{driver.phone}</p>
+                              <Badge className={driver.is_active ? "bg-green-100" : "bg-gray-100"}>
+                                {driver.is_active ? "Activ" : "Inactiv"}
+                              </Badge>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      );
+                    })}
                     {restaurants.map((rest) => (
                       <Marker key={rest.id} position={[rest.latitude, rest.longitude]} icon={restaurantIcon}>
                         <Popup>

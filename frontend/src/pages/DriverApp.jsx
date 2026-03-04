@@ -50,6 +50,7 @@ const DriverApp = () => {
   const [canInstall, setCanInstall] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [lastOrderId, setLastOrderId] = useState(null);
   
   // Program ore de muncă (10:00 - 02:00)
   const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
@@ -129,6 +130,32 @@ const DriverApp = () => {
       const orders = response.data;
       // Get the first non-delivered order
       const activeOrder = orders.find((o) => o.status !== "DELIVERED");
+      
+      // Play notification sound for new order
+      if (activeOrder && activeOrder.id !== lastOrderId) {
+        setLastOrderId(activeOrder.id);
+        if (lastOrderId !== null) {
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // Two-tone notification
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.frequency.value = 600;
+            osc1.type = 'sine';
+            gain1.gain.value = 0.4;
+            osc1.start();
+            setTimeout(() => {
+              osc1.frequency.value = 900;
+              setTimeout(() => osc1.stop(), 200);
+            }, 200);
+            // Vibrate if supported
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          } catch (e) { /* audio not supported */ }
+        }
+      }
+      
       setCurrentOrder(activeOrder || null);
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -196,12 +223,12 @@ const DriverApp = () => {
       <header className="bg-card border-b sticky top-0 z-50">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Truck className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'hsl(215 75% 22%)' }}>
+              <Truck className="w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
-                PRODELIVERY
+                PRODELIVERY <span style={{ color: 'hsl(24 95% 53%)', fontSize: '0.75em' }}>BACAU</span>
               </h1>
               <p className="text-xs text-muted-foreground">{user?.name}</p>
             </div>

@@ -101,18 +101,19 @@ const LoginPage = () => {
     <div 
       className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center"
       style={{
-        backgroundImage: "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1758384077159-29cad24750d8?crop=entropy&cs=srgb&fm=jpg&q=85')"
+        backgroundImage: "linear-gradient(135deg, hsl(215 75% 12% / 0.95), hsl(220 30% 8% / 0.92)), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?w=1920&q=80')"
       }}
     >
       <Card className="w-full max-w-md shadow-2xl border-0" data-testid="login-card">
         <CardHeader className="space-y-4 text-center pb-2">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
-            <Truck className="w-9 h-9 text-primary-foreground" />
+          <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, hsl(215 75% 22%), hsl(215 75% 30%))' }}>
+            <Truck className="w-10 h-10 text-white" />
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
+            <CardTitle className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>
               PRODELIVERY
             </CardTitle>
+            <p className="text-sm font-semibold tracking-widest mt-0.5" style={{ color: 'hsl(24 95% 53%)' }}>BACAU</p>
             <CardDescription className="text-base mt-1">
               Platformă de management livrări
             </CardDescription>
