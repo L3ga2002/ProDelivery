@@ -39,6 +39,7 @@ const RestaurantApp = () => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [preparingOrder, setPreparingOrder] = useState(null);
+  const [newOrderFlash, setNewOrderFlash] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -76,18 +77,29 @@ const RestaurantApp = () => {
         return updated;
       });
       
-      // Play sound only for truly new orders
+      // Flash banner
+      setNewOrderFlash(true);
+      setTimeout(() => setNewOrderFlash(false), 4000);
+      
+      // Play notification sound — louder, triple beep
       try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.3;
-        oscillator.start();
-        setTimeout(() => oscillator.stop(), 200);
+        const playBeep = (freq, startTime, duration) => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.frequency.value = freq;
+          osc.type = 'sine';
+          gain.gain.value = 0.4;
+          osc.start(audioContext.currentTime + startTime);
+          osc.stop(audioContext.currentTime + startTime + duration);
+        };
+        playBeep(800, 0, 0.15);
+        playBeep(1000, 0.2, 0.15);
+        playBeep(1200, 0.4, 0.25);
+        // Vibrate
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
       } catch (e) {
         console.log('Audio not supported');
       }
@@ -155,6 +167,21 @@ const RestaurantApp = () => {
           </div>
         </div>
       </header>
+
+      {/* New Order Flash Banner */}
+      {newOrderFlash && (
+        <div 
+          className="mx-4 mt-3 p-4 rounded-xl text-center animate-pulse shadow-lg"
+          style={{ 
+            background: 'linear-gradient(135deg, hsl(24 95% 53%), hsl(0 85% 55%))',
+            color: 'white'
+          }}
+          data-testid="new-order-flash"
+        >
+          <p className="text-lg font-bold tracking-wide">COMANDĂ NOUĂ PRIMITĂ!</p>
+          <p className="text-sm opacity-90 mt-1">Verifică lista de comenzi</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="p-4 grid grid-cols-3 gap-3">

@@ -67,6 +67,7 @@ Platformă profesională de livrări cu:
 - [x] Restaurante Bacău: Trattoria Da Vinci, La Cuptor, Sushi Room, Burger Craft, Casa Moldoveanu
 - [x] Adrese clienți cu străzi reale din Bacău
 - [x] **MOD DEMO INTERACTIV** - buton "Simulare Demo" cu flux complet animat (7 pași: Creare → Pregătire → Gata → Alocare → Accept → Ridicare → Livrare)
+- [x] **DEMO LIVE MULTI-ECRAN** - delay 5 sec între pași + banner flash "COMANDĂ NOUĂ PRIMITĂ!" pe Restaurant și Driver + sunet triple beep + vibrație
 
 ## Backlog Prioritizat
 

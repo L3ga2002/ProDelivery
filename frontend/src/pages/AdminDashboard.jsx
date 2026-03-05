@@ -387,9 +387,9 @@ const AdminDashboard = () => {
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     try {
-      // Step 1: Create order
+      // Step 1: Create order — apare la Restaurant
       updateStep(0, "active");
-      await wait(1200);
+      await wait(1500);
       const rest = restaurants.length > 0 ? restaurants[Math.floor(Math.random() * restaurants.length)] : null;
       if (!rest) throw new Error("No restaurants");
       const orderRes = await axios.post(`${API_URL}/api/orders`, {
@@ -408,25 +408,25 @@ const AdminDashboard = () => {
       if (simAbort.current) return;
       fetchData();
 
-      // Step 2: Set preparing
+      // Step 2: Restaurant setează pregătire
       updateStep(1, "active");
-      await wait(2000);
+      await wait(5000);
       await axios.put(`${API_URL}/api/orders/${orderId}/preparing`, { preparation_time: 10 });
       updateStep(1, "done");
       if (simAbort.current) return;
       fetchData();
 
-      // Step 3: Mark ready
+      // Step 3: Restaurant marchează GATA
       updateStep(2, "active");
-      await wait(2000);
+      await wait(5000);
       await axios.put(`${API_URL}/api/orders/${orderId}/ready`);
       updateStep(2, "done");
       if (simAbort.current) return;
       fetchData();
 
-      // Step 4: Assign driver
+      // Step 4: Admin alocă livrator — apare la Driver
       updateStep(3, "active");
-      await wait(2000);
+      await wait(5000);
       const avail = drivers.filter((d) => d.is_active && !d.current_order_id);
       const driver = avail.length > 0 ? avail[0] : drivers.find((d) => d.is_active) || drivers[0];
       await axios.put(`${API_URL}/api/orders/${orderId}/assign`, { driver_id: driver.id });
@@ -434,25 +434,25 @@ const AdminDashboard = () => {
       if (simAbort.current) return;
       fetchData();
 
-      // Step 5: Accept
+      // Step 5: Livrator acceptă
       updateStep(4, "active");
-      await wait(2000);
+      await wait(5000);
       await axios.put(`${API_URL}/api/orders/${orderId}/status`, { status: "ACCEPTED" });
       updateStep(4, "done");
       if (simAbort.current) return;
       fetchData();
 
-      // Step 6: Pick up
+      // Step 6: Livrator ridică
       updateStep(5, "active");
-      await wait(2500);
+      await wait(5000);
       await axios.put(`${API_URL}/api/orders/${orderId}/status`, { status: "PICKED_UP" });
       updateStep(5, "done");
       if (simAbort.current) return;
       fetchData();
 
-      // Step 7: Deliver
+      // Step 7: Livrator livrează
       updateStep(6, "active");
-      await wait(2500);
+      await wait(5000);
       await axios.put(`${API_URL}/api/orders/${orderId}/status`, { status: "DELIVERED" });
       updateStep(6, "done");
       fetchData();

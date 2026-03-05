@@ -51,6 +51,7 @@ const DriverApp = () => {
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const lastOrderIdRef = useRef(null);
+  const [newOrderFlash, setNewOrderFlash] = useState(false);
   
   // Program ore de muncă (10:00 - 02:00)
   const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
@@ -136,21 +137,26 @@ const DriverApp = () => {
         const prevId = lastOrderIdRef.current;
         lastOrderIdRef.current = activeOrder.id;
         if (prevId !== null) {
+          // Flash banner
+          setNewOrderFlash(true);
+          setTimeout(() => setNewOrderFlash(false), 5000);
           try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc1 = ctx.createOscillator();
-            const gain1 = ctx.createGain();
-            osc1.connect(gain1);
-            gain1.connect(ctx.destination);
-            osc1.frequency.value = 600;
-            osc1.type = 'sine';
-            gain1.gain.value = 0.4;
-            osc1.start();
-            setTimeout(() => {
-              osc1.frequency.value = 900;
-              setTimeout(() => osc1.stop(), 200);
-            }, 200);
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            const playBeep = (freq, startTime, duration) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = freq;
+              osc.type = 'sine';
+              gain.gain.value = 0.4;
+              osc.start(ctx.currentTime + startTime);
+              osc.stop(ctx.currentTime + startTime + duration);
+            };
+            playBeep(600, 0, 0.15);
+            playBeep(800, 0.2, 0.15);
+            playBeep(1000, 0.4, 0.25);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
           } catch (e) { /* audio not supported */ }
         }
       }
@@ -251,6 +257,20 @@ const DriverApp = () => {
 
       {/* Main Content */}
       <main className="flex-1 p-4">
+        {/* New Order Flash Banner */}
+        {newOrderFlash && (
+          <div 
+            className="mb-4 p-4 rounded-xl text-center animate-pulse shadow-lg"
+            style={{ 
+              background: 'linear-gradient(135deg, hsl(215 75% 22%), hsl(215 75% 35%))',
+              color: 'white'
+            }}
+            data-testid="driver-new-order-flash"
+          >
+            <p className="text-lg font-bold tracking-wide">COMANDĂ NOUĂ PRIMITĂ!</p>
+            <p className="text-sm opacity-90 mt-1">Verifică detaliile comenzii</p>
+          </div>
+        )}
         {!currentOrder ? (
           // No Order State
           <div className="h-full flex flex-col items-center justify-center text-center py-12" data-testid="no-order-state">
