@@ -1,115 +1,63 @@
-# ProDelivery Bacău - Platformă de Management Livrări
+# ProDelivery Bacău - PRD
 
-## Problem Statement Original
-Platformă profesională de livrări cu:
-- Aplicație mobilă (Android + iOS via PWA)
-- Backend scalabil pentru mii de comenzi
-- Alocare automată comenzi către cel mai apropiat livrator
-- GPS tracking live
-- Roluri diferite: Livrator / Restaurant / Admin
-- Adăugare nelimitată restaurante
+## Problem Statement
+Platformă de management livrări și ride-sharing pentru zona Bacău, România. Proiect dezvoltat în faze pe 7-8 luni, buget total €20,000.
 
-## Arhitectură
+## Roluri Utilizatori
+- **Admin**: Dashboard complet, management comenzi/șoferi/restaurante, analytics
+- **Șofer**: Vizualizare/acceptare comenzi, program săptămânal, actualizare status
+- **Restaurant**: Gestionare comenzi, confirmare "gata", anulare cu motiv
 
-### Stack Tehnologic
-- **Backend**: FastAPI (Python) + MongoDB
-- **Frontend**: React + Tailwind CSS + Shadcn UI + Recharts
-- **Real-time**: Polling (WebSocket în faza următoare)
-- **Maps**: Leaflet + OpenStreetMap (centrat pe Bacău)
-- **Auth**: JWT + bcrypt
+## Arhitectură Tehnică
+- **Backend**: FastAPI (modular - routers/models/database) + MongoDB
+- **Frontend**: React + Shadcn UI + Recharts
+- **Auth**: JWT cu bcrypt
 
-### Structură Bază de Date
-- **users**: email, password_hash, name, role (admin/driver/restaurant)
-- **drivers**: user_id, name, phone, is_active, latitude, longitude, current_order_id
-- **restaurants**: name, address, phone, latitude, longitude
-- **orders**: order_number, restaurant_id, driver_id, customer_*, items, status, payment_type
-
-## User Personas
-
-### 1. Administrator/Dispecer
-- Gestionează comenzi și livratori
-- Vizualizează hartă live cu poziții
-- Alocă manual/automat comenzile
-- Analizează grafice și statistici
-
-### 2. Livrator
-- Primește comenzi pe telefon
-- Actualizează status comenzi
-- Apelare directă client
-- Navigație către adresă
-
-### 3. Restaurant
-- Vizualizează comenzi proprii
-- Marchează comenzi ca "gata"
-
-## Ce s-a implementat
-
-### FAZA 1 - Prototip (27 Feb 2026)
-- [x] Login securizat JWT
-- [x] Dashboard Admin cu statistici
-- [x] Hartă interactivă Leaflet/OpenStreetMap
-- [x] Tabel comenzi cu status badges
-- [x] Alocare manuală comenzi
-- [x] Aplicație Livrator PWA
-- [x] Buton SUNĂ + Navigație Google Maps
-- [x] Butoane status: ACCEPT → RIDICAT → LIVRAT
-- [x] Panou Restaurant cu timp pregătire + GATA
-- [x] Seed 100 comenzi demo, 5 livratori, 5 restaurante
-
-### FAZA 1.5 - WOW Features (4 Mar 2026)
-- [x] Hartă centrată pe Bacău cu restaurante reale
-- [x] Simulare mișcare livratori pe hartă (animație frontend)
-- [x] Grafice Admin: Comenzi/Oră (BarChart) + Venituri/Oră (AreaChart)
-- [x] Sumar Zi Curentă cu 4 KPIs
-- [x] Notificări audio Restaurant (fix sunet repetitiv)
-- [x] Notificări audio Driver (la comandă nouă + vibrație)
-- [x] Branding custom "ProDelivery Bacău" (deep navy + orange)
-- [x] Restaurante Bacău: Trattoria Da Vinci, La Cuptor, Sushi Room, Burger Craft, Casa Moldoveanu
-- [x] Adrese clienți cu străzi reale din Bacău
-- [x] **MOD DEMO INTERACTIV** - buton "Simulare Demo" cu flux complet animat (7 pași: Creare → Pregătire → Gata → Alocare → Accept → Ridicare → Livrare)
-- [x] **DEMO LIVE MULTI-ECRAN** - delay 5 sec între pași + banner flash "COMANDĂ NOUĂ PRIMITĂ!" pe Restaurant și Driver + sunet triple beep + vibrație
-
-## Backlog Prioritizat
-
-### P0 (Critical) - FAZA 2
-- [ ] Salvare programări livratori în DB
-- [ ] Zone livrare geospațiale + taxe automate
-- [ ] Logica completă flux comenzi (blocare Ridicat până restaurant confirmă)
-- [ ] Istoric livrări livrator
-
-### P1 (Important) - FAZA 3
-- [ ] GPS tracking live (WebSocket)
-- [ ] Alocare automată (algoritm cel mai apropiat)
-- [ ] Poziție livrator în timp real pe hartă
-
-### P2 (Nice to Have) - FAZA 4+
-- [ ] Push notifications (Firebase)
-- [ ] Integrări Glovo/Wolt/Bolt (webhooks)
-- [ ] Rapoarte și statistici avansate
-- [ ] Export date (Excel/PDF)
-- [ ] Rating bidirecțional
-- [ ] Aplicație nativă Android/iOS
-
-## Credențiale Test
+### Structura Backend (după refactorizare Phase 2)
 ```
-Admin: admin@delivery.ro / admin123
-Driver: driver-001@delivery.ro / driver123
-Restaurant: rest-001@delivery.ro / restaurant123
+/app/backend/
+├── server.py          # Entry point FastAPI
+├── database.py        # Conexiune MongoDB
+├── auth.py            # JWT + bcrypt helpers
+├── models/
+│   ├── user.py, driver.py, restaurant.py, order.py, schedule.py
+├── routers/
+│   ├── auth.py, drivers.py, restaurants.py, orders.py, stats.py, seed.py, schedules.py
 ```
 
 ## API Endpoints
-```
-POST /api/auth/login - Autentificare
-POST /api/seed - Creare date demo
-GET /api/orders - Lista comenzi
-GET /api/orders/driver/{id} - Comenzile unui livrator
-GET /api/orders/restaurant/{id} - Comenzile unui restaurant
-PUT /api/orders/{id}/assign - Alocare comandă
-PUT /api/orders/{id}/status - Update status
-PUT /api/orders/{id}/preparing - Set timp pregătire
-PUT /api/orders/{id}/ready - Marcheaza gata
-GET /api/drivers - Lista livratori
-GET /api/restaurants - Lista restaurante
-GET /api/stats - Statistici dashboard
-GET /api/stats/hourly - Statistici pe oră (grafice)
-```
+- `/api/auth/login`, `/api/auth/register`, `/api/auth/me`
+- `/api/orders`, `/api/orders/{id}/status`, `/api/orders/{id}/assign`, etc.
+- `/api/drivers`, `/api/restaurants`
+- `/api/stats`, `/api/stats/hourly`, `/api/stats/analytics`
+- `/api/schedules`, `/api/schedules/driver/{id}`, `/api/schedules/admin/summary`
+- `/api/seed`
+
+## Credențiale Test
+- Admin: admin@delivery.ro / admin123
+- Driver: driver-001@delivery.ro / driver123
+- Restaurant: rest-001@delivery.ro / restaurant123
+
+## Faze Implementate
+
+### Phase 1 (Complete)
+- MVP cu branding ProDeliveryBacau
+- Dashboard Admin cu hartă Bacău, grafice, simulare demo
+- Aplicații Driver și Restaurant cu notificări vizuale
+
+### Phase 2 (Complete - 15 Mar 2026)
+- **Task 2.5**: Backend refactorizat din monolitic în module (routers/models)
+- **Task 2.1**: Sistem program șoferi - calendar săptămânal cu ore, admin summary
+- **Task 2.3**: Flux comenzi cu dialoguri de confirmare + anulare cu motiv obligatoriu
+- **Task 2.4**: Analytics fără date financiare - distribuție comenzi per restaurant/driver, comenzi anulate cu motive
+
+### Phase 2 - Rămas
+- **Task 2.2**: Zone geospațiale de livrare (harta + calcul taxe automat)
+
+## Faze Viitoare
+- Phase 3: GPS Tracking real-time (WebSockets) + Alocare automată comenzi
+- Phase 4: Push Notifications (Firebase)
+- Phase 5: Integrări externe (Glovo/Wolt/Bolt API Webhooks)
+- Phase 6: Rapoarte avansate
+- Phase 7: Aplicație nativă (Android/iOS)
+- Phase 8: Testing complet și Lansare producție
