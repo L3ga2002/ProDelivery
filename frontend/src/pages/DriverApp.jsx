@@ -430,7 +430,7 @@ const DriverApp = () => {
           {currentOrder.status === "ASSIGNED" && (
             <Button
               className="driver-btn bg-purple-600 hover:bg-purple-700"
-              onClick={() => setConfirmAction({ status: "ACCEPTED", label: "Confirmați acceptarea comenzii?" })}
+              onClick={() => updateStatus("ACCEPTED")}
               disabled={isUpdating}
               data-testid="accept-button"
             >

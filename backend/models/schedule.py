@@ -6,16 +6,19 @@ import uuid
 class TimeSlot(BaseModel):
     start: str  # "08:00"
     end: str    # "16:00"
+    added_by: str = "driver"  # "driver" or "admin"
 
 
 class ScheduleCreate(BaseModel):
     driver_id: str
     week_start: str  # ISO date string of Monday, e.g. "2026-03-02"
     slots: Dict[str, List[TimeSlot]]  # {"monday": [{"start": "08:00", "end": "16:00"}], ...}
+    source: str = "driver"  # "driver" or "admin"
 
 
 class ScheduleUpdate(BaseModel):
     slots: Dict[str, List[TimeSlot]]
+    source: str = "driver"
 
 
 class Schedule(BaseModel):
@@ -24,3 +27,5 @@ class Schedule(BaseModel):
     week_start: str
     slots: Dict[str, List[TimeSlot]] = {}
     total_hours: float = 0.0
+    # Future: ranking-based calendar opening
+    ranking_priority: Optional[int] = None

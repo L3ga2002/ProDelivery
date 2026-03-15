@@ -152,6 +152,21 @@ async def seed_data():
         payment_type = random.choice(["CASH", "CASH", "CARD"])
         notes = random.choice(notes_options)
 
+        # Assign zone based on restaurant location (temporary until Task 2.2)
+        zone_map = {"rest-001": "Zona 1", "rest-002": "Zona 2", "rest-003": "Zona 3", "rest-004": "Zona 4", "rest-005": "Zona 1"}
+        zone = zone_map.get(restaurant_id, "Zona 1")
+
+        # Assign some orders to drivers for stats
+        driver_id = None
+        driver_name = None
+        status = "NEW"
+        if i <= 40:  # First 40 orders delivered
+            driver_idx = (i - 1) % 5
+            d = drivers_data[driver_idx]
+            driver_id = d["id"]
+            driver_name = d["name"]
+            status = "DELIVERED"
+
         order_data = {
             "order_number": f"{source}.{i:04d}",
             "source": source,
@@ -164,7 +179,10 @@ async def seed_data():
             "total_amount": total,
             "payment_type": payment_type,
             "notes": notes,
-            "status": "NEW"
+            "status": status,
+            "zone": zone,
+            "driver_id": driver_id,
+            "driver_name": driver_name,
         }
 
         order = Order(**order_data)

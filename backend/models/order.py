@@ -27,6 +27,7 @@ class Order(BaseModel):
     payment_type: str
     notes: Optional[str] = None
     status: str = "NEW"
+    zone: Optional[str] = None
     preparation_time: Optional[int] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

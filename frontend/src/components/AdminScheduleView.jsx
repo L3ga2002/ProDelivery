@@ -18,6 +18,9 @@ import {
   Truck,
   Save,
   Users,
+  MapPin,
+  Moon,
+  Sun,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -32,10 +35,12 @@ const DAYS = [
   { key: "sunday", label: "Duminică" },
 ];
 
-const HOURS = Array.from({ length: 17 }, (_, i) => {
-  const h = (i + 8) % 24;
-  return `${String(h).padStart(2, "0")}:00`;
-});
+// Admin can edit ALL hours: 10:00-02:00
+const ALL_HOURS = [
+  ...Array.from({ length: 14 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`),
+  "00:00", "01:00",
+];
+const NIGHT_HOURS = ["22:00", "23:00", "00:00", "01:00"];
 
 function getMonday(date) {
   const d = new Date(date);
@@ -56,6 +61,14 @@ function formatWeekRange(monday) {
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
+
+const ZONE_COLORS = {
+  "Zona 1": "bg-blue-100 text-blue-700",
+  "Zona 2": "bg-green-100 text-green-700",
+  "Zona 3": "bg-purple-100 text-purple-700",
+  "Zona 4": "bg-orange-100 text-orange-700",
+  "Neatribuită": "bg-gray-100 text-gray-600",
+};
 
 export const AdminScheduleView = () => {
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
@@ -104,13 +117,15 @@ export const AdminScheduleView = () => {
         newDaySlots = daySlots.filter((s) => s.start !== hour);
       } else {
         const endH = (parseInt(hour) + 1) % 24;
-        newDaySlots = [...daySlots, { start: hour, end: `${String(endH).padStart(2, "0")}:00` }];
+        newDaySlots = [...daySlots, { start: hour, end: `${String(endH).padStart(2, "0")}:00`, added_by: "admin" }];
       }
       return { ...prev, [dayKey]: newDaySlots };
     });
   };
 
   const isSelected = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour);
+  const isAdminSlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by === "admin");
+  const isDriverSlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by !== "admin");
 
   const saveSchedule = async () => {
     setSaving(true);
@@ -119,6 +134,7 @@ export const AdminScheduleView = () => {
         driver_id: editDriver.driver_id,
         week_start: toISODate(weekStart),
         slots: editSlots,
+        source: "admin",
       });
       toast.success(`Program salvat pentru ${editDriver.driver_name}`);
       setEditDriver(null);
@@ -135,7 +151,6 @@ export const AdminScheduleView = () => {
     return (sched?.slots?.[dayKey] || []).length;
   };
 
-  // Coverage calculation
   const getCoverageAtHour = (hour) => {
     let count = 0;
     summary.forEach((driver) => {
@@ -147,6 +162,10 @@ export const AdminScheduleView = () => {
     });
     return Math.round(count / 7);
   };
+
+  const editTotalHours = Object.values(editSlots).reduce((s, ds) => s + ds.length, 0);
+  const editDriverHours = Object.values(editSlots).reduce((s, ds) => s + ds.filter((sl) => sl.added_by !== "admin").length, 0);
+  const editAdminHours = editTotalHours - editDriverHours;
 
   return (
     <div className="space-y-6" data-testid="admin-schedule-view">
@@ -171,6 +190,7 @@ export const AdminScheduleView = () => {
           {summary.map((driver) => {
             const sched = driver.schedules?.find((s) => s.week_start === toISODate(weekStart));
             const weekHours = sched?.total_hours || 0;
+            const zones = driver.orders_by_zone || {};
             return (
               <Card
                 key={driver.driver_id}
@@ -193,7 +213,7 @@ export const AdminScheduleView = () => {
                   </div>
 
                   {/* Mini day schedule */}
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 mb-3">
                     {DAYS.map((d) => {
                       const h = getDayHoursCount(driver.schedules, d.key);
                       return (
@@ -207,8 +227,27 @@ export const AdminScheduleView = () => {
                     })}
                   </div>
 
-                  <div className="flex justify-between mt-3 text-xs text-muted-foreground">
-                    <span>Comenzi livrate: {driver.total_orders_delivered}</span>
+                  {/* Orders stats */}
+                  <div className="space-y-2 border-t pt-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Total comenzi livrate:</span>
+                      <span className="font-bold">{driver.total_orders_delivered}</span>
+                    </div>
+
+                    {/* Orders by zone */}
+                    {Object.keys(zones).length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(zones).map(([zone, count]) => (
+                          <Badge
+                            key={zone}
+                            variant="outline"
+                            className={`text-[10px] px-1.5 py-0 ${ZONE_COLORS[zone] || "bg-gray-100 text-gray-600"}`}
+                          >
+                            <MapPin className="w-2.5 h-2.5 mr-0.5" />{zone}: {count}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -227,16 +266,20 @@ export const AdminScheduleView = () => {
         </CardHeader>
         <CardContent>
           <div className="flex gap-1 overflow-x-auto pb-2">
-            {HOURS.map((hour) => {
+            {ALL_HOURS.map((hour) => {
               const avg = getCoverageAtHour(hour);
+              const isNight = NIGHT_HOURS.includes(hour);
               return (
                 <div
                   key={hour}
                   className={`flex flex-col items-center p-1.5 rounded min-w-[48px] ${
                     avg === 0 ? "bg-red-100" : avg <= 1 ? "bg-yellow-100" : avg <= 2 ? "bg-blue-100" : "bg-green-100"
-                  }`}
+                  } ${isNight ? "ring-1 ring-indigo-300" : ""}`}
                 >
-                  <span className="text-[10px] text-muted-foreground">{hour}</span>
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                    {isNight && <Moon className="w-2.5 h-2.5" />}
+                    {hour}
+                  </span>
                   <span className={`text-lg font-bold ${
                     avg === 0 ? "text-red-600" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-green-600"
                   }`}>{avg}</span>
@@ -294,6 +337,22 @@ export const AdminScheduleView = () => {
             </DialogTitle>
           </DialogHeader>
 
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-orange-500" />
+              <span>Setat de livrator</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-green-500" />
+              <span>Setat de admin</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Moon className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Tura de noapte (22-02)</span>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -307,32 +366,50 @@ export const AdminScheduleView = () => {
                 </tr>
               </thead>
               <tbody>
-                {HOURS.map((hour) => (
-                  <tr key={hour}>
-                    <td className="p-1 font-mono text-muted-foreground">{hour}</td>
-                    {DAYS.map((d) => {
-                      const sel = isSelected(d.key, hour);
-                      return (
-                        <td key={d.key} className="p-0.5 text-center">
-                          <button
-                            onClick={() => toggleHour(d.key, hour)}
-                            className={`w-full h-7 rounded transition-all ${
-                              sel ? "bg-green-500 hover:bg-green-600" : "bg-muted/50 hover:bg-muted border border-transparent hover:border-green-300"
-                            }`}
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                {ALL_HOURS.map((hour) => {
+                  const isNight = NIGHT_HOURS.includes(hour);
+                  return (
+                    <tr key={hour} className={isNight ? "bg-indigo-50/50" : ""}>
+                      <td className={`p-1 font-mono ${isNight ? "text-indigo-500" : "text-muted-foreground"}`}>
+                        {isNight && <Moon className="w-2.5 h-2.5 inline mr-0.5" />}
+                        {hour}
+                      </td>
+                      {DAYS.map((d) => {
+                        const sel = isSelected(d.key, hour);
+                        const byDriver = isDriverSlot(d.key, hour);
+                        const byAdmin = isAdminSlot(d.key, hour);
+
+                        let cellClass = "bg-muted/50 hover:bg-muted border border-transparent hover:border-green-300";
+                        if (sel && byDriver) {
+                          cellClass = "bg-orange-500 hover:bg-orange-400";
+                        } else if (sel && byAdmin) {
+                          cellClass = "bg-green-500 hover:bg-green-400";
+                        } else if (sel) {
+                          cellClass = "bg-green-500 hover:bg-green-400";
+                        }
+
+                        return (
+                          <td key={d.key} className="p-0.5 text-center">
+                            <button
+                              onClick={() => toggleHour(d.key, hour)}
+                              className={`w-full h-7 rounded transition-all ${cellClass}`}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <div className="flex items-center justify-between pt-2">
-            <span className="text-sm text-muted-foreground">
-              Total: {Object.values(editSlots).reduce((s, ds) => s + ds.length, 0)}h
-            </span>
+            <div className="flex gap-3 text-sm text-muted-foreground">
+              <span>Total: <strong>{editTotalHours}h</strong></span>
+              <span className="text-orange-600">Livrator: {editDriverHours}h</span>
+              <span className="text-green-600">Admin: {editAdminHours}h</span>
+            </div>
             <Button onClick={saveSchedule} disabled={saving} data-testid="admin-save-schedule-btn">
               <Save className="w-4 h-4 mr-2" />
               {saving ? "Se salvează..." : "Salvează"}
