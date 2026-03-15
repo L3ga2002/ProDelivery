@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class DeliveryPlatformTester:
-    def __init__(self, base_url="https://order-management-hub-19.preview.emergentagent.com"):
+    def __init__(self, base_url="https://ride-share-mvp-6.preview.emergentagent.com"):
         self.base_url = base_url
         self.admin_token = None
         self.driver_token = None

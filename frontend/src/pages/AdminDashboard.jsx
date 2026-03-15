@@ -62,12 +62,12 @@ import {
   CheckCircle2,
   Loader2,
   Circle,
+  XCircle,
 } from "lucide-react";
+import { AdminScheduleView } from "../components/AdminScheduleView";
 import {
   BarChart,
   Bar,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -121,6 +121,7 @@ const getStatusBadge = (status) => {
     ACCEPTED: { label: "Acceptată", className: "bg-indigo-100 text-indigo-800 border-indigo-300" },
     PICKED_UP: { label: "Ridicată", className: "bg-orange-100 text-orange-800 border-orange-300" },
     DELIVERED: { label: "Livrată", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+    CANCELLED: { label: "Anulată", className: "bg-red-100 text-red-800 border-red-300" },
   };
   const config = statusConfig[status] || { label: status, className: "" };
   return <Badge className={`${config.className} border`}>{config.label}</Badge>;
@@ -154,7 +155,8 @@ const AdminDashboard = () => {
   const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
   
   // Hourly data for charts
-  const [hourlyData, setHourlyData] = useState({ hourly_orders: [], hourly_revenue: [] });
+  const [hourlyData, setHourlyData] = useState({ hourly_orders: [] });
+  const [analyticsData, setAnalyticsData] = useState(null);
   
   // Demo simulation
   const [isSimDialogOpen, setIsSimDialogOpen] = useState(false);
@@ -194,26 +196,6 @@ const AdminDashboard = () => {
     ]
   });
   
-  // Check-in status with schedule (demo)
-  const [checkIns, setCheckIns] = useState([
-    { driver_id: "driver-001", name: "Ion Popescu", checked_in: true, hours: [10, 11, 12, 13, 14, 15, 16, 17, 18] },
-    { driver_id: "driver-002", name: "Maria Ionescu", checked_in: true, hours: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23] },
-    { driver_id: "driver-003", name: "Andrei Popa", checked_in: false, hours: [] },
-    { driver_id: "driver-004", name: "Elena Dumitrescu", checked_in: true, hours: [18, 19, 20, 21, 22, 23, 0, 1, 2] },
-    { driver_id: "driver-005", name: "Bogdan Stanescu", checked_in: false, hours: [] },
-  ]);
-  
-  const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
-  
-  const formatHour = (h) => {
-    const nextH = h === 23 ? 0 : h === 0 ? 1 : h === 1 ? 2 : h + 1;
-    return `${h.toString().padStart(2, '0')}-${nextH.toString().padStart(2, '0')}`;
-  };
-  
-  const getDriversAtHour = (hour) => {
-    return checkIns.filter(c => c.checked_in && c.hours.includes(hour));
-  };
-
   // Simulare mișcare livratori pe hartă
   const [driverPositions, setDriverPositions] = useState({});
   
@@ -247,18 +229,20 @@ const AdminDashboard = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes] = await Promise.all([
+      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes, analyticsRes] = await Promise.all([
         axios.get(`${API_URL}/api/orders`),
         axios.get(`${API_URL}/api/drivers`),
         axios.get(`${API_URL}/api/restaurants`),
         axios.get(`${API_URL}/api/stats`),
         axios.get(`${API_URL}/api/stats/hourly`),
+        axios.get(`${API_URL}/api/stats/analytics`).catch(() => ({ data: null })),
       ]);
       setOrders(ordersRes.data);
       setDrivers(driversRes.data);
       setRestaurants(restaurantsRes.data);
       setStats(statsRes.data);
       setHourlyData(hourlyRes.data);
+      if (analyticsRes.data) setAnalyticsData(analyticsRes.data);
     } catch (error) {
       toast.error("Eroare la încărcarea datelor");
     } finally {
@@ -571,10 +555,10 @@ const AdminDashboard = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <DollarSign className="w-8 h-8 text-purple-600" />
+                <XCircle className="w-8 h-8 text-red-600" />
                 <div>
-                  <p className="text-2xl font-bold">{(stats.total_revenue || 0).toFixed(0)}</p>
-                  <p className="text-xs text-muted-foreground">RON</p>
+                  <p className="text-2xl font-bold">{stats.cancelled_orders || 0}</p>
+                  <p className="text-xs text-muted-foreground">Anulate</p>
                 </div>
               </div>
             </CardContent>
@@ -614,7 +598,7 @@ const AdminDashboard = () => {
             <TabsTrigger value="analytics" data-testid="tab-analytics">Analize</TabsTrigger>
             <TabsTrigger value="map" data-testid="tab-map">Hartă</TabsTrigger>
             <TabsTrigger value="drivers" data-testid="tab-drivers">Livratori ({drivers.length})</TabsTrigger>
-            <TabsTrigger value="checkin" data-testid="tab-checkin">Check-in</TabsTrigger>
+            <TabsTrigger value="program" data-testid="tab-program">Program</TabsTrigger>
             <TabsTrigger value="restaurants" data-testid="tab-restaurants">Restaurante ({restaurants.length})</TabsTrigger>
             <TabsTrigger value="zones" data-testid="tab-zones">Zone Livrare</TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Setări</TabsTrigger>
@@ -681,6 +665,7 @@ const AdminDashboard = () => {
           {/* Analytics Tab */}
           <TabsContent value="analytics" data-testid="analytics-tab">
             <div className="grid md:grid-cols-2 gap-6">
+              {/* Hourly Orders Chart */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -705,27 +690,24 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
 
+              {/* Orders by Restaurant Chart */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" style={{ color: 'hsl(24 95% 53%)' }} />
-                    Venituri pe Oră (RON)
+                    Comenzi per Restaurant
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">Evoluția veniturilor pe parcursul zilei</p>
+                  <p className="text-sm text-muted-foreground">Distribuția comenzilor pe restaurante</p>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={hourlyData.hourly_revenue}>
+                    <BarChart data={analyticsData?.orders_by_restaurant || []} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
-                      <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(220 15% 88%)', fontSize: '13px' }}
-                        labelStyle={{ fontWeight: 'bold' }}
-                        formatter={(value) => [`${value} RON`, 'Venituri']}
-                      />
-                      <Area type="monotone" dataKey="revenue" name="Venituri" stroke="hsl(24 95% 53%)" fill="hsl(24 95% 53%)" fillOpacity={0.15} strokeWidth={2} />
-                    </AreaChart>
+                      <XAxis type="number" tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '13px' }} />
+                      <Bar dataKey="count" name="Comenzi" fill="hsl(24 95% 53%)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
@@ -745,17 +727,62 @@ const AdminDashboard = () => {
                       <p className="text-3xl font-bold text-green-600">{stats.delivered_orders || 0}</p>
                       <p className="text-sm text-muted-foreground mt-1">Livrate</p>
                     </div>
-                    <div className="p-4 rounded-lg border text-center" style={{ background: 'hsl(24 95% 53% / 0.05)', borderColor: 'hsl(24 95% 53% / 0.2)' }}>
-                      <p className="text-3xl font-bold" style={{ color: 'hsl(24 95% 53%)' }}>{(stats.total_revenue || 0).toFixed(0)}</p>
-                      <p className="text-sm text-muted-foreground mt-1">Venituri RON</p>
+                    <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
+                      <p className="text-3xl font-bold text-yellow-600">{stats.active_orders || 0}</p>
+                      <p className="text-sm text-muted-foreground mt-1">Active</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 text-center">
-                      <p className="text-3xl font-bold text-blue-600">
-                        {stats.total_orders > 0 ? ((stats.total_revenue || 0) / stats.total_orders).toFixed(0) : 0}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">Medie RON/Comandă</p>
+                    <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-center">
+                      <p className="text-3xl font-bold text-red-600">{stats.cancelled_orders || 0}</p>
+                      <p className="text-sm text-muted-foreground mt-1">Anulate</p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Orders by Driver */}
+              {analyticsData?.orders_by_driver?.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Comenzi per Livrator</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analyticsData.orders_by_driver.map((d) => (
+                        <div key={d.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                          <span className="font-medium text-sm">{d.name}</span>
+                          <Badge variant="outline">{d.count} comenzi</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cancelled Orders */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base text-red-600">
+                    <XCircle className="w-5 h-5" />
+                    Comenzi Anulate ({analyticsData?.cancelled_count || 0})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(analyticsData?.cancelled_orders?.length || 0) === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nicio comandă anulată</p>
+                  ) : (
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                      {analyticsData.cancelled_orders.map((o, i) => (
+                        <div key={i} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-mono font-bold">{o.order_number}</span>
+                            <Badge variant="outline" className="text-xs">{o.cancelled_by || "?"}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{o.restaurant_name}</p>
+                          <p className="text-sm text-red-700 mt-1 font-medium">Motiv: {o.cancellation_reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -851,7 +878,6 @@ const AdminDashboard = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Livrări: {driver.total_deliveries || 0}</span>
-                        <span>Câștig: {(driver.total_earnings || 0).toFixed(0)} RON</span>
                       </div>
                       <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                         {driver.is_active ? 'Activ' : 'Inactiv'}
@@ -886,152 +912,9 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Check-in Tab */}
-          <TabsContent value="checkin">
-            <div className="space-y-6">
-              {/* Summary Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CalendarCheck className="w-5 h-5" />
-                    Program Livratori pentru Mâine
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Livratorii își selectează orele de lucru (10:00 - 02:00)
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {checkIns.map((item) => (
-                      <div 
-                        key={item.driver_id} 
-                        className={`p-4 rounded-lg border-2 ${
-                          item.checked_in 
-                            ? 'bg-green-50 border-green-300' 
-                            : 'bg-red-50 border-red-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Truck className={`w-6 h-6 ${item.checked_in ? 'text-green-600' : 'text-red-400'}`} />
-                            <span className="font-bold">{item.name}</span>
-                          </div>
-                          <Badge className={item.checked_in ? 'bg-green-500' : 'bg-red-500'}>
-                            {item.checked_in ? `${item.hours.length}h` : 'ABSENT'}
-                          </Badge>
-                        </div>
-                        {item.checked_in ? (
-                          <div className="flex flex-wrap gap-1">
-                            {item.hours.sort((a,b) => {
-                              const aVal = a < 10 ? a + 24 : a;
-                              const bVal = b < 10 ? b + 24 : b;
-                              return aVal - bVal;
-                            }).map(h => (
-                              <span key={h} className="text-xs bg-green-200 text-green-800 px-1.5 py-0.5 rounded">
-                                {formatHour(h)}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-red-600">Nu a selectat program</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Hourly Coverage */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
-                    Acoperire pe Ore
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Câți livratori sunt disponibili în fiecare oră
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <div className="flex gap-1 min-w-max pb-2">
-                      {workHours.map((hour) => {
-                        const driversAtHour = getDriversAtHour(hour);
-                        const count = driversAtHour.length;
-                        return (
-                          <div 
-                            key={hour} 
-                            className={`flex flex-col items-center p-2 rounded-lg min-w-[60px] ${
-                              count === 0 ? 'bg-red-100' :
-                              count === 1 ? 'bg-yellow-100' :
-                              count === 2 ? 'bg-blue-100' :
-                              'bg-green-100'
-                            }`}
-                          >
-                            <span className="text-xs font-medium text-muted-foreground">{formatHour(hour)}</span>
-                            <span className={`text-2xl font-bold ${
-                              count === 0 ? 'text-red-600' :
-                              count === 1 ? 'text-yellow-600' :
-                              count === 2 ? 'text-blue-600' :
-                              'text-green-600'
-                            }`}>{count}</span>
-                            <span className="text-xs text-muted-foreground">livratori</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  
-                  {/* Legend */}
-                  <div className="flex gap-4 mt-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-red-100 border border-red-300"></div>
-                      <span>0 - Neacoperit</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></div>
-                      <span>1 - Minim</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></div>
-                      <span>2 - OK</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-green-100 border border-green-300"></div>
-                      <span>3+ - Bine</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold text-green-600">
-                      {checkIns.filter(c => c.checked_in).length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Livratori activi</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold text-red-600">
-                      {checkIns.filter(c => !c.checked_in).length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Absenți</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold text-blue-600">
-                      {checkIns.reduce((sum, c) => sum + c.hours.length, 0)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Total ore-livrator</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+          {/* Program Tab */}
+          <TabsContent value="program">
+            <AdminScheduleView />
           </TabsContent>
 
           {/* Zones Tab */}

@@ -1,0 +1,26 @@
+from pydantic import BaseModel, Field
+from typing import Dict, List, Optional
+import uuid
+
+
+class TimeSlot(BaseModel):
+    start: str  # "08:00"
+    end: str    # "16:00"
+
+
+class ScheduleCreate(BaseModel):
+    driver_id: str
+    week_start: str  # ISO date string of Monday, e.g. "2026-03-02"
+    slots: Dict[str, List[TimeSlot]]  # {"monday": [{"start": "08:00", "end": "16:00"}], ...}
+
+
+class ScheduleUpdate(BaseModel):
+    slots: Dict[str, List[TimeSlot]]
+
+
+class Schedule(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    driver_id: str
+    week_start: str
+    slots: Dict[str, List[TimeSlot]] = {}
+    total_hours: float = 0.0

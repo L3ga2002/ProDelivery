@@ -5,6 +5,14 @@ import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Textarea } from "../components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
 import {
   LogOut,
   Package,
@@ -16,7 +24,8 @@ import {
   Bell,
   User,
   MapPin,
-  Phone,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -30,6 +39,7 @@ const getStatusConfig = (status) => {
     ACCEPTED: { label: "Acceptată", color: "bg-purple-500", textColor: "text-purple-800", bgColor: "bg-purple-100" },
     PICKED_UP: { label: "Ridicată", color: "bg-orange-500", textColor: "text-orange-800", bgColor: "bg-orange-100" },
     DELIVERED: { label: "Livrată", color: "bg-gray-500", textColor: "text-gray-800", bgColor: "bg-gray-100" },
+    CANCELLED: { label: "Anulată", color: "bg-red-500", textColor: "text-red-800", bgColor: "bg-red-100" },
   };
   return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800", bgColor: "bg-gray-100" };
 };
@@ -40,6 +50,9 @@ const RestaurantApp = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [preparingOrder, setPreparingOrder] = useState(null);
   const [newOrderFlash, setNewOrderFlash] = useState(false);
+  const [confirmReadyOrder, setConfirmReadyOrder] = useState(null);
+  const [cancelOrder, setCancelOrder] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -123,13 +136,33 @@ const RestaurantApp = () => {
     try {
       await axios.put(`${API_URL}/api/orders/${orderId}/ready`);
       toast.success("Comanda este GATA pentru ridicare!");
+      setConfirmReadyOrder(null);
       fetchOrders();
     } catch (error) {
       toast.error("Eroare la marcare gata");
     }
   };
 
-  const activeOrders = orders.filter(o => !['DELIVERED', 'PICKED_UP'].includes(o.status));
+  const handleCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      toast.error("Motivul anulării este obligatoriu!");
+      return;
+    }
+    try {
+      await axios.put(`${API_URL}/api/orders/${cancelOrder.id}/status`, {
+        status: "CANCELLED",
+        cancellation_reason: cancelReason.trim()
+      });
+      toast.success("Comanda a fost anulată");
+      setCancelOrder(null);
+      setCancelReason("");
+      fetchOrders();
+    } catch (error) {
+      toast.error("Eroare la anulare");
+    }
+  };
+
+  const activeOrders = orders.filter(o => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
   const completedToday = orders.filter(o => o.status === 'DELIVERED').length;
 
   if (isLoading) {
@@ -339,7 +372,7 @@ const RestaurantApp = () => {
                     )}
                     <Button 
                       className="w-full h-14 text-lg font-bold bg-green-600 hover:bg-green-700"
-                      onClick={() => markAsReady(order.id)}
+                      onClick={() => setConfirmReadyOrder(order)}
                       data-testid={`ready-${order.id}`}
                     >
                       <CheckCircle2 className="w-6 h-6 mr-2" />
@@ -363,11 +396,95 @@ const RestaurantApp = () => {
                     <p className="text-sm text-purple-600">{order.driver_name} preia comanda</p>
                   </div>
                 )}
+
+                {/* Cancel Button - available for NEW, PREPARING, READY */}
+                {['NEW', 'PREPARING', 'READY'].includes(order.status) && (
+                  <Button
+                    variant="outline"
+                    className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                    onClick={() => { setCancelOrder(order); setCancelReason(""); }}
+                    data-testid={`cancel-${order.id}`}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Anulează Comanda
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))
         )}
       </main>
+
+      {/* Confirm Ready Dialog */}
+      <Dialog open={!!confirmReadyOrder} onOpenChange={(open) => !open && setConfirmReadyOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Confirmare - Comanda Gata
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-base">
+              Confirmați că comanda <strong>{confirmReadyOrder?.order_number}</strong> este gata pentru ridicare?
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              După confirmare, livratorul va fi notificat să ridice comanda.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReadyOrder(null)} data-testid="cancel-ready-confirm">
+              Înapoi
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => markAsReady(confirmReadyOrder?.id)}
+              data-testid="confirm-ready-btn"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Da, Comanda e Gata
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={!!cancelOrder} onOpenChange={(open) => !open && setCancelOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="w-5 h-5" />
+              Anulare Comandă {cancelOrder?.order_number}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Motivul anulării este obligatoriu. Vă rugăm să specificați de ce anulați această comandă.
+            </p>
+            <Textarea
+              placeholder="Scrieți motivul anulării..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="min-h-[100px]"
+              data-testid="cancel-reason-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOrder(null)}>
+              Înapoi
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelOrder}
+              disabled={!cancelReason.trim()}
+              data-testid="confirm-cancel-btn"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Confirmă Anularea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

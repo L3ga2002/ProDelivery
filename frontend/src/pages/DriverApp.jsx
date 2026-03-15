@@ -20,8 +20,18 @@ import {
   FileText,
   Clock,
   Download,
-  CalendarCheck,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
+import { Textarea } from "../components/ui/textarea";
+import { DriverSchedule } from "../components/DriverSchedule";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -48,57 +58,12 @@ const DriverApp = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
-  const [showCheckIn, setShowCheckIn] = useState(false);
   const lastOrderIdRef = useRef(null);
   const [newOrderFlash, setNewOrderFlash] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // {status, label}
+  const [cancelDialog, setCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   
-  // Program ore de muncă (10:00 - 02:00)
-  const workHours = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2];
-  const [selectedHours, setSelectedHours] = useState([]);
-
-  // Check if check-in time (23:00 - 00:00)
-  useEffect(() => {
-    const checkTime = () => {
-      const now = new Date();
-      const hour = now.getHours();
-      setShowCheckIn(hour >= 23 || hour === 0);
-    };
-    checkTime();
-    const interval = setInterval(checkTime, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const toggleHour = (hour) => {
-    if (selectedHours.includes(hour)) {
-      setSelectedHours(selectedHours.filter(h => h !== hour));
-    } else {
-      setSelectedHours([...selectedHours, hour]);
-    }
-  };
-
-  const selectAllHours = () => {
-    if (selectedHours.length === workHours.length) {
-      setSelectedHours([]);
-    } else {
-      setSelectedHours([...workHours]);
-    }
-  };
-
-  const doCheckIn = () => {
-    if (selectedHours.length === 0) {
-      toast.error('Selectează cel puțin o oră de lucru!');
-      return;
-    }
-    setHasCheckedIn(true);
-    toast.success(`Program confirmat: ${selectedHours.length} ore pentru mâine!`);
-  };
-
-  const formatHour = (h) => {
-    const nextH = h === 23 ? 0 : h === 0 ? 1 : h === 1 ? 2 : h + 1;
-    return `${h.toString().padStart(2, '0')}-${nextH.toString().padStart(2, '0')}`;
-  };
-
   // Check if PWA can be installed
   useEffect(() => {
     const checkInstall = () => {
@@ -191,6 +156,7 @@ const DriverApp = () => {
       };
       
       toast.success(statusLabels[newStatus] || "Status actualizat!");
+      setConfirmAction(null);
       
       if (newStatus === "DELIVERED") {
         setCurrentOrder(null);
@@ -201,6 +167,26 @@ const DriverApp = () => {
       toast.error("Eroare la actualizare status");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      toast.error("Motivul anulării este obligatoriu!");
+      return;
+    }
+    try {
+      await axios.put(`${API_URL}/api/orders/${currentOrder.id}/status`, {
+        status: "CANCELLED",
+        cancellation_reason: cancelReason.trim()
+      });
+      toast.success("Comanda a fost anulată");
+      setCancelDialog(false);
+      setCancelReason("");
+      setCurrentOrder(null);
+      fetchOrder();
+    } catch (error) {
+      toast.error("Eroare la anulare");
     }
   };
 
@@ -274,83 +260,11 @@ const DriverApp = () => {
         {!currentOrder ? (
           // No Order State
           <div className="h-full flex flex-col items-center justify-center text-center py-12" data-testid="no-order-state">
-            {/* Check-in Card */}
-            {(showCheckIn || true) && (  /* Always show for demo */
-              <Card className={`w-full mb-6 ${hasCheckedIn ? 'bg-green-50 border-green-300' : 'bg-orange-50 border-orange-300'} border-2`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <CalendarCheck className={`w-8 h-8 ${hasCheckedIn ? 'text-green-600' : 'text-orange-600'}`} />
-                    <div className="text-left">
-                      <h3 className="font-bold">Program pentru Mâine</h3>
-                      <p className="text-sm text-muted-foreground">Selectează orele în care vei lucra</p>
-                    </div>
-                  </div>
-                  
-                  {hasCheckedIn ? (
-                    <div className="text-center p-3 bg-green-100 rounded-lg">
-                      <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-1" />
-                      <p className="font-bold text-green-700">PROGRAM CONFIRMAT!</p>
-                      <p className="text-sm text-green-600">{selectedHours.length} ore selectate pentru mâine</p>
-                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
-                        {selectedHours.sort((a,b) => {
-                          const aVal = a < 10 ? a + 24 : a;
-                          const bVal = b < 10 ? b + 24 : b;
-                          return aVal - bVal;
-                        }).map(h => (
-                          <Badge key={h} className="bg-green-600">{formatHour(h)}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {/* Select All Button */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={selectAllHours}
-                        className="w-full"
-                      >
-                        {selectedHours.length === workHours.length ? 'Deselectează Tot' : 'Selectează Toate Orele'}
-                      </Button>
-                      
-                      {/* Hours Grid */}
-                      <div className="grid grid-cols-4 gap-2">
-                        {workHours.map((hour) => (
-                          <button
-                            key={hour}
-                            onClick={() => toggleHour(hour)}
-                            className={`p-2 rounded-lg text-sm font-bold transition-all ${
-                              selectedHours.includes(hour)
-                                ? 'bg-orange-500 text-white shadow-md scale-105'
-                                : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-orange-300'
-                            }`}
-                          >
-                            {formatHour(hour)}
-                          </button>
-                        ))}
-                      </div>
-                      
-                      {/* Selected Count */}
-                      <p className="text-center text-sm text-muted-foreground">
-                        {selectedHours.length > 0 
-                          ? `${selectedHours.length} ore selectate`
-                          : 'Nicio oră selectată'}
-                      </p>
-                      
-                      {/* Confirm Button */}
-                      <Button 
-                        className="w-full h-14 text-lg font-bold bg-orange-500 hover:bg-orange-600"
-                        onClick={doCheckIn}
-                        disabled={selectedHours.length === 0}
-                        data-testid="checkin-button"
-                      >
-                        <CalendarCheck className="w-6 h-6 mr-2" />
-                        CONFIRMĂ PROGRAMUL
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            {/* Schedule Card */}
+            {user?.driver_id && (
+              <div className="w-full mb-6">
+                <DriverSchedule driverId={user.driver_id} />
+              </div>
             )}
             
             <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
@@ -516,7 +430,7 @@ const DriverApp = () => {
           {currentOrder.status === "ASSIGNED" && (
             <Button
               className="driver-btn bg-purple-600 hover:bg-purple-700"
-              onClick={() => updateStatus("ACCEPTED")}
+              onClick={() => setConfirmAction({ status: "ACCEPTED", label: "Confirmați acceptarea comenzii?" })}
               disabled={isUpdating}
               data-testid="accept-button"
             >
@@ -528,7 +442,7 @@ const DriverApp = () => {
           {currentOrder.status === "ACCEPTED" && (
             <Button
               className="driver-btn bg-orange-500 hover:bg-orange-600"
-              onClick={() => updateStatus("PICKED_UP")}
+              onClick={() => setConfirmAction({ status: "PICKED_UP", label: "Confirmați că ați ridicat comanda de la restaurant?" })}
               disabled={isUpdating}
               data-testid="pickup-button"
             >
@@ -540,7 +454,7 @@ const DriverApp = () => {
           {currentOrder.status === "PICKED_UP" && (
             <Button
               className="driver-btn bg-green-600 hover:bg-green-700"
-              onClick={() => updateStatus("DELIVERED")}
+              onClick={() => setConfirmAction({ status: "DELIVERED", label: "Confirmați că ați livrat comanda clientului?" })}
               disabled={isUpdating}
               data-testid="deliver-button"
             >
@@ -548,8 +462,90 @@ const DriverApp = () => {
               {isUpdating ? "SE PROCESEAZĂ..." : "AM LIVRAT"}
             </Button>
           )}
+
+          {/* Cancel Button */}
+          {["ASSIGNED", "ACCEPTED"].includes(currentOrder.status) && (
+            <Button
+              variant="outline"
+              className="w-full text-red-600 border-red-300 hover:bg-red-50 h-12"
+              onClick={() => { setCancelDialog(true); setCancelReason(""); }}
+              data-testid="cancel-order-button"
+            >
+              <XCircle className="w-5 h-5 mr-2" />
+              Anulează Comanda
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Confirm Action Dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Confirmare Acțiune
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-base">{confirmAction?.label}</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Comanda: <strong>{currentOrder?.order_number}</strong> - {currentOrder?.restaurant_name}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)} data-testid="cancel-confirm-action">
+              Înapoi
+            </Button>
+            <Button
+              onClick={() => updateStatus(confirmAction?.status)}
+              disabled={isUpdating}
+              data-testid="confirm-action-btn"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {isUpdating ? "Se procesează..." : "Da, Confirmă"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Dialog */}
+      <Dialog open={cancelDialog} onOpenChange={setCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="w-5 h-5" />
+              Anulare Comandă
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Motivul anulării este obligatoriu.
+            </p>
+            <Textarea
+              placeholder="Scrieți motivul anulării..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="min-h-[100px]"
+              data-testid="driver-cancel-reason-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialog(false)}>
+              Înapoi
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelOrder}
+              disabled={!cancelReason.trim()}
+              data-testid="driver-confirm-cancel-btn"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Confirmă Anularea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
