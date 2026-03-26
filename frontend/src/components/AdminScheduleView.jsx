@@ -4,11 +4,13 @@ import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "../components/ui/dialog";
 import {
   ChevronLeft,
@@ -20,7 +22,10 @@ import {
   Users,
   MapPin,
   Moon,
-  Sun,
+  AlertTriangle,
+  Flame,
+  Plus,
+  Minus,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -35,7 +40,6 @@ const DAYS = [
   { key: "sunday", label: "Duminică" },
 ];
 
-// Admin can edit ALL hours: 10:00-02:00
 const ALL_HOURS = [
   ...Array.from({ length: 14 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`),
   "00:00", "01:00",
@@ -77,22 +81,31 @@ export const AdminScheduleView = () => {
   const [editDriver, setEditDriver] = useState(null);
   const [editSlots, setEditSlots] = useState({});
   const [saving, setSaving] = useState(false);
+  // Emergency slots
+  const [emergencySlots, setEmergencySlots] = useState([]);
+  const [emergencyMode, setEmergencyMode] = useState(false);
+  const [emergencyDialog, setEmergencyDialog] = useState(null); // {day, hour}
+  const [emergencySpots, setEmergencySpots] = useState(1);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/api/schedules/admin/summary?week_start=${toISODate(weekStart)}`);
-      setSummary(res.data);
+      const [summaryRes, emergencyRes] = await Promise.all([
+        axios.get(`${API_URL}/api/schedules/admin/summary?week_start=${toISODate(weekStart)}`),
+        axios.get(`${API_URL}/api/schedules/emergency?week_start=${toISODate(weekStart)}`),
+      ]);
+      setSummary(summaryRes.data);
+      setEmergencySlots(emergencyRes.data);
     } catch {
-      toast.error("Eroare la încărcarea programelor");
+      toast.error("Eroare la încărcarea datelor");
     } finally {
       setLoading(false);
     }
   }, [weekStart]);
 
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchData();
+  }, [fetchData]);
 
   const shiftWeek = (dir) => {
     setWeekStart((prev) => {
@@ -102,6 +115,7 @@ export const AdminScheduleView = () => {
     });
   };
 
+  // Driver schedule edit
   const openEdit = (driver) => {
     const sched = driver.schedules?.find((s) => s.week_start === toISODate(weekStart));
     setEditSlots(sched?.slots || {});
@@ -138,11 +152,49 @@ export const AdminScheduleView = () => {
       });
       toast.success(`Program salvat pentru ${editDriver.driver_name}`);
       setEditDriver(null);
-      fetchSummary();
+      fetchData();
     } catch {
       toast.error("Eroare la salvare");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Emergency slot functions
+  const getEmergencySlot = (day, hour) => {
+    return emergencySlots.find((s) => s.day === day && s.hour === hour);
+  };
+
+  const handleEmergencyCellClick = (day, hour) => {
+    const existing = getEmergencySlot(day, hour);
+    setEmergencySpots(existing?.total_spots || 1);
+    setEmergencyDialog({ day, hour, existing });
+  };
+
+  const saveEmergencySlot = async () => {
+    try {
+      await axios.post(`${API_URL}/api/schedules/emergency`, {
+        week_start: toISODate(weekStart),
+        day: emergencyDialog.day,
+        hour: emergencyDialog.hour,
+        total_spots: emergencySpots,
+      });
+      toast.success(`Slot urgență setat: ${emergencySpots} locuri`);
+      setEmergencyDialog(null);
+      fetchData();
+    } catch {
+      toast.error("Eroare la creare slot urgență");
+    }
+  };
+
+  const deleteEmergencySlot = async (slotId) => {
+    try {
+      await axios.delete(`${API_URL}/api/schedules/emergency/${slotId}`);
+      toast.success("Slot urgență șters");
+      setEmergencyDialog(null);
+      fetchData();
+    } catch {
+      toast.error("Eroare la ștergere");
     }
   };
 
@@ -169,7 +221,7 @@ export const AdminScheduleView = () => {
 
   return (
     <div className="space-y-6" data-testid="admin-schedule-view">
-      {/* Week Selector */}
+      {/* Week Selector + Emergency Toggle */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" onClick={() => shiftWeek(-1)} data-testid="admin-prev-week">
           <ChevronLeft className="w-5 h-5" />
@@ -181,6 +233,97 @@ export const AdminScheduleView = () => {
           <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
+
+      {/* Emergency Mode Toggle */}
+      <Button
+        variant={emergencyMode ? "default" : "outline"}
+        className={emergencyMode
+          ? "w-full bg-red-600 hover:bg-red-700 text-white"
+          : "w-full border-red-300 text-red-600 hover:bg-red-50"
+        }
+        onClick={() => setEmergencyMode(!emergencyMode)}
+        data-testid="emergency-mode-toggle"
+      >
+        <Flame className="w-5 h-5 mr-2" />
+        {emergencyMode ? "MOD URGENȚĂ ACTIV - Click pe oră pentru a seta locuri" : "Setează Sloturi de Urgență"}
+      </Button>
+
+      {/* Emergency Slots Grid (when mode is active) */}
+      {emergencyMode && (
+        <Card className="border-red-300 border-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Sloturi de Urgență - Click pe o celulă pentru a seta locuri
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr>
+                    <th className="text-left p-1 w-16"><Clock className="w-3 h-3 inline mr-1" />Ora</th>
+                    {DAYS.map((d) => (
+                      <th key={d.key} className="p-1 text-center min-w-[52px] font-semibold">{d.label.substring(0, 3)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ALL_HOURS.map((hour) => (
+                    <tr key={hour}>
+                      <td className="p-1 font-mono text-muted-foreground">{hour}</td>
+                      {DAYS.map((d) => {
+                        const eSlot = getEmergencySlot(d.key, hour);
+                        return (
+                          <td key={d.key} className="p-0.5 text-center">
+                            <button
+                              onClick={() => handleEmergencyCellClick(d.key, hour)}
+                              className={`w-full h-8 rounded transition-all text-xs font-bold ${
+                                eSlot
+                                  ? eSlot.remaining_spots > 0
+                                    ? "bg-red-500 text-white hover:bg-red-600"
+                                    : "bg-red-200 text-red-800 hover:bg-red-300"
+                                  : "bg-muted/30 hover:bg-red-100 border border-transparent hover:border-red-300"
+                              }`}
+                              data-testid={`emergency-${d.key}-${hour}`}
+                            >
+                              {eSlot ? `${eSlot.remaining_spots}/${eSlot.total_spots}` : ""}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Emergency slots summary (always visible if there are any) */}
+      {emergencySlots.length > 0 && !emergencyMode && (
+        <Card className="border-red-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="w-5 h-5 text-red-500" />
+              <span className="font-bold text-sm">Sloturi Urgență Active</span>
+              <Badge className="bg-red-100 text-red-700">{emergencySlots.length}</Badge>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {emergencySlots.map((s) => {
+                const dayLabel = DAYS.find((d) => d.key === s.day)?.label || s.day;
+                return (
+                  <Badge key={s.id} className={`text-xs ${s.remaining_spots > 0 ? "bg-red-500 text-white" : "bg-red-200 text-red-800"}`}>
+                    {dayLabel} {s.hour}: {s.remaining_spots}/{s.total_spots}
+                    {s.claimed_names?.length > 0 && ` (${s.claimed_names.join(", ")})`}
+                  </Badge>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Driver Cards */}
       {loading ? (
@@ -212,7 +355,6 @@ export const AdminScheduleView = () => {
                     </Badge>
                   </div>
 
-                  {/* Mini day schedule */}
                   <div className="flex gap-1 mb-3">
                     {DAYS.map((d) => {
                       const h = getDayHoursCount(driver.schedules, d.key);
@@ -227,14 +369,11 @@ export const AdminScheduleView = () => {
                     })}
                   </div>
 
-                  {/* Orders stats */}
                   <div className="space-y-2 border-t pt-2">
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Total comenzi livrate:</span>
                       <span className="font-bold">{driver.total_orders_delivered}</span>
                     </div>
-
-                    {/* Orders by zone */}
                     {Object.keys(zones).length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(zones).map(([zone, count]) => (
@@ -269,6 +408,7 @@ export const AdminScheduleView = () => {
             {ALL_HOURS.map((hour) => {
               const avg = getCoverageAtHour(hour);
               const isNight = NIGHT_HOURS.includes(hour);
+              const eCount = emergencySlots.filter((s) => s.hour === hour).reduce((sum, s) => sum + s.remaining_spots, 0);
               return (
                 <div
                   key={hour}
@@ -283,6 +423,9 @@ export const AdminScheduleView = () => {
                   <span className={`text-lg font-bold ${
                     avg === 0 ? "text-red-600" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-green-600"
                   }`}>{avg}</span>
+                  {eCount > 0 && (
+                    <span className="text-[9px] text-red-600 font-bold">+{eCount}u</span>
+                  )}
                 </div>
               );
             })}
@@ -291,7 +434,7 @@ export const AdminScheduleView = () => {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-3xl font-bold text-green-600">
@@ -325,9 +468,85 @@ export const AdminScheduleView = () => {
             <p className="text-sm text-muted-foreground">Total ore</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold text-red-500">
+              {emergencySlots.reduce((s, e) => s + e.remaining_spots, 0)}
+            </p>
+            <p className="text-sm text-muted-foreground">Urgență libere</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Edit Dialog */}
+      {/* Emergency Slot Dialog */}
+      <Dialog open={!!emergencyDialog} onOpenChange={(open) => !open && setEmergencyDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Flame className="w-5 h-5" />
+              Slot Urgență - {DAYS.find((d) => d.key === emergencyDialog?.day)?.label} {emergencyDialog?.hour}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Setează câte locuri de urgență sunt disponibile pe această oră.
+              Livatorii fără program vor fi notificați și pot lua locuri.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setEmergencySpots(Math.max(1, emergencySpots - 1))}
+                data-testid="emergency-spots-minus"
+              >
+                <Minus className="w-4 h-4" />
+              </Button>
+              <span className="text-4xl font-bold text-red-600 w-16 text-center" data-testid="emergency-spots-count">{emergencySpots}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setEmergencySpots(emergencySpots + 1)}
+                data-testid="emergency-spots-plus"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-center text-sm text-muted-foreground">
+              locuri pentru livratori
+            </p>
+            {emergencyDialog?.existing?.claimed_names?.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-xs font-bold text-red-700 mb-1">Deja luate de:</p>
+                {emergencyDialog.existing.claimed_names.map((name, i) => (
+                  <Badge key={i} variant="outline" className="text-xs mr-1">{name}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            {emergencyDialog?.existing && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => deleteEmergencySlot(emergencyDialog.existing.id)}
+                data-testid="delete-emergency-slot"
+              >
+                Șterge Slot
+              </Button>
+            )}
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={saveEmergencySlot}
+              data-testid="save-emergency-slot"
+            >
+              <Flame className="w-4 h-4 mr-2" />
+              Salvează
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Driver Schedule Dialog */}
       <Dialog open={!!editDriver} onOpenChange={(open) => !open && setEditDriver(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -337,7 +556,6 @@ export const AdminScheduleView = () => {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Legend */}
           <div className="flex flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-4 rounded bg-orange-500" />
@@ -348,8 +566,12 @@ export const AdminScheduleView = () => {
               <span>Setat de admin</span>
             </div>
             <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded bg-red-500" />
+              <span>Urgență</span>
+            </div>
+            <div className="flex items-center gap-1.5">
               <Moon className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Tura de noapte (22-02)</span>
+              <span>Tura de noapte</span>
             </div>
           </div>
 
@@ -357,9 +579,7 @@ export const AdminScheduleView = () => {
             <table className="w-full text-xs">
               <thead>
                 <tr>
-                  <th className="text-left p-1 w-16">
-                    <Clock className="w-3 h-3 inline mr-1" />Ora
-                  </th>
+                  <th className="text-left p-1 w-16"><Clock className="w-3 h-3 inline mr-1" />Ora</th>
                   {DAYS.map((d) => (
                     <th key={d.key} className="p-1 text-center min-w-[44px] font-semibold">{d.label.substring(0, 3)}</th>
                   ))}
@@ -377,13 +597,13 @@ export const AdminScheduleView = () => {
                       {DAYS.map((d) => {
                         const sel = isSelected(d.key, hour);
                         const byDriver = isDriverSlot(d.key, hour);
-                        const byAdmin = isAdminSlot(d.key, hour);
+                        const isEmergency = (editSlots[d.key] || []).some((s) => s.start === hour && s.added_by === "emergency");
 
                         let cellClass = "bg-muted/50 hover:bg-muted border border-transparent hover:border-green-300";
-                        if (sel && byDriver) {
+                        if (isEmergency) {
+                          cellClass = "bg-red-500 hover:bg-red-400 text-white";
+                        } else if (sel && byDriver) {
                           cellClass = "bg-orange-500 hover:bg-orange-400";
-                        } else if (sel && byAdmin) {
-                          cellClass = "bg-green-500 hover:bg-green-400";
                         } else if (sel) {
                           cellClass = "bg-green-500 hover:bg-green-400";
                         }

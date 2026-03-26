@@ -16,6 +16,8 @@ async def seed_data():
     await db.drivers.delete_many({})
     await db.restaurants.delete_many({})
     await db.orders.delete_many({})
+    await db.emergency_slots.delete_many({})
+    await db.schedules.delete_many({})
 
     # Admin
     admin = User(id="admin-001", email="admin@delivery.ro", name="Administrator", role="admin")

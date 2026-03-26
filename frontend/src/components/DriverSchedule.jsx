@@ -5,14 +5,22 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
+import {
   ChevronLeft,
   ChevronRight,
   Save,
   CalendarCheck,
   Clock,
   Lock,
-  ShieldCheck,
   Info,
+  Flame,
+  CheckCircle2,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -27,11 +35,8 @@ const DAYS = [
   { key: "sunday", label: "Duminică" },
 ];
 
-// Driver: editable 10:00-22:00
 const DRIVER_HOURS = Array.from({ length: 12 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`);
-// Night hours: 22:00-02:00 (admin only, read-only for driver)
 const NIGHT_HOURS = ["22:00", "23:00", "00:00", "01:00"];
-// All visible hours for driver
 const ALL_HOURS = [...DRIVER_HOURS, ...NIGHT_HOURS];
 
 function getMonday(date) {
@@ -59,14 +64,18 @@ export const DriverSchedule = ({ driverId }) => {
   const [slots, setSlots] = useState({});
   const [saving, setSaving] = useState(false);
   const [totalHours, setTotalHours] = useState(0);
-  const [windowOpen, setWindowOpen] = useState(true); // scheduling window
+  const [windowOpen, setWindowOpen] = useState(true);
+  const [emergencySlots, setEmergencySlots] = useState([]);
+  const [claimDialog, setClaimDialog] = useState(null);
+  const [claiming, setClaiming] = useState(false);
 
   const fetchSchedule = useCallback(async () => {
     if (!driverId) return;
     try {
-      const [schedRes, windowRes] = await Promise.all([
+      const [schedRes, windowRes, emergencyRes] = await Promise.all([
         axios.get(`${API_URL}/api/schedules/driver/${driverId}?year=${weekStart.getFullYear()}`),
         axios.get(`${API_URL}/api/schedules/scheduling-window`),
+        axios.get(`${API_URL}/api/schedules/emergency?week_start=${toISODate(weekStart)}`),
       ]);
       const wsKey = toISODate(weekStart);
       const found = schedRes.data.find((s) => s.week_start === wsKey);
@@ -78,6 +87,7 @@ export const DriverSchedule = ({ driverId }) => {
         setTotalHours(0);
       }
       setWindowOpen(windowRes.data.is_open);
+      setEmergencySlots(emergencyRes.data);
     } catch {
       setSlots({});
       setTotalHours(0);
@@ -89,22 +99,28 @@ export const DriverSchedule = ({ driverId }) => {
   }, [fetchSchedule]);
 
   const isNightHour = (hour) => NIGHT_HOURS.includes(hour);
-  const isAdminSlot = (dayKey, hour) => {
-    return (slots[dayKey] || []).some((s) => s.start === hour && s.added_by === "admin");
+  const isAdminSlot = (dayKey, hour) => (slots[dayKey] || []).some((s) => s.start === hour && s.added_by === "admin");
+  const isEmergencySlot = (dayKey, hour) => (slots[dayKey] || []).some((s) => s.start === hour && s.added_by === "emergency");
+
+  const getAvailableEmergency = (dayKey, hour) => {
+    // Only show emergency slots where driver has NO schedule at this hour
+    const hasSchedule = (slots[dayKey] || []).some((s) => s.start === hour);
+    if (hasSchedule) return null;
+    return emergencySlots.find((s) => s.day === dayKey && s.hour === hour && s.remaining_spots > 0 && !(s.claimed_by || []).includes(driverId));
   };
 
   const toggleHour = (dayKey, hour) => {
-    // Can't toggle night hours or admin slots
     if (isNightHour(hour)) return;
     if (isAdminSlot(dayKey, hour)) return;
+    if (isEmergencySlot(dayKey, hour)) return;
     if (!windowOpen) return;
 
     setSlots((prev) => {
       const daySlots = prev[dayKey] || [];
-      const exists = daySlots.find((s) => s.start === hour && s.added_by !== "admin");
+      const exists = daySlots.find((s) => s.start === hour && s.added_by !== "admin" && s.added_by !== "emergency");
       let newDaySlots;
       if (exists) {
-        newDaySlots = daySlots.filter((s) => !(s.start === hour && s.added_by !== "admin"));
+        newDaySlots = daySlots.filter((s) => !(s.start === hour && s.added_by !== "admin" && s.added_by !== "emergency"));
       } else {
         const endH = (parseInt(hour) + 1) % 24;
         newDaySlots = [...daySlots, { start: hour, end: `${String(endH).padStart(2, "0")}:00`, added_by: "driver" }];
@@ -117,8 +133,21 @@ export const DriverSchedule = ({ driverId }) => {
     });
   };
 
-  const isSelected = (dayKey, hour) => {
-    return (slots[dayKey] || []).some((s) => s.start === hour);
+  const isSelected = (dayKey, hour) => (slots[dayKey] || []).some((s) => s.start === hour);
+
+  const claimEmergencySlot = async () => {
+    if (!claimDialog) return;
+    setClaiming(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/schedules/emergency/${claimDialog.id}/claim`);
+      toast.success(res.data.message);
+      setClaimDialog(null);
+      fetchSchedule();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Eroare la preluare slot");
+    } finally {
+      setClaiming(false);
+    }
   };
 
   const saveSchedule = async () => {
@@ -137,8 +166,7 @@ export const DriverSchedule = ({ driverId }) => {
       toast.success("Program salvat cu succes!");
       fetchSchedule();
     } catch (err) {
-      const msg = err.response?.data?.detail || "Eroare la salvare program";
-      toast.error(msg);
+      toast.error(err.response?.data?.detail || "Eroare la salvare");
     } finally {
       setSaving(false);
     }
@@ -156,8 +184,8 @@ export const DriverSchedule = ({ driverId }) => {
     if (!windowOpen) return;
     setSlots((prev) => {
       const daySlots = prev[dayKey] || [];
-      const adminSlots = daySlots.filter((s) => s.added_by === "admin");
-      const driverSlots = daySlots.filter((s) => s.added_by !== "admin");
+      const adminSlots = daySlots.filter((s) => s.added_by === "admin" || s.added_by === "emergency");
+      const driverSlots = daySlots.filter((s) => s.added_by !== "admin" && s.added_by !== "emergency");
 
       let newSlots;
       if (driverSlots.length === DRIVER_HOURS.length) {
@@ -176,12 +204,15 @@ export const DriverSchedule = ({ driverId }) => {
     });
   };
 
-  const driverHoursCount = Object.values(slots).reduce((sum, ds) =>
-    sum + ds.filter((s) => s.added_by !== "admin").length, 0
-  );
-  const adminHoursCount = Object.values(slots).reduce((sum, ds) =>
-    sum + ds.filter((s) => s.added_by === "admin").length, 0
-  );
+  const driverHoursCount = Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "driver" || !s.added_by).length, 0);
+  const adminHoursCount = Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "admin").length, 0);
+  const emergencyCount = Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "emergency").length, 0);
+
+  // Count available emergency slots for this driver
+  const availableEmergencyCount = emergencySlots.filter((s) => {
+    const hasSchedule = (slots[s.day] || []).some((sl) => sl.start === s.hour);
+    return !hasSchedule && s.remaining_spots > 0 && !(s.claimed_by || []).includes(driverId);
+  }).length;
 
   return (
     <Card data-testid="driver-schedule-card">
@@ -191,11 +222,10 @@ export const DriverSchedule = ({ driverId }) => {
             <CalendarCheck className="w-5 h-5" />
             Program Săptămânal
           </CardTitle>
-          <div className="flex gap-2">
-            <Badge variant="outline" className="text-sm">{driverHoursCount}h ale tale</Badge>
-            {adminHoursCount > 0 && (
-              <Badge className="bg-blue-100 text-blue-700 text-sm">{adminHoursCount}h admin</Badge>
-            )}
+          <div className="flex gap-1.5 flex-wrap justify-end">
+            <Badge variant="outline" className="text-xs">{driverHoursCount}h ale tale</Badge>
+            {adminHoursCount > 0 && <Badge className="bg-blue-100 text-blue-700 text-xs">{adminHoursCount}h admin</Badge>}
+            {emergencyCount > 0 && <Badge className="bg-red-100 text-red-700 text-xs">{emergencyCount}h urgență</Badge>}
           </div>
         </div>
 
@@ -205,16 +235,24 @@ export const DriverSchedule = ({ driverId }) => {
         }`}>
           {windowOpen ? (
             <>
-              <CalendarCheck className="w-4 h-4" />
-              <span className="font-medium">Fereastra de program este DESCHISĂ. Poți modifica orele.</span>
+              <CalendarCheck className="w-4 h-4 shrink-0" />
+              <span className="font-medium">Fereastra de program este DESCHISĂ.</span>
             </>
           ) : (
             <>
-              <Lock className="w-4 h-4" />
+              <Lock className="w-4 h-4 shrink-0" />
               <span className="font-medium">Programul se poate modifica doar Duminică 22:00 - Luni 10:00</span>
             </>
           )}
         </div>
+
+        {/* Emergency slots notification */}
+        {availableEmergencyCount > 0 && (
+          <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-xs bg-red-50 text-red-700 border border-red-200 animate-pulse">
+            <Flame className="w-4 h-4 shrink-0" />
+            <span className="font-bold">{availableEmergencyCount} sloturi de urgență disponibile! Apasă pe celulele roșii pentru a le lua.</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mt-2">
           <Button variant="ghost" size="icon" onClick={() => shiftWeek(-1)} data-testid="prev-week-btn">
@@ -229,18 +267,10 @@ export const DriverSchedule = ({ driverId }) => {
       <CardContent>
         {/* Legend */}
         <div className="flex flex-wrap gap-3 mb-3 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-orange-500" />
-            <span>Orele tale</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-blue-500" />
-            <span>Adăugat de admin</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-slate-300" />
-            <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Noapte (doar admin)</span>
-          </div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-orange-500" /><span>Orele tale</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-blue-500" /><span>Admin</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-red-500" /><span>Urgență</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300" /><span className="flex items-center gap-1"><Lock className="w-3 h-3" />Noapte</span></div>
         </div>
 
         <div className="overflow-x-auto">
@@ -255,7 +285,6 @@ export const DriverSchedule = ({ driverId }) => {
                     <button
                       className={`font-semibold ${windowOpen ? "hover:text-primary" : "cursor-default text-muted-foreground"}`}
                       onClick={() => windowOpen && selectFullDay(d.key)}
-                      title={windowOpen ? "Click pt. selectare/deselectare zi (10-22)" : "Fereastra de editare este închisă"}
                     >
                       {d.label.substring(0, 3)}
                     </button>
@@ -274,13 +303,22 @@ export const DriverSchedule = ({ driverId }) => {
                     {DAYS.map((d) => {
                       const sel = isSelected(d.key, hour);
                       const admin = isAdminSlot(d.key, hour);
-                      const canEdit = !isNight && !admin && windowOpen;
+                      const emergency = isEmergencySlot(d.key, hour);
+                      const availEmergency = getAvailableEmergency(d.key, hour);
+                      const canEdit = !isNight && !admin && !emergency && windowOpen;
 
                       let cellClass = "bg-muted/30";
-                      if (sel && admin) {
+                      let cellContent = "";
+
+                      if (emergency) {
+                        cellClass = "bg-red-500";
+                      } else if (sel && admin) {
                         cellClass = "bg-blue-500";
                       } else if (sel) {
                         cellClass = "bg-orange-500";
+                      } else if (availEmergency) {
+                        cellClass = "bg-red-100 border-2 border-red-400 hover:bg-red-200 cursor-pointer";
+                        cellContent = `${availEmergency.remaining_spots}`;
                       } else if (isNight) {
                         cellClass = "bg-slate-200";
                       }
@@ -288,21 +326,29 @@ export const DriverSchedule = ({ driverId }) => {
                       return (
                         <td key={d.key} className="p-0.5 text-center">
                           <button
-                            onClick={() => canEdit && toggleHour(d.key, hour)}
-                            disabled={!canEdit}
-                            className={`w-full h-7 rounded transition-all ${cellClass} ${
-                              canEdit
-                                ? "hover:opacity-80 cursor-pointer"
-                                : "cursor-not-allowed opacity-70"
+                            onClick={() => {
+                              if (availEmergency) {
+                                setClaimDialog(availEmergency);
+                              } else if (canEdit) {
+                                toggleHour(d.key, hour);
+                              }
+                            }}
+                            disabled={!canEdit && !availEmergency}
+                            className={`w-full h-7 rounded transition-all text-[10px] font-bold ${cellClass} ${
+                              canEdit || availEmergency ? "cursor-pointer" : "cursor-not-allowed opacity-70"
                             }`}
                             data-testid={`slot-${d.key}-${hour}`}
                             title={
-                              isNight ? "Tura de noapte - setat doar de admin"
+                              availEmergency ? `${availEmergency.remaining_spots} locuri urgență - click pentru a lua`
+                              : emergency ? "Slot de urgență luat"
+                              : isNight ? "Tura de noapte - doar admin"
                               : admin ? "Adăugat de administrator"
-                              : !windowOpen ? "Fereastra de editare este închisă"
-                              : sel ? "Click pentru a deselecta" : "Click pentru a selecta"
+                              : !windowOpen ? "Fereastra închisă"
+                              : sel ? "Deselectează" : "Selectează"
                             }
-                          />
+                          >
+                            {cellContent && <span className="text-red-700">{cellContent}</span>}
+                          </button>
                         </td>
                       );
                     })}
@@ -327,10 +373,46 @@ export const DriverSchedule = ({ driverId }) => {
         ) : (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
             <Info className="w-4 h-4" />
-            Programul poate fi modificat doar Duminică 22:00 - Luni 10:00
+            Programul se modifică doar Duminică 22:00 - Luni 10:00
           </div>
         )}
       </CardContent>
+
+      {/* Claim Emergency Slot Dialog */}
+      <Dialog open={!!claimDialog} onOpenChange={(open) => !open && setClaimDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Flame className="w-5 h-5" />
+              Slot de Urgență
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm">
+              <strong>{DAYS.find((d) => d.key === claimDialog?.day)?.label}</strong> la ora <strong>{claimDialog?.hour}</strong>
+            </p>
+            <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-3xl font-bold text-red-600">{claimDialog?.remaining_spots}</p>
+              <p className="text-sm text-red-700">locuri rămase din {claimDialog?.total_spots}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Vrei să iei acest slot de urgență? Vei fi adăugat la program pe această oră.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClaimDialog(null)}>Înapoi</Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={claimEmergencySlot}
+              disabled={claiming}
+              data-testid="claim-emergency-btn"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {claiming ? "Se procesează..." : "Ia Slotul"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
