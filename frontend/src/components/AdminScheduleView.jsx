@@ -40,11 +40,20 @@ const DAYS = [
   { key: "sunday", label: "Duminică" },
 ];
 
+// Admin editable: all hours 10:00-02:00 (16 intervals)
 const ALL_HOURS = [
   ...Array.from({ length: 14 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`),
   "00:00", "01:00",
 ];
 const NIGHT_HOURS = ["22:00", "23:00", "00:00", "01:00"];
+// Emergency slots: ONLY 10:00-22:00
+const EMERGENCY_HOURS = Array.from({ length: 12 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`);
+
+function formatInterval(hour) {
+  const h = parseInt(hour);
+  const next = (h + 1) % 24;
+  return `${String(h).padStart(2, "0")}-${String(next).padStart(2, "0")}`;
+}
 
 function getMonday(date) {
   const d = new Date(date);
@@ -269,9 +278,9 @@ export const AdminScheduleView = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {ALL_HOURS.map((hour) => (
+                  {EMERGENCY_HOURS.map((hour) => (
                     <tr key={hour}>
-                      <td className="p-1 font-mono text-muted-foreground">{hour}</td>
+                      <td className="p-1 font-mono text-muted-foreground">{formatInterval(hour)}</td>
                       {DAYS.map((d) => {
                         const eSlot = getEmergencySlot(d.key, hour);
                         return (
@@ -315,7 +324,7 @@ export const AdminScheduleView = () => {
                 const dayLabel = DAYS.find((d) => d.key === s.day)?.label || s.day;
                 return (
                   <Badge key={s.id} className={`text-xs ${s.remaining_spots > 0 ? "bg-red-500 text-white" : "bg-red-200 text-red-800"}`}>
-                    {dayLabel} {s.hour}: {s.remaining_spots}/{s.total_spots}
+                    {dayLabel} {formatInterval(s.hour)}: {s.remaining_spots}/{s.total_spots}
                     {s.claimed_names?.length > 0 && ` (${s.claimed_names.join(", ")})`}
                   </Badge>
                 );
@@ -418,7 +427,7 @@ export const AdminScheduleView = () => {
                 >
                   <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                     {isNight && <Moon className="w-2.5 h-2.5" />}
-                    {hour}
+                    {formatInterval(hour)}
                   </span>
                   <span className={`text-lg font-bold ${
                     avg === 0 ? "text-red-600" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-green-600"
@@ -484,7 +493,7 @@ export const AdminScheduleView = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Flame className="w-5 h-5" />
-              Slot Urgență - {DAYS.find((d) => d.key === emergencyDialog?.day)?.label} {emergencyDialog?.hour}
+              Slot Urgență - {DAYS.find((d) => d.key === emergencyDialog?.day)?.label} {emergencyDialog?.hour ? formatInterval(emergencyDialog.hour) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -592,7 +601,7 @@ export const AdminScheduleView = () => {
                     <tr key={hour} className={isNight ? "bg-indigo-50/50" : ""}>
                       <td className={`p-1 font-mono ${isNight ? "text-indigo-500" : "text-muted-foreground"}`}>
                         {isNight && <Moon className="w-2.5 h-2.5 inline mr-0.5" />}
-                        {hour}
+                        {formatInterval(hour)}
                       </td>
                       {DAYS.map((d) => {
                         const sel = isSelected(d.key, hour);

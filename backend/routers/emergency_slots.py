@@ -14,6 +14,11 @@ async def create_emergency_slot(data: EmergencySlotCreate, current_user: dict = 
     if data.total_spots < 1:
         raise HTTPException(status_code=400, detail="Minimum 1 loc")
 
+    # Emergency slots only allowed between 10:00-22:00
+    allowed_hours = [f"{h:02d}:00" for h in range(10, 22)]
+    if data.hour not in allowed_hours:
+        raise HTTPException(status_code=400, detail="Sloturile de urgență sunt doar între 10:00-22:00")
+
     # Check if slot already exists for this day/hour/week
     existing = await db.emergency_slots.find_one({
         "week_start": data.week_start,

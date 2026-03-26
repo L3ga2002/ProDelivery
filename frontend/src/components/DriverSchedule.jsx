@@ -35,9 +35,17 @@ const DAYS = [
   { key: "sunday", label: "Duminică" },
 ];
 
+// Driver editable: 10:00-22:00 (12 intervals: 10-11, 11-12, ..., 21-22)
 const DRIVER_HOURS = Array.from({ length: 12 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`);
+// Night: 22-23, 23-00, 00-01, 01-02 (admin only, read-only for driver)
 const NIGHT_HOURS = ["22:00", "23:00", "00:00", "01:00"];
 const ALL_HOURS = [...DRIVER_HOURS, ...NIGHT_HOURS];
+
+function formatInterval(hour) {
+  const h = parseInt(hour);
+  const next = (h + 1) % 24;
+  return `${String(h).padStart(2, "0")}-${String(next).padStart(2, "0")}`;
+}
 
 function getMonday(date) {
   const d = new Date(date);
@@ -298,7 +306,7 @@ export const DriverSchedule = ({ driverId }) => {
                 return (
                   <tr key={hour} className={isNight ? "bg-slate-50" : ""}>
                     <td className={`p-1 font-mono sticky left-0 z-10 ${isNight ? "text-slate-400 bg-slate-50" : "text-muted-foreground bg-card"}`}>
-                      {hour} {isNight && <Lock className="w-2.5 h-2.5 inline ml-0.5" />}
+                      {formatInterval(hour)} {isNight && <Lock className="w-2.5 h-2.5 inline ml-0.5" />}
                     </td>
                     {DAYS.map((d) => {
                       const sel = isSelected(d.key, hour);
@@ -389,7 +397,7 @@ export const DriverSchedule = ({ driverId }) => {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm">
-              <strong>{DAYS.find((d) => d.key === claimDialog?.day)?.label}</strong> la ora <strong>{claimDialog?.hour}</strong>
+              <strong>{DAYS.find((d) => d.key === claimDialog?.day)?.label}</strong> intervalul <strong>{claimDialog?.hour ? formatInterval(claimDialog.hour) : ""}</strong>
             </p>
             <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
               <p className="text-3xl font-bold text-red-600">{claimDialog?.remaining_spots}</p>
