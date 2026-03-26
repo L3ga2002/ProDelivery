@@ -18,6 +18,7 @@ async def seed_data():
     await db.orders.delete_many({})
     await db.emergency_slots.delete_many({})
     await db.schedules.delete_many({})
+    await db.delivery_zones.delete_many({})
 
     # Admin
     admin = User(id="admin-001", email="admin@delivery.ro", name="Administrator", role="admin")
@@ -74,6 +75,72 @@ async def seed_data():
         rest_user_doc["password_hash"] = hash_password("restaurant123")
         rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
         await db.users.insert_one(rest_user_doc)
+
+    # Delivery Zones for Bacau
+    default_zones = [
+        {
+            "id": "zone-centru",
+            "name": "Zona 1 - Centru",
+            "color": "#22c55e",
+            "fee": 5.0,
+            "is_active": True,
+            "sort_order": 1,
+            "polygon": [
+                {"lat": 46.5730, "lng": 26.9050},
+                {"lat": 46.5730, "lng": 26.9220},
+                {"lat": 46.5620, "lng": 26.9220},
+                {"lat": 46.5620, "lng": 26.9050},
+            ],
+        },
+        {
+            "id": "zone-semicentral",
+            "name": "Zona 2 - Semicentral",
+            "color": "#3b82f6",
+            "fee": 8.0,
+            "is_active": True,
+            "sort_order": 2,
+            "polygon": [
+                {"lat": 46.5800, "lng": 26.8950},
+                {"lat": 46.5800, "lng": 26.9320},
+                {"lat": 46.5550, "lng": 26.9320},
+                {"lat": 46.5550, "lng": 26.8950},
+            ],
+        },
+        {
+            "id": "zone-periferie",
+            "name": "Zona 3 - Periferie",
+            "color": "#f59e0b",
+            "fee": 12.0,
+            "is_active": True,
+            "sort_order": 3,
+            "polygon": [
+                {"lat": 46.5900, "lng": 26.8800},
+                {"lat": 46.5900, "lng": 26.9450},
+                {"lat": 46.5450, "lng": 26.9450},
+                {"lat": 46.5450, "lng": 26.8800},
+            ],
+        },
+        {
+            "id": "zone-extins",
+            "name": "Zona 4 - Extins",
+            "color": "#ef4444",
+            "fee": 15.0,
+            "is_active": True,
+            "sort_order": 4,
+            "polygon": [
+                {"lat": 46.6050, "lng": 26.8600},
+                {"lat": 46.6050, "lng": 26.9600},
+                {"lat": 46.5300, "lng": 26.9600},
+                {"lat": 46.5300, "lng": 26.8600},
+            ],
+        },
+    ]
+
+    from datetime import datetime, timezone
+    for z in default_zones:
+        z["created_at"] = datetime.now(timezone.utc).isoformat()
+        z["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.delivery_zones.insert_one(z)
 
     # Orders (100)
     first_names = ["Alexandru", "Maria", "Ion", "Elena", "Andrei", "Ana", "Mihai", "Cristina", "Bogdan", "Diana",

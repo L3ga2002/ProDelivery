@@ -65,6 +65,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
+import { DeliveryZonesManager, ZonePolygons } from "../components/DeliveryZonesManager";
 import {
   BarChart,
   Bar,
@@ -164,6 +165,9 @@ const AdminDashboard = () => {
   const [isSimRunning, setIsSimRunning] = useState(false);
   const simAbort = useRef(false);
   
+  // Delivery zones for map overlay
+  const [deliveryZones, setDeliveryZones] = useState([]);
+  
   // New order form
   const [newOrder, setNewOrder] = useState({
     restaurant_id: "",
@@ -188,12 +192,6 @@ const AdminDashboard = () => {
     autoAssign: false,
     timeout: 60,
     maxRadius: 5,
-    zones: [
-      { id: 1, name: "Zona 1 - Centru", price: 5 },
-      { id: 2, name: "Zona 2 - Semicentral", price: 8 },
-      { id: 3, name: "Zona 3 - Periferie", price: 12 },
-      { id: 4, name: "Zona 4 - Extins", price: 15 },
-    ]
   });
   
   // Simulare mișcare livratori pe hartă
@@ -229,13 +227,14 @@ const AdminDashboard = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes, analyticsRes] = await Promise.all([
+      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes, analyticsRes, zonesRes] = await Promise.all([
         axios.get(`${API_URL}/api/orders`),
         axios.get(`${API_URL}/api/drivers`),
         axios.get(`${API_URL}/api/restaurants`),
         axios.get(`${API_URL}/api/stats`),
         axios.get(`${API_URL}/api/stats/hourly`),
         axios.get(`${API_URL}/api/stats/analytics`).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/api/zones`).catch(() => ({ data: [] })),
       ]);
       setOrders(ordersRes.data);
       setDrivers(driversRes.data);
@@ -243,6 +242,7 @@ const AdminDashboard = () => {
       setStats(statsRes.data);
       setHourlyData(hourlyRes.data);
       if (analyticsRes.data) setAnalyticsData(analyticsRes.data);
+      setDeliveryZones(zonesRes.data || []);
     } catch (error) {
       toast.error("Eroare la încărcarea datelor");
     } finally {
@@ -807,6 +807,7 @@ const AdminDashboard = () => {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
+                    <ZonePolygons zones={deliveryZones} />
                     {drivers.map((driver) => {
                       const pos = driverPositions[driver.id];
                       return (
@@ -919,52 +920,7 @@ const AdminDashboard = () => {
 
           {/* Zones Tab */}
           <TabsContent value="zones">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPinned className="w-5 h-5" />
-                  Zone de Livrare - Bacău
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Configurează zonele și tarifele de livrare
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {settings.zones.map((zone) => (
-                    <div key={zone.id} className="p-4 rounded-lg border bg-card">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-bold text-lg">{zone.name}</h4>
-                        <Badge variant="outline" className="text-lg px-3 py-1">
-                          {zone.price} RON
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <Input 
-                          type="number" 
-                          value={zone.price}
-                          onChange={(e) => {
-                            const newZones = settings.zones.map(z => 
-                              z.id === zone.id ? {...z, price: parseFloat(e.target.value) || 0} : z
-                            );
-                            setSettings({...settings, zones: newZones});
-                          }}
-                          className="w-24"
-                        />
-                        <span className="flex items-center text-muted-foreground">RON / livrare</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>💡 Notă:</strong> Zonele vor fi configurate pe hartă în faza următoare. 
-                    Clientul va defini granițele exacte pentru fiecare zonă.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <DeliveryZonesManager />
           </TabsContent>
 
           {/* Settings Tab */}
