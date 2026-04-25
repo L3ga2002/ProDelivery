@@ -37,6 +37,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Task 2.4: Auto-generator sloturi de urgență - IMPLEMENTAT 25 Apr 2026 (buton admin + algoritm pe ore de vârf, sloturi marcate AUTO/system)
 - UI/UX 25 Apr 2026: Adăugat sistem light/dark theme cu toggle vizibil pe Login, Admin, Driver și Restaurant, cu persistență locală și ajustări de contrast pentru dark mode
 - Security/Quality 25 Apr 2026: migrare auth frontend/backend pe cookie-uri httpOnly + refresh/logout, fallback Bearer păstrat pentru compatibilitate, demo/test credentials mutate în variabile de mediu, curățare console logs, chei React stabilizate, helper comun pentru testele backend și refactor helper în `schedules.py` + `emergency_slots.py`
+- Security/Quality 25 Apr 2026 (batch 2): refactor helper în `zones.py` + `orders.py`, `seed.py` mutat pe `secrets.SystemRandom()`, memoizare pentru calculele grele din `DeliveryZonesManager` și `DriverSchedule`, validare completă frontend/backend după batch-ul mare
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -55,7 +56,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P0: Continuare rafinare fină punct-cu-punct împreună cu user/client până când fiecare sector este validat vizual ca 1:1 cu harta operațională
 - P0: Verificare finală UX pentru click/selectare exactă a benzilor de zonă direct pe hartă în toate sectoarele
 - P0: verificare UX fină pentru selectarea benzilor de zonă direct din hartă și calibrare finală dacă userul mai cere ajustări
-- P1: refactor structural mare rămas pentru componentele foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`, `DriverSchedule`) și pentru `seed.py`
+- P1: refactor structural mare rămas pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
 - P1: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
 - Phase 4: Push Notifications (Firebase)
