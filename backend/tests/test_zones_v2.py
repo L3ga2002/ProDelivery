@@ -6,15 +6,7 @@ Fixed fees: Zone 1 = 14 lei, Zone 2 = 22 lei, Zone 3 = 33 lei
 """
 import pytest
 import requests
-import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
-# Test credentials
-ADMIN_EMAIL = "admin@delivery.ro"
-ADMIN_PASSWORD = "admin123"
-DRIVER_EMAIL = "driver-001@delivery.ro"
-DRIVER_PASSWORD = "driver123"
+from tests._settings import BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, DRIVER_EMAIL, DRIVER_PASSWORD
 
 # Expected zone structure
 EXPECTED_SECTORS = ["Nord", "Centru", "Sud", "Nord Extrem"]

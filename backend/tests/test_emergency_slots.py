@@ -11,10 +11,8 @@ Tests:
 """
 import pytest
 import requests
-import os
 from datetime import datetime, timedelta
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+from tests._settings import BASE_URL, admin_credentials, driver_credentials
 
 # Get current week's Monday
 def get_current_monday():
@@ -40,29 +38,20 @@ class TestEmergencySlots:
         """Setup tokens before tests"""
         if TestEmergencySlots.admin_token is None:
             # Login as admin
-            res = requests.post(f"{BASE_URL}/api/auth/login", json={
-                "email": "admin@delivery.ro",
-                "password": "admin123"
-            })
+            res = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
             assert res.status_code == 200, f"Admin login failed: {res.text}"
             TestEmergencySlots.admin_token = res.json()["token"]
         
         if TestEmergencySlots.driver1_token is None:
             # Login as driver-001
-            res = requests.post(f"{BASE_URL}/api/auth/login", json={
-                "email": "driver-001@delivery.ro",
-                "password": "driver123"
-            })
+            res = requests.post(f"{BASE_URL}/api/auth/login", json=driver_credentials(1))
             assert res.status_code == 200, f"Driver-001 login failed: {res.text}"
             TestEmergencySlots.driver1_token = res.json()["token"]
             TestEmergencySlots.driver1_id = res.json()["user"]["driver_id"]
         
         if TestEmergencySlots.driver2_token is None:
             # Login as driver-002
-            res = requests.post(f"{BASE_URL}/api/auth/login", json={
-                "email": "driver-002@delivery.ro",
-                "password": "driver123"
-            })
+            res = requests.post(f"{BASE_URL}/api/auth/login", json=driver_credentials(2))
             assert res.status_code == 200, f"Driver-002 login failed: {res.text}"
             TestEmergencySlots.driver2_token = res.json()["token"]
             TestEmergencySlots.driver2_id = res.json()["user"]["driver_id"]
@@ -200,8 +189,6 @@ class TestEmergencySlots:
     # Test 8: Claiming with 0 remaining spots returns 400
     def test_08_claim_exhausted_slot_returns_400(self):
         """Claiming with 0 remaining spots returns 400"""
-        slot_id = TestEmergencySlots.created_slot_id
-        
         # Try to claim with driver-001 again (already claimed) - should fail
         # Actually we need a third driver or test differently
         # Let's verify the slot has 0 remaining first

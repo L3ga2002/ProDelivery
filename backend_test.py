@@ -1,295 +1,325 @@
+#!/usr/bin/env python3
+"""
+Backend API Testing for Driver Ranking Application
+Testing the seed endpoint and authentication flows after environment variable changes.
+"""
+
 import requests
-import sys
 import json
-from datetime import datetime
+import os
+import sys
+from typing import Dict, Any
 
-class DeliveryPlatformTester:
-    def __init__(self, base_url="https://driver-ranking-1.preview.emergentagent.com"):
-        self.base_url = base_url
+# Get the backend URL from frontend environment
+BACKEND_URL = "https://driver-ranking-1.preview.emergentagent.com/api"
+
+# Test credentials from environment variables (matching backend .env)
+TEST_CREDENTIALS = {
+    "admin": {
+        "email": "admin@delivery.ro",
+        "password": "admin123"
+    },
+    "driver_001": {
+        "email": "driver-001@delivery.ro", 
+        "password": "driver123"
+    },
+    "restaurant_001": {
+        "email": "rest-001@delivery.ro",
+        "password": "restaurant123"
+    }
+}
+
+class BackendTester:
+    def __init__(self):
+        self.session = requests.Session()
         self.admin_token = None
-        self.driver_token = None
-        self.tests_run = 0
-        self.tests_passed = 0
         self.test_results = []
-
-    def log_test(self, name, success, details=""):
-        """Log test result"""
-        self.tests_run += 1
-        if success:
-            self.tests_passed += 1
-            print(f"✅ {name}")
-        else:
-            print(f"❌ {name} - {details}")
+        
+    def log_test(self, test_name: str, success: bool, details: str = "", response_data: Any = None):
+        """Log test results"""
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status} {test_name}")
+        if details:
+            print(f"   Details: {details}")
+        if response_data and not success:
+            print(f"   Response: {response_data}")
+        print()
         
         self.test_results.append({
-            "test": name,
+            "test": test_name,
             "success": success,
-            "details": details
+            "details": details,
+            "response": response_data if not success else None
         })
-
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
-        """Run a single API test"""
-        url = f"{self.base_url}/api/{endpoint}"
-        test_headers = {'Content-Type': 'application/json'}
-        if headers:
-            test_headers.update(headers)
-
+    
+    def test_seed_endpoint(self):
+        """Test POST /api/seed endpoint"""
+        print("🧪 Testing POST /api/seed endpoint...")
+        
         try:
-            if method == 'GET':
-                response = requests.get(url, headers=test_headers, timeout=10)
-            elif method == 'POST':
-                response = requests.post(url, json=data, headers=test_headers, timeout=10)
-            elif method == 'PUT':
-                response = requests.put(url, json=data, headers=test_headers, timeout=10)
-
-            success = response.status_code == expected_status
-            details = f"Status: {response.status_code}"
+            response = self.session.post(f"{BACKEND_URL}/seed")
             
-            if not success:
-                details += f" (Expected {expected_status})"
-                if response.text:
-                    try:
-                        error_data = response.json()
-                        details += f" - {error_data.get('detail', response.text[:100])}"
-                    except:
-                        details += f" - {response.text[:100]}"
-
-            self.log_test(name, success, details)
-            return success, response.json() if success and response.text else {}
-
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Check if response contains expected structure
+                if "message" in data and "credentials" in data and "data" in data:
+                    # Validate credentials structure
+                    creds = data["credentials"]
+                    expected_keys = ["admin", "drivers", "restaurants"]
+                    
+                    if all(key in creds for key in expected_keys):
+                        # Check admin credentials match environment
+                        admin_creds = creds["admin"]
+                        if (admin_creds["email"] == TEST_CREDENTIALS["admin"]["email"] and 
+                            admin_creds["password"] == TEST_CREDENTIALS["admin"]["password"]):
+                            
+                            self.log_test("Seed endpoint returns 200 with valid credentials", True, 
+                                        f"Message: {data['message']}, Data: {data['data']}")
+                        else:
+                            self.log_test("Seed endpoint returns 200 with valid credentials", False,
+                                        f"Admin credentials don't match environment variables", data)
+                    else:
+                        self.log_test("Seed endpoint returns 200 with valid credentials", False,
+                                    f"Missing credential keys: {expected_keys}", data)
+                else:
+                    self.log_test("Seed endpoint returns 200 with valid credentials", False,
+                                "Response missing required keys: message, credentials, data", data)
+            else:
+                self.log_test("Seed endpoint returns 200 with valid credentials", False,
+                            f"HTTP {response.status_code}: {response.text}", response.text)
+                
         except Exception as e:
-            self.log_test(name, False, f"Error: {str(e)}")
-            return False, {}
-
-    def test_seed_data(self):
-        """Test seeding demo data"""
-        print("\n🌱 Testing seed data endpoint...")
-        success, response = self.run_test(
-            "Seed Demo Data",
-            "POST",
-            "seed",
-            200
-        )
-        return success
-
+            self.log_test("Seed endpoint returns 200 with valid credentials", False,
+                        f"Request failed: {str(e)}")
+    
     def test_admin_login(self):
-        """Test admin login"""
-        print("\n🔐 Testing admin login...")
-        success, response = self.run_test(
-            "Admin Login",
-            "POST",
-            "auth/login",
-            200,
-            data={"email": "admin@delivery.ro", "password": "admin123"}
-        )
-        if success and 'token' in response:
-            self.admin_token = response['token']
-            return True
-        return False
-
+        """Test admin login with demo credentials"""
+        print("🧪 Testing admin login...")
+        
+        try:
+            login_data = {
+                "email": TEST_CREDENTIALS["admin"]["email"],
+                "password": TEST_CREDENTIALS["admin"]["password"]
+            }
+            
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if "token" in data and "user" in data:
+                    user = data["user"]
+                    if (user.get("email") == TEST_CREDENTIALS["admin"]["email"] and 
+                        user.get("role") == "admin"):
+                        
+                        self.admin_token = data["token"]
+                        self.log_test("Admin login with demo credentials", True,
+                                    f"User: {user['name']} ({user['email']}) - Role: {user['role']}")
+                    else:
+                        self.log_test("Admin login with demo credentials", False,
+                                    f"User data incorrect: {user}", data)
+                else:
+                    self.log_test("Admin login with demo credentials", False,
+                                "Response missing token or user", data)
+            else:
+                self.log_test("Admin login with demo credentials", False,
+                            f"HTTP {response.status_code}: {response.text}", response.text)
+                
+        except Exception as e:
+            self.log_test("Admin login with demo credentials", False,
+                        f"Request failed: {str(e)}")
+    
     def test_driver_login(self):
-        """Test driver login"""
-        print("\n🚚 Testing driver login...")
-        success, response = self.run_test(
-            "Driver Login",
-            "POST",
-            "auth/login",
-            200,
-            data={"email": "driver-001@delivery.ro", "password": "driver123"}
-        )
-        if success and 'token' in response:
-            self.driver_token = response['token']
-            return True
-        return False
-
-    def test_orders_endpoint(self):
-        """Test orders endpoint"""
-        print("\n📦 Testing orders endpoint...")
-        if not self.admin_token:
-            self.log_test("Get Orders", False, "No admin token")
-            return False
+        """Test driver login with demo credentials"""
+        print("🧪 Testing driver-001 login...")
+        
+        try:
+            login_data = {
+                "email": TEST_CREDENTIALS["driver_001"]["email"],
+                "password": TEST_CREDENTIALS["driver_001"]["password"]
+            }
             
-        success, response = self.run_test(
-            "Get Orders",
-            "GET",
-            "orders",
-            200,
-            headers={"Authorization": f"Bearer {self.admin_token}"}
-        )
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if "token" in data and "user" in data:
+                    user = data["user"]
+                    if (user.get("email") == TEST_CREDENTIALS["driver_001"]["email"] and 
+                        user.get("role") == "driver"):
+                        
+                        self.log_test("Driver-001 login with demo credentials", True,
+                                    f"User: {user['name']} ({user['email']}) - Role: {user['role']}, Driver ID: {user.get('driver_id')}")
+                    else:
+                        self.log_test("Driver-001 login with demo credentials", False,
+                                    f"User data incorrect: {user}", data)
+                else:
+                    self.log_test("Driver-001 login with demo credentials", False,
+                                "Response missing token or user", data)
+            else:
+                self.log_test("Driver-001 login with demo credentials", False,
+                            f"HTTP {response.status_code}: {response.text}", response.text)
+                
+        except Exception as e:
+            self.log_test("Driver-001 login with demo credentials", False,
+                        f"Request failed: {str(e)}")
+    
+    def test_restaurant_login(self):
+        """Test restaurant login with demo credentials"""
+        print("🧪 Testing restaurant-001 login...")
         
-        if success:
-            orders = response if isinstance(response, list) else []
-            self.log_test(f"Orders Count Check", len(orders) >= 0, f"Found {len(orders)} orders")
+        try:
+            login_data = {
+                "email": TEST_CREDENTIALS["restaurant_001"]["email"],
+                "password": TEST_CREDENTIALS["restaurant_001"]["password"]
+            }
+            
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if "token" in data and "user" in data:
+                    user = data["user"]
+                    if (user.get("email") == TEST_CREDENTIALS["restaurant_001"]["email"] and 
+                        user.get("role") == "restaurant"):
+                        
+                        self.log_test("Restaurant-001 login with demo credentials", True,
+                                    f"User: {user['name']} ({user['email']}) - Role: {user['role']}, Restaurant ID: {user.get('restaurant_id')}")
+                    else:
+                        self.log_test("Restaurant-001 login with demo credentials", False,
+                                    f"User data incorrect: {user}", data)
+                else:
+                    self.log_test("Restaurant-001 login with demo credentials", False,
+                                "Response missing token or user", data)
+            else:
+                self.log_test("Restaurant-001 login with demo credentials", False,
+                            f"HTTP {response.status_code}: {response.text}", response.text)
+                
+        except Exception as e:
+            self.log_test("Restaurant-001 login with demo credentials", False,
+                        f"Request failed: {str(e)}")
+    
+    def test_zones_endpoint(self):
+        """Test GET /api/zones with admin token"""
+        print("🧪 Testing GET /api/zones with admin token...")
         
-        return success
-
+        if not self.admin_token:
+            self.log_test("GET /api/zones with admin token", False,
+                        "No admin token available (admin login failed)")
+            return
+        
+        try:
+            headers = {"Authorization": f"Bearer {self.admin_token}"}
+            response = self.session.get(f"{BACKEND_URL}/zones", headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if isinstance(data, list) and len(data) > 0:
+                    # Check if zones have expected structure
+                    first_zone = data[0]
+                    expected_keys = ["id", "sector", "zone_level", "name", "color", "fee", "polygon"]
+                    
+                    if all(key in first_zone for key in expected_keys):
+                        self.log_test("GET /api/zones with admin token", True,
+                                    f"Retrieved {len(data)} zones successfully")
+                    else:
+                        self.log_test("GET /api/zones with admin token", False,
+                                    f"Zone structure missing keys: {expected_keys}", first_zone)
+                else:
+                    self.log_test("GET /api/zones with admin token", False,
+                                "Empty zones list or invalid format", data)
+            else:
+                self.log_test("GET /api/zones with admin token", False,
+                            f"HTTP {response.status_code}: {response.text}", response.text)
+                
+        except Exception as e:
+            self.log_test("GET /api/zones with admin token", False,
+                        f"Request failed: {str(e)}")
+    
     def test_drivers_endpoint(self):
-        """Test drivers endpoint"""
-        print("\n👥 Testing drivers endpoint...")
+        """Test GET /api/drivers with admin token"""
+        print("🧪 Testing GET /api/drivers with admin token...")
+        
         if not self.admin_token:
-            self.log_test("Get Drivers", False, "No admin token")
-            return False
+            self.log_test("GET /api/drivers with admin token", False,
+                        "No admin token available (admin login failed)")
+            return
+        
+        try:
+            headers = {"Authorization": f"Bearer {self.admin_token}"}
+            response = self.session.get(f"{BACKEND_URL}/drivers", headers=headers)
             
-        success, response = self.run_test(
-            "Get Drivers",
-            "GET",
-            "drivers",
-            200,
-            headers={"Authorization": f"Bearer {self.admin_token}"}
-        )
-        
-        if success:
-            drivers = response if isinstance(response, list) else []
-            self.log_test(f"Drivers Count Check", len(drivers) >= 0, f"Found {len(drivers)} drivers")
-        
-        return success
-
-    def test_driver_orders_endpoint(self):
-        """Test driver-specific orders endpoint"""
-        print("\n🚛 Testing driver orders endpoint...")
-        if not self.driver_token:
-            self.log_test("Get Driver Orders", False, "No driver token")
-            return False
-            
-        success, response = self.run_test(
-            "Get Driver Orders",
-            "GET",
-            "orders/driver/driver-001",
-            200,
-            headers={"Authorization": f"Bearer {self.driver_token}"}
-        )
-        return success
-
-    def test_order_assignment(self):
-        """Test order assignment functionality"""
-        print("\n🎯 Testing order assignment...")
-        if not self.admin_token:
-            self.log_test("Order Assignment", False, "No admin token")
-            return False
-
-        # First get orders to find a NEW order
-        success, orders_response = self.run_test(
-            "Get Orders for Assignment",
-            "GET",
-            "orders",
-            200,
-            headers={"Authorization": f"Bearer {self.admin_token}"}
-        )
-        
-        if not success:
-            return False
-            
-        orders = orders_response if isinstance(orders_response, list) else []
-        new_orders = [o for o in orders if o.get('status') == 'NEW']
-        
-        if not new_orders:
-            self.log_test("Order Assignment", False, "No NEW orders available for assignment")
-            return False
-            
-        order_id = new_orders[0]['id']
-        
-        # Try to assign order to driver-001
-        success, response = self.run_test(
-            "Assign Order to Driver",
-            "PUT",
-            f"orders/{order_id}/assign",
-            200,
-            data={"driver_id": "driver-001"},
-            headers={"Authorization": f"Bearer {self.admin_token}"}
-        )
-        return success
-
-    def test_order_status_update(self):
-        """Test order status update"""
-        print("\n📋 Testing order status update...")
-        if not self.driver_token:
-            self.log_test("Order Status Update", False, "No driver token")
-            return False
-
-        # Get driver orders to find an assigned order
-        success, orders_response = self.run_test(
-            "Get Driver Orders for Status Update",
-            "GET",
-            "orders/driver/driver-001",
-            200,
-            headers={"Authorization": f"Bearer {self.driver_token}"}
-        )
-        
-        if not success:
-            return False
-            
-        orders = orders_response if isinstance(orders_response, list) else []
-        assigned_orders = [o for o in orders if o.get('status') == 'ASSIGNED']
-        
-        if not assigned_orders:
-            self.log_test("Order Status Update", False, "No ASSIGNED orders available for status update")
-            return False
-            
-        order_id = assigned_orders[0]['id']
-        
-        # Update status to ACCEPTED
-        success, response = self.run_test(
-            "Update Order Status to ACCEPTED",
-            "PUT",
-            f"orders/{order_id}/status",
-            200,
-            data={"status": "ACCEPTED"},
-            headers={"Authorization": f"Bearer {self.driver_token}"}
-        )
-        return success
-
+            if response.status_code == 200:
+                data = response.json()
+                
+                if isinstance(data, list) and len(data) > 0:
+                    # Check if drivers have expected structure
+                    first_driver = data[0]
+                    expected_keys = ["id", "name", "phone", "is_active", "latitude", "longitude"]
+                    
+                    if all(key in first_driver for key in expected_keys):
+                        self.log_test("GET /api/drivers with admin token", True,
+                                    f"Retrieved {len(data)} drivers successfully")
+                    else:
+                        self.log_test("GET /api/drivers with admin token", False,
+                                    f"Driver structure missing keys: {expected_keys}", first_driver)
+                else:
+                    self.log_test("GET /api/drivers with admin token", False,
+                                "Empty drivers list or invalid format", data)
+            else:
+                self.log_test("GET /api/drivers with admin token", False,
+                            f"HTTP {response.status_code}: {response.text}", response.text)
+                
+        except Exception as e:
+            self.log_test("GET /api/drivers with admin token", False,
+                        f"Request failed: {str(e)}")
+    
     def run_all_tests(self):
-        """Run all tests in sequence"""
-        print("🚀 Starting Delivery Platform API Tests")
-        print(f"Testing against: {self.base_url}")
+        """Run all backend tests"""
+        print("🚀 Starting Backend API Tests")
+        print(f"Backend URL: {BACKEND_URL}")
         print("=" * 60)
-
-        # Test basic endpoints first
-        self.test_seed_data()
         
-        # Test authentication
-        admin_login_success = self.test_admin_login()
-        driver_login_success = self.test_driver_login()
-        
-        if not admin_login_success or not driver_login_success:
-            print("\n❌ Authentication failed, stopping tests")
-            return False
-
-        # Test data endpoints
-        self.test_orders_endpoint()
+        # Test sequence as specified in review request
+        self.test_seed_endpoint()
+        self.test_admin_login()
+        self.test_driver_login()
+        self.test_restaurant_login()
+        self.test_zones_endpoint()
         self.test_drivers_endpoint()
-        self.test_driver_orders_endpoint()
         
-        # Test functionality
-        self.test_order_assignment()
-        self.test_order_status_update()
-
-        # Print summary
-        print("\n" + "=" * 60)
-        print(f"📊 Tests Summary: {self.tests_passed}/{self.tests_run} passed")
+        # Summary
+        print("=" * 60)
+        print("📊 TEST SUMMARY")
+        print("=" * 60)
         
-        if self.tests_passed == self.tests_run:
-            print("🎉 All tests passed!")
-            return True
-        else:
-            print("⚠️  Some tests failed")
-            return False
-
-def main():
-    tester = DeliveryPlatformTester()
-    success = tester.run_all_tests()
-    
-    # Save detailed results
-    with open('/app/test_reports/backend_test_results.json', 'w') as f:
-        json.dump({
-            'timestamp': datetime.now().isoformat(),
-            'total_tests': tester.tests_run,
-            'passed_tests': tester.tests_passed,
-            'success_rate': tester.tests_passed / tester.tests_run if tester.tests_run > 0 else 0,
-            'results': tester.test_results
-        }, f, indent=2)
-    
-    return 0 if success else 1
+        passed = sum(1 for result in self.test_results if result["success"])
+        total = len(self.test_results)
+        
+        print(f"Total Tests: {total}")
+        print(f"Passed: {passed}")
+        print(f"Failed: {total - passed}")
+        print()
+        
+        if total - passed > 0:
+            print("❌ FAILED TESTS:")
+            for result in self.test_results:
+                if not result["success"]:
+                    print(f"  - {result['test']}: {result['details']}")
+            print()
+        
+        print("✅ PASSED TESTS:")
+        for result in self.test_results:
+            if result["success"]:
+                print(f"  - {result['test']}")
+        
+        return passed == total
 
 if __name__ == "__main__":
-    sys.exit(main())
+    tester = BackendTester()
+    success = tester.run_all_tests()
+    sys.exit(0 if success else 1)

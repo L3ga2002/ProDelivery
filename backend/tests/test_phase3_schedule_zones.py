@@ -11,9 +11,7 @@ Tests:
 
 import pytest
 import requests
-import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL')
+from tests._settings import BASE_URL, admin_credentials, driver_credentials
 
 class TestPhase3Features:
     """Tests for Phase 3: Schedule system, zones, and order updates"""
@@ -26,19 +24,13 @@ class TestPhase3Features:
         assert response.status_code == 200, f"Seed failed: {response.text}"
 
         # Get admin token
-        login_res = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        login_res = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert login_res.status_code == 200, "Admin login failed"
         self.admin_token = login_res.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
 
         # Get driver token
-        driver_login = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "driver-001@delivery.ro",
-            "password": "driver123"
-        })
+        driver_login = requests.post(f"{BASE_URL}/api/auth/login", json=driver_credentials(1))
         assert driver_login.status_code == 200, "Driver login failed"
         self.driver_token = driver_login.json()["token"]
         self.driver_headers = {"Authorization": f"Bearer {self.driver_token}"}
@@ -343,7 +335,7 @@ class TestPhase3Features:
         summary = response.json()
         
         for driver in summary:
-            assert "total_orders_delivered" in driver, f"Driver missing total_orders_delivered"
+            assert "total_orders_delivered" in driver, "Driver missing total_orders_delivered"
             assert isinstance(driver["total_orders_delivered"], int), "total_orders_delivered should be int"
         
         # Verify at least one driver has delivered orders

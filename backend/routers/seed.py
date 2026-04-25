@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from datetime import datetime, timezone, timedelta
+import os
 import random
 from database import db
 from auth import hash_password
@@ -9,6 +10,27 @@ from models.restaurant import Restaurant
 from models.order import Order
 
 router = APIRouter(tags=["seed"])
+
+
+def _get_demo_credentials() -> dict:
+    return {
+        "admin": {
+            "email": os.environ["DEMO_ADMIN_EMAIL"],
+            "password": os.environ["DEMO_ADMIN_PASSWORD"],
+        },
+        "driver_1": {
+            "email": os.environ["DEMO_DRIVER_1_EMAIL"],
+            "password": os.environ["DEMO_DRIVER_PASSWORD"],
+        },
+        "driver_2": {
+            "email": os.environ["DEMO_DRIVER_2_EMAIL"],
+            "password": os.environ["DEMO_DRIVER_PASSWORD"],
+        },
+        "restaurant_1": {
+            "email": os.environ["DEMO_RESTAURANT_1_EMAIL"],
+            "password": os.environ["DEMO_RESTAURANT_PASSWORD"],
+        },
+    }
 
 ZONE_COLORS = {
     1: "#2563eb",
@@ -180,6 +202,15 @@ SECTOR_MAPS = [
 
 @router.post("/seed")
 async def seed_data():
+    demo_credentials = _get_demo_credentials()
+    driver_email_map = {
+        "driver-001": demo_credentials["driver_1"]["email"],
+        "driver-002": demo_credentials["driver_2"]["email"],
+    }
+    restaurant_email_map = {
+        "rest-001": demo_credentials["restaurant_1"]["email"],
+    }
+
     await db.users.delete_many({})
     await db.drivers.delete_many({})
     await db.restaurants.delete_many({})
@@ -189,9 +220,9 @@ async def seed_data():
     await db.delivery_zones.delete_many({})
 
     # Admin
-    admin = User(id="admin-001", email="admin@delivery.ro", name="Administrator", role="admin")
+    admin = User(id="admin-001", email=demo_credentials["admin"]["email"], name="Administrator", role="admin")
     admin_doc = admin.model_dump()
-    admin_doc["password_hash"] = hash_password("admin123")
+    admin_doc["password_hash"] = hash_password(demo_credentials["admin"]["password"])
     admin_doc["created_at"] = admin_doc["created_at"].isoformat()
     await db.users.insert_one(admin_doc)
 
@@ -206,11 +237,11 @@ async def seed_data():
 
     for d in drivers_data:
         user = User(
-            id=f"user-{d['id']}", email=f"{d['id']}@delivery.ro",
+            id=f"user-{d['id']}", email=driver_email_map.get(d["id"], f"{d['id']}@delivery.ro"),
             name=d["name"], role="driver", phone=d["phone"]
         )
         user_doc = user.model_dump()
-        user_doc["password_hash"] = hash_password("driver123")
+        user_doc["password_hash"] = hash_password(demo_credentials["driver_1"]["password"])
         joined_at = datetime.now(timezone.utc) - timedelta(days=d["joined_days_ago"])
         user_doc["created_at"] = joined_at.isoformat()
         await db.users.insert_one(user_doc)
@@ -239,12 +270,12 @@ async def seed_data():
         await db.restaurants.insert_one(restaurant.model_dump())
 
         rest_user = User(
-            id=f"user-{r['id']}", email=f"{r['id']}@delivery.ro",
+            id=f"user-{r['id']}", email=restaurant_email_map.get(r["id"], f"{r['id']}@delivery.ro"),
             name=r["name"], role="restaurant", phone=r["phone"],
             restaurant_id=r["id"], restaurant_name=r["name"]
         )
         rest_user_doc = rest_user.model_dump()
-        rest_user_doc["password_hash"] = hash_password("restaurant123")
+        rest_user_doc["password_hash"] = hash_password(demo_credentials["restaurant_1"]["password"])
         rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
         await db.users.insert_one(rest_user_doc)
 
@@ -389,9 +420,9 @@ async def seed_data():
     return {
         "message": "Demo data seeded successfully - 100 orders created",
         "credentials": {
-            "admin": {"email": "admin@delivery.ro", "password": "admin123"},
-            "drivers": {"email": "driver-001@delivery.ro", "password": "driver123"},
-            "restaurants": {"email": "rest-001@delivery.ro", "password": "restaurant123"}
+            "admin": demo_credentials["admin"],
+            "drivers": {"email": demo_credentials["driver_1"]["email"], "password": demo_credentials["driver_1"]["password"]},
+            "restaurants": {"email": demo_credentials["restaurant_1"]["email"], "password": demo_credentials["restaurant_1"]["password"]}
         },
         "data": {"orders": 100, "drivers": 5, "restaurants": 5}
     }

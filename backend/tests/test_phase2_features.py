@@ -5,17 +5,15 @@ Tests: Scheduling system, Analytics without financial data, Order cancellation w
 
 import pytest
 import requests
-import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
-# Test credentials
-ADMIN_EMAIL = "admin@delivery.ro"
-ADMIN_PASSWORD = "admin123"
-DRIVER_EMAIL = "driver-001@delivery.ro"
-DRIVER_PASSWORD = "driver123"
-RESTAURANT_EMAIL = "rest-001@delivery.ro"
-RESTAURANT_PASSWORD = "restaurant123"
+from tests._settings import (
+    BASE_URL,
+    ADMIN_EMAIL,
+    ADMIN_PASSWORD,
+    DRIVER_EMAIL,
+    DRIVER_PASSWORD,
+    RESTAURANT_EMAIL,
+    RESTAURANT_PASSWORD,
+)
 
 
 @pytest.fixture(scope="module")

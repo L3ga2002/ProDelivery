@@ -881,8 +881,8 @@ const AdminDashboard = () => {
                     <p className="text-sm text-muted-foreground text-center py-4">Nicio comandă anulată</p>
                   ) : (
                     <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                      {analyticsData.cancelled_orders.map((o, i) => (
-                        <div key={i} className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/30 dark:border-red-900">
+                      {analyticsData.cancelled_orders.map((o) => (
+                        <div key={`${o.order_number}-${o.cancelled_by || "unknown"}`} className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/30 dark:border-red-900">
                           <div className="flex justify-between text-sm">
                             <span className="font-mono font-bold">{o.order_number}</span>
                             <Badge variant="outline" className="text-xs">{o.cancelled_by || "?"}</Badge>

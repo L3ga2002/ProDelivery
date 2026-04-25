@@ -9,9 +9,7 @@ Test iteration 9 features:
 """
 import pytest
 import requests
-import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+from tests._settings import BASE_URL, admin_credentials, driver_credentials
 
 class TestOrderCreationWithZoneDetection:
     """Test order creation with automatic zone detection from coordinates"""
@@ -19,10 +17,7 @@ class TestOrderCreationWithZoneDetection:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as admin
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         self.admin_token = response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -91,19 +86,13 @@ class TestDriverRankingEndpoints:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as driver
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "driver-001@delivery.ro",
-            "password": "driver123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=driver_credentials(1))
         assert response.status_code == 200, f"Driver login failed: {response.text}"
         self.driver_token = response.json()["token"]
         self.driver_headers = {"Authorization": f"Bearer {self.driver_token}"}
         
         # Login as admin
-        admin_response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        admin_response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert admin_response.status_code == 200
         self.admin_token = admin_response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -155,19 +144,13 @@ class TestSchedulingWindowEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as driver
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "driver-001@delivery.ro",
-            "password": "driver123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=driver_credentials(1))
         assert response.status_code == 200, f"Driver login failed: {response.text}"
         self.driver_token = response.json()["token"]
         self.driver_headers = {"Authorization": f"Bearer {self.driver_token}"}
         
         # Login as admin
-        admin_response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        admin_response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert admin_response.status_code == 200
         self.admin_token = admin_response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -206,10 +189,7 @@ class TestEmergencyAutoGenerate:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as admin
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         self.admin_token = response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -256,10 +236,7 @@ class TestEmergencyAutoGenerate:
     def test_auto_generate_forbidden_for_driver(self):
         """POST /api/schedules/emergency/auto-generate should be admin only"""
         # Login as driver
-        driver_response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "driver-001@delivery.ro",
-            "password": "driver123"
-        })
+        driver_response = requests.post(f"{BASE_URL}/api/auth/login", json=driver_credentials(1))
         driver_token = driver_response.json()["token"]
         driver_headers = {"Authorization": f"Bearer {driver_token}"}
         
@@ -277,10 +254,7 @@ class TestZonesMapBugFix:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as admin
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         self.admin_token = response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -338,10 +312,7 @@ class TestZoneDetectionEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as admin
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         self.admin_token = response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
@@ -373,10 +344,7 @@ class TestDriverRankings:
     @pytest.fixture(autouse=True)
     def setup(self):
         # Login as admin
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "admin@delivery.ro",
-            "password": "admin123"
-        })
+        response = requests.post(f"{BASE_URL}/api/auth/login", json=admin_credentials())
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         self.admin_token = response.json()["token"]
         self.admin_headers = {"Authorization": f"Bearer {self.admin_token}"}

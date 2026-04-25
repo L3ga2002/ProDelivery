@@ -560,8 +560,8 @@ export const AdminScheduleView = () => {
             {emergencyDialog?.existing?.claimed_names?.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-xs font-bold text-red-700 mb-1">Deja luate de:</p>
-                {emergencyDialog.existing.claimed_names.map((name, i) => (
-                  <Badge key={i} variant="outline" className="text-xs mr-1">{name}</Badge>
+                {emergencyDialog.existing.claimed_names.map((name) => (
+                  <Badge key={`${emergencyDialog.existing.id}-${name}`} variant="outline" className="text-xs mr-1">{name}</Badge>
                 ))}
               </div>
             )}

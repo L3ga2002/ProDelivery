@@ -12,12 +12,8 @@ import "./App.css";
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
-      .then((registration) => {
-        console.log('ProDelivery SW registered:', registration.scope);
-      })
-      .catch((error) => {
-        console.log('ProDelivery SW registration failed:', error);
-      });
+      .then(() => {})
+      .catch(() => {});
   });
 }
 

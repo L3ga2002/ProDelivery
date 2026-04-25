@@ -63,7 +63,6 @@ const RestaurantApp = () => {
       const response = await axios.get(`${API_URL}/api/orders/restaurant/${user?.restaurant_id}`);
       setOrders(response.data);
     } catch (error) {
-      console.error("Error fetching orders:", error);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +117,7 @@ const RestaurantApp = () => {
         // Vibrate
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
       } catch (e) {
-        console.log('Audio not supported');
+        // audio not supported in all browsers
       }
     }
   }, [orders, seenOrderIds]);
@@ -285,8 +284,8 @@ const RestaurantApp = () => {
               <CardContent className="space-y-3">
                 {/* Items */}
                 <div className="bg-muted/50 rounded-lg p-3">
-                  {order.items?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
+                  {order.items?.map((item) => (
+                    <div key={`${order.id}-${item.name}-${item.price}-${item.quantity}`} className="flex justify-between text-sm">
                       <span className="font-medium">{item.quantity}x {item.name}</span>
                       <span className="text-muted-foreground">{item.price * item.quantity} RON</span>
                     </div>

@@ -9,6 +9,21 @@ import { useTheme } from "../context/ThemeContext";
 import { toast } from "sonner";
 import { Truck, Lock, Mail, Download, Moon, Sun } from "lucide-react";
 
+const DEMO_CREDENTIALS = {
+  admin: {
+    email: process.env.REACT_APP_DEMO_ADMIN_EMAIL,
+    password: process.env.REACT_APP_DEMO_ADMIN_PASSWORD,
+  },
+  driver: {
+    email: process.env.REACT_APP_DEMO_DRIVER_1_EMAIL,
+    password: process.env.REACT_APP_DEMO_DRIVER_PASSWORD,
+  },
+  restaurant: {
+    email: process.env.REACT_APP_DEMO_RESTAURANT_1_EMAIL,
+    password: process.env.REACT_APP_DEMO_RESTAURANT_PASSWORD,
+  },
+};
+
 // PWA Install prompt
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -24,6 +39,9 @@ const LoginPage = () => {
   const { login } = useAuth();
   const { theme, isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const hasDemoCredentials = Object.values(DEMO_CREDENTIALS).every(
+    (account) => account.email && account.password,
+  );
 
   // Check if PWA can be installed
   useEffect(() => {
@@ -68,20 +86,15 @@ const LoginPage = () => {
 
   const handleDemoLogin = async (role) => {
     setIsLoading(true);
-    let demoEmail, demoPassword;
-    
-    if (role === "admin") {
-      demoEmail = "admin@delivery.ro";
-      demoPassword = "admin123";
-    } else if (role === "restaurant") {
-      demoEmail = "rest-001@delivery.ro";
-      demoPassword = "restaurant123";
-    } else {
-      demoEmail = "driver-001@delivery.ro";
-      demoPassword = "driver123";
+    const demoAccount = DEMO_CREDENTIALS[role];
+
+    if (!demoAccount?.email || !demoAccount?.password) {
+      toast.error("Credențialele demo nu sunt configurate.");
+      setIsLoading(false);
+      return;
     }
 
-    const result = await login(demoEmail, demoPassword);
+    const result = await login(demoAccount.email, demoAccount.password);
     
     if (result.success) {
       toast.success(`Bine ai venit, ${result.user.name}!`);
@@ -228,11 +241,13 @@ const LoginPage = () => {
             </Button>
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Admin: admin@delivery.ro / admin123<br />
-            Livrator: driver-001@delivery.ro / driver123<br />
-            Restaurant: rest-001@delivery.ro / restaurant123
-          </p>
+          {hasDemoCredentials && (
+            <p className="text-xs text-center text-muted-foreground">
+              Admin: {DEMO_CREDENTIALS.admin.email} / {DEMO_CREDENTIALS.admin.password}<br />
+              Livrator: {DEMO_CREDENTIALS.driver.email} / {DEMO_CREDENTIALS.driver.password}<br />
+              Restaurant: {DEMO_CREDENTIALS.restaurant.email} / {DEMO_CREDENTIALS.restaurant.password}
+            </p>
+          )}
 
           {canInstall && (
             <Button

@@ -132,7 +132,6 @@ const DriverApp = () => {
       
       setCurrentOrder(activeOrder || null);
     } catch (error) {
-      console.error("Error fetching orders:", error);
     } finally {
       setIsLoading(false);
     }
@@ -393,8 +392,8 @@ const DriverApp = () => {
                 {/* Items */}
                 {currentOrder.items && currentOrder.items.length > 0 && (
                   <div className="space-y-2">
-                    {currentOrder.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-2 border-b last:border-0">
+                    {currentOrder.items.map((item) => (
+                      <div key={`${currentOrder.id}-${item.name}-${item.price}-${item.quantity}`} className="flex justify-between items-center py-2 border-b last:border-0">
                         <span>{item.quantity}x {item.name}</span>
                         <span className="font-mono">{item.price * item.quantity} RON</span>
                       </div>

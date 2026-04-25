@@ -4,17 +4,15 @@ Tests: GET/POST/PUT/DELETE /api/zones and POST /api/zones/detect
 """
 import pytest
 import requests
-import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
-# Test credentials
-ADMIN_EMAIL = "admin@delivery.ro"
-ADMIN_PASSWORD = "admin123"
-DRIVER_EMAIL = "driver-001@delivery.ro"
-DRIVER_PASSWORD = "driver123"
-RESTAURANT_EMAIL = "rest-001@delivery.ro"
-RESTAURANT_PASSWORD = "restaurant123"
+from tests._settings import (
+    BASE_URL,
+    ADMIN_EMAIL,
+    ADMIN_PASSWORD,
+    DRIVER_EMAIL,
+    DRIVER_PASSWORD,
+    RESTAURANT_EMAIL,
+    RESTAURANT_PASSWORD,
+)
 
 
 @pytest.fixture(scope="module")
@@ -300,7 +298,7 @@ class TestUpdateZone:
                 json={"is_active": False}
             )
             assert update_response.status_code == 200
-            assert update_response.json()["is_active"] == False
+            assert not update_response.json()["is_active"]
     
     def test_driver_cannot_update_zone(self, driver_token, admin_token):
         """Driver should get 403 when trying to update zone"""
