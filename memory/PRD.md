@@ -31,6 +31,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Task 2.2.1: Sectoare livrare Bacău (Nord, Centru, Sud, Nord Extrem) cu 3 niveluri fixe per sector - IMPLEMENTAT 25 Apr 2026
 - Admin poate acum filtra pe sector, redesena conturul unei zone, adăuga zone noi manual și folosește tarifare fixă per nivel: Zona 1 = 14 lei, Zona 2 = 22 lei, Zona 3 = 33 lei
 - Seed demo creează 12 zone (4 sectoare × 3 zone) ca primă aproximare editabilă pe baza hărților primite de la user
+- Refinement 25 Apr 2026: am rafinat manual poligoanele seed pentru cele 4 sectoare și am schimbat afișarea hărții astfel încât în modul "Toate" se văd doar contururile exterioare, iar pe filtru de sector se văd toate cele 3 zone pentru sectorul ales
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -46,6 +47,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 
 ## Rămas
 - P0: Validare și rafinare manuală a celor 12 poligoane pe baza hărților reale ale clientului până coincid exact cu limitele operaționale dorite
+- P0: Continuare rafinare fină punct-cu-punct împreună cu user/client până când fiecare sector este validat vizual ca 1:1 cu harta operațională
 - P0: Legare completă comandă -> coordonate -> detectare zonă -> taxă aplicată automat în fluxul real de creare comandă
 - Ranking-based Calendar Access (P1) - prioritate calendar pe baza rankingului șoferului
 - Algoritm automat urgență (P2) - creare automată sloturi când crește volumul
