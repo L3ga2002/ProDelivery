@@ -105,19 +105,24 @@ async def delete_zone(zone_id: str, current_user: dict = Depends(get_current_use
 async def detect_zone(data: ZoneDetectRequest, current_user: dict = Depends(get_current_user)):
     point = Point(data.lng, data.lat)
     zones = await db.delivery_zones.find({"is_active": True}, {"_id": 0}).to_list(100)
+    matches = []
 
     for zone in zones:
         coords = zone.get("polygon", [])
         poly = build_shapely_polygon(coords)
         if poly and poly.contains(point):
-            return {
-                "zone_id": zone["id"],
-                "zone_name": zone["name"],
-                "sector": zone.get("sector"),
-                "zone_level": zone.get("zone_level"),
-                "fee": zone["fee"],
-                "color": zone["color"],
-            }
+            matches.append((poly.area, zone))
+
+    if matches:
+        _, best_zone = sorted(matches, key=lambda item: item[0])[0]
+        return {
+            "zone_id": best_zone["id"],
+            "zone_name": best_zone["name"],
+            "sector": best_zone.get("sector"),
+            "zone_level": best_zone.get("zone_level"),
+            "fee": best_zone["fee"],
+            "color": best_zone["color"],
+        }
 
     return {
         "zone_id": None,

@@ -1,10 +1,36 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
+from shapely.geometry import Point, Polygon
 from database import db
 from auth import get_current_user
 from models.order import Order, OrderCreate, AssignOrder, UpdateOrderStatus, PreparationTime
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+def build_shapely_polygon(coords):
+    if len(coords) < 3:
+        return None
+    ring = [(c["lng"], c["lat"]) for c in coords]
+    if ring[0] != ring[-1]:
+        ring.append(ring[0])
+    return Polygon(ring)
+
+
+async def detect_delivery_zone(lat: float | None, lng: float | None):
+    if lat is None or lng is None:
+        return None
+
+    point = Point(lng, lat)
+    zones = await db.delivery_zones.find({"is_active": True}, {"_id": 0}).to_list(200)
+    matches = []
+    for zone in zones:
+        poly = build_shapely_polygon(zone.get("polygon", []))
+        if poly and poly.contains(point):
+            matches.append((poly.area, zone))
+    if matches:
+        return sorted(matches, key=lambda item: item[0])[0][1]
+    return None
 
 
 @router.get("")
@@ -53,6 +79,11 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
     count = await db.orders.count_documents({})
     order_number = f"{order_data.source}.{count + 1:04d}"
 
+    detected_zone = await detect_delivery_zone(order_data.customer_latitude, order_data.customer_longitude)
+    subtotal_amount = order_data.subtotal_amount if order_data.subtotal_amount is not None else order_data.total_amount
+    delivery_fee = detected_zone.get("fee", 0) if detected_zone else (order_data.delivery_fee or 0)
+    total_amount = round(subtotal_amount + delivery_fee, 2)
+
     order = Order(
         order_number=order_number,
         source=order_data.source,
@@ -61,10 +92,19 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
         customer_name=order_data.customer_name,
         customer_phone=order_data.customer_phone,
         customer_address=order_data.customer_address,
+        customer_latitude=order_data.customer_latitude,
+        customer_longitude=order_data.customer_longitude,
         items=order_data.items,
-        total_amount=order_data.total_amount,
+        subtotal_amount=subtotal_amount,
+        delivery_fee=delivery_fee,
+        total_amount=total_amount,
         payment_type=order_data.payment_type,
-        notes=order_data.notes
+        notes=order_data.notes,
+        zone=detected_zone.get("name") if detected_zone else None,
+        delivery_zone_id=detected_zone.get("id") if detected_zone else None,
+        delivery_zone_name=detected_zone.get("name") if detected_zone else None,
+        delivery_sector=detected_zone.get("sector") if detected_zone else None,
+        delivery_zone_level=detected_zone.get("zone_level") if detected_zone else None,
     )
 
     doc = order.model_dump()

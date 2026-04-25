@@ -37,7 +37,7 @@ import {
   TabsTrigger,
 } from "../components/ui/tabs";
 import { Switch } from "../components/ui/switch";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -139,6 +139,44 @@ const getSourceBadge = (source) => {
   return <Badge className={colors[source] || "bg-gray-100"}>{names[source] || source}</Badge>;
 };
 
+const OrderLocationMapEvents = ({ onChange }) => {
+  useMapEvents({
+    click(event) {
+      onChange({
+        customer_latitude: Number(event.latlng.lat.toFixed(6)),
+        customer_longitude: Number(event.latlng.lng.toFixed(6)),
+      });
+    },
+  });
+  return null;
+};
+
+const OrderLocationPicker = ({ value, onChange, zones }) => {
+
+  return (
+    <div className="space-y-2" data-testid="order-location-picker">
+      <div className="h-64 rounded-lg overflow-hidden border">
+        <MapContainer center={[46.567, 26.913]} zoom={13} className="h-full w-full">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <ZonePolygons zones={zones.filter((zone) => zone.zone_level === 3)} />
+          <OrderLocationMapEvents onChange={onChange} />
+          {value.customer_latitude && value.customer_longitude && (
+            <Marker position={[value.customer_latitude, value.customer_longitude]}>
+              <Popup>Locație livrare selectată</Popup>
+            </Marker>
+          )}
+        </MapContainer>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Click pe hartă pentru a seta locația clientului și a detecta automat zona și taxa.
+      </p>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -174,8 +212,16 @@ const AdminDashboard = () => {
     customer_name: "",
     customer_phone: "",
     customer_address: "",
+    customer_latitude: null,
+    customer_longitude: null,
     items: [{ name: "", quantity: 1, price: 0 }],
+    subtotal_amount: 0,
+    delivery_fee: 0,
     total_amount: 0,
+    delivery_zone_id: null,
+    delivery_zone_name: "",
+    delivery_sector: "",
+    delivery_zone_level: null,
     payment_type: "CASH",
     notes: "",
     source: "S"
@@ -278,8 +324,12 @@ const AdminDashboard = () => {
   };
 
   const createOrder = async () => {
-    if (!newOrder.restaurant_id || !newOrder.customer_name || !newOrder.customer_phone) {
+    if (!newOrder.restaurant_id || !newOrder.customer_name || !newOrder.customer_phone || !newOrder.customer_latitude || !newOrder.customer_longitude) {
       toast.error("Completează câmpurile obligatorii");
+      return;
+    }
+    if (!newOrder.delivery_zone_id) {
+      toast.error("Selectează o locație validă dintr-o zonă de livrare");
       return;
     }
     try {
@@ -291,8 +341,16 @@ const AdminDashboard = () => {
         customer_name: "",
         customer_phone: "",
         customer_address: "",
+        customer_latitude: null,
+        customer_longitude: null,
         items: [{ name: "", quantity: 1, price: 0 }],
+        subtotal_amount: 0,
+        delivery_fee: 0,
         total_amount: 0,
+        delivery_zone_id: null,
+        delivery_zone_name: "",
+        delivery_sector: "",
+        delivery_zone_level: null,
         payment_type: "CASH",
         notes: "",
         source: "S"
@@ -302,6 +360,43 @@ const AdminDashboard = () => {
       toast.error("Eroare la creare comandă");
     }
   };
+
+  const detectOrderZone = useCallback(async (lat, lng) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/zones/detect`, { lat, lng });
+      const zone = response.data;
+      setNewOrder((prev) => {
+        const deliveryFee = zone.fee || 0;
+        const subtotal = Number(prev.subtotal_amount || 0);
+        return {
+          ...prev,
+          delivery_zone_id: zone.zone_id,
+          delivery_zone_name: zone.zone_name || "",
+          delivery_sector: zone.sector || "",
+          delivery_zone_level: zone.zone_level,
+          delivery_fee: deliveryFee,
+          total_amount: Number((subtotal + deliveryFee).toFixed(2)),
+        };
+      });
+      if (zone.zone_id) {
+        toast.success(`Zonă detectată: ${zone.zone_name} · ${zone.fee} lei`);
+      } else {
+        toast.error("Adresa este în afara zonelor definite");
+      }
+    } catch {
+      toast.error("Nu am putut detecta zona");
+    }
+  }, []);
+
+  const updateOrderLocation = useCallback((location) => {
+    setNewOrder((prev) => ({
+      ...prev,
+      ...location,
+    }));
+    if (location.customer_latitude && location.customer_longitude) {
+      detectOrderZone(location.customer_latitude, location.customer_longitude);
+    }
+  }, [detectOrderZone]);
 
   const createDriver = async () => {
     if (!newDriver.name || !newDriver.phone || !newDriver.email) {
@@ -1078,7 +1173,7 @@ const AdminDashboard = () => {
               <div>
                 <Label>Restaurant *</Label>
                 <Select value={newOrder.restaurant_id} onValueChange={(v) => setNewOrder({...newOrder, restaurant_id: v})}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="new-order-restaurant-select">
                     <SelectValue placeholder="Selectează" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1091,7 +1186,7 @@ const AdminDashboard = () => {
               <div>
                 <Label>Sursă</Label>
                 <Select value={newOrder.source} onValueChange={(v) => setNewOrder({...newOrder, source: v})}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="new-order-source-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1105,25 +1200,46 @@ const AdminDashboard = () => {
             </div>
             <div>
               <Label>Nume Client *</Label>
-              <Input value={newOrder.customer_name} onChange={(e) => setNewOrder({...newOrder, customer_name: e.target.value})} />
+              <Input value={newOrder.customer_name} onChange={(e) => setNewOrder({...newOrder, customer_name: e.target.value})} data-testid="new-order-customer-name-input" />
             </div>
             <div>
               <Label>Telefon Client *</Label>
-              <Input value={newOrder.customer_phone} onChange={(e) => setNewOrder({...newOrder, customer_phone: e.target.value})} />
+              <Input value={newOrder.customer_phone} onChange={(e) => setNewOrder({...newOrder, customer_phone: e.target.value})} data-testid="new-order-customer-phone-input" />
             </div>
             <div>
               <Label>Adresă Livrare *</Label>
-              <Input value={newOrder.customer_address} onChange={(e) => setNewOrder({...newOrder, customer_address: e.target.value})} />
+              <Input value={newOrder.customer_address} onChange={(e) => setNewOrder({...newOrder, customer_address: e.target.value})} data-testid="new-order-address-input" />
+            </div>
+            <div>
+              <Label>Locație livrare pe hartă *</Label>
+              <OrderLocationPicker value={newOrder} onChange={updateOrderLocation} zones={deliveryZones} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Sumă Totală (RON) *</Label>
-                <Input type="number" value={newOrder.total_amount} onChange={(e) => setNewOrder({...newOrder, total_amount: parseFloat(e.target.value) || 0})} />
+                <Label>Latitudine</Label>
+                <Input value={newOrder.customer_latitude ?? ""} readOnly data-testid="new-order-latitude" />
+              </div>
+              <div>
+                <Label>Longitudine</Label>
+                <Input value={newOrder.customer_longitude ?? ""} readOnly data-testid="new-order-longitude" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Subtotal produse (RON) *</Label>
+                <Input type="number" value={newOrder.subtotal_amount} onChange={(e) => {
+                  const subtotal = parseFloat(e.target.value) || 0;
+                  setNewOrder({
+                    ...newOrder,
+                    subtotal_amount: subtotal,
+                    total_amount: Number((subtotal + (newOrder.delivery_fee || 0)).toFixed(2)),
+                  });
+                }} data-testid="new-order-subtotal-input" />
               </div>
               <div>
                 <Label>Plată</Label>
                 <Select value={newOrder.payment_type} onValueChange={(v) => setNewOrder({...newOrder, payment_type: v})}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="new-order-payment-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1133,14 +1249,35 @@ const AdminDashboard = () => {
                 </Select>
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Taxă livrare</Label>
+                <Input value={newOrder.delivery_fee} readOnly data-testid="new-order-delivery-fee" />
+              </div>
+              <div>
+                <Label>Zonă detectată</Label>
+                <Input value={newOrder.delivery_zone_name || ""} readOnly data-testid="new-order-detected-zone" />
+              </div>
+              <div>
+                <Label>Total final</Label>
+                <Input value={newOrder.total_amount} readOnly data-testid="new-order-total-amount" />
+              </div>
+            </div>
+            {newOrder.delivery_zone_name && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm" data-testid="new-order-zone-summary">
+                <p><strong>Sector:</strong> {newOrder.delivery_sector || "-"}</p>
+                <p><strong>Nivel:</strong> Zona {newOrder.delivery_zone_level || "-"}</p>
+                <p><strong>Taxă aplicată:</strong> {newOrder.delivery_fee} lei</p>
+              </div>
+            )}
             <div>
               <Label>Observații</Label>
-              <Textarea value={newOrder.notes} onChange={(e) => setNewOrder({...newOrder, notes: e.target.value})} />
+              <Textarea value={newOrder.notes} onChange={(e) => setNewOrder({...newOrder, notes: e.target.value})} data-testid="new-order-notes-input" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNewOrderDialogOpen(false)}>Anulează</Button>
-            <Button onClick={createOrder}>Creează Comandă</Button>
+            <Button variant="outline" onClick={() => setIsNewOrderDialogOpen(false)} data-testid="new-order-cancel-button">Anulează</Button>
+            <Button onClick={createOrder} data-testid="new-order-submit-button">Creează Comandă</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

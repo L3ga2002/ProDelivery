@@ -22,12 +22,20 @@ class Order(BaseModel):
     customer_name: str
     customer_phone: str
     customer_address: str
+    customer_latitude: Optional[float] = None
+    customer_longitude: Optional[float] = None
     items: List[OrderItem] = []
+    subtotal_amount: float = 0
+    delivery_fee: float = 0
     total_amount: float
     payment_type: str
     notes: Optional[str] = None
     status: str = "NEW"
     zone: Optional[str] = None
+    delivery_zone_id: Optional[str] = None
+    delivery_zone_name: Optional[str] = None
+    delivery_sector: Optional[str] = None
+    delivery_zone_level: Optional[int] = None
     preparation_time: Optional[int] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -38,7 +46,11 @@ class OrderCreate(BaseModel):
     customer_name: str
     customer_phone: str
     customer_address: str
+    customer_latitude: Optional[float] = None
+    customer_longitude: Optional[float] = None
     items: List[OrderItem] = []
+    subtotal_amount: Optional[float] = None
+    delivery_fee: Optional[float] = None
     total_amount: float
     payment_type: str = "CASH"
     notes: Optional[str] = None
