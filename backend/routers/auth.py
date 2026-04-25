@@ -19,7 +19,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register")
-async def register(user_data: UserCreate, response: Response):
+async def register(user_data: UserCreate, request: Request, response: Response):
     normalized_email = user_data.email.strip().lower()
     existing = await db.users.find_one({"email": normalized_email})
     if existing:
@@ -50,12 +50,12 @@ async def register(user_data: UserCreate, response: Response):
     user_payload = await resolve_user_context(user.id)
     access_token = create_access_token(user_payload)
     refresh_token = create_refresh_token(user_payload)
-    set_auth_cookies(response, access_token, refresh_token)
+    set_auth_cookies(request, response, access_token, refresh_token)
     return {"token": access_token, "user": user_payload}
 
 
 @router.post("/login")
-async def login(credentials: UserLogin, response: Response):
+async def login(credentials: UserLogin, request: Request, response: Response):
     normalized_email = credentials.email.strip().lower()
     user = await db.users.find_one({"email": normalized_email}, {"_id": 0})
     if not user:
@@ -67,7 +67,7 @@ async def login(credentials: UserLogin, response: Response):
     user_payload = await resolve_user_context(user["id"])
     access_token = create_access_token(user_payload)
     refresh_token = create_refresh_token(user_payload)
-    set_auth_cookies(response, access_token, refresh_token)
+    set_auth_cookies(request, response, access_token, refresh_token)
 
     return {"token": access_token, "user": user_payload}
 
@@ -87,7 +87,7 @@ async def refresh_session(request: Request, response: Response):
     payload = decode_token(refresh_token, "refresh")
     user_payload = await resolve_user_context(payload["user_id"])
     access_token = create_access_token(user_payload)
-    set_auth_cookies(response, access_token, refresh_token)
+    set_auth_cookies(request, response, access_token, refresh_token)
     return {"token": access_token, "user": user_payload}
 
 

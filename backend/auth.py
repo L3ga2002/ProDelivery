@@ -71,13 +71,16 @@ def decode_token(token: str, expected_type: str) -> dict:
     return payload
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def set_auth_cookies(request: Request, response: Response, access_token: str, refresh_token: str) -> None:
+    secure_cookie = request.url.scheme == "https"
+    same_site = "none" if secure_cookie else "lax"
+
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE,
         value=access_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=secure_cookie,
+        samesite=same_site,
         max_age=ACCESS_TOKEN_LIFETIME_MINUTES * 60,
         path="/",
     )
@@ -85,8 +88,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         key=REFRESH_TOKEN_COOKIE,
         value=refresh_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=secure_cookie,
+        samesite=same_site,
         max_age=REFRESH_TOKEN_LIFETIME_DAYS * 24 * 60 * 60,
         path="/",
     )
