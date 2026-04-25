@@ -1,6 +1,17 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Response, Request
 from database import db
-from auth import hash_password, verify_password, create_token, get_current_user
+from auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    get_current_user,
+    resolve_user_context,
+    set_auth_cookies,
+    clear_auth_cookies,
+    decode_token,
+    REFRESH_TOKEN_COOKIE,
+)
 from models.user import User, UserCreate, UserLogin
 from models.driver import Driver
 
@@ -8,13 +19,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register")
-async def register(user_data: UserCreate):
-    existing = await db.users.find_one({"email": user_data.email})
+async def register(user_data: UserCreate, response: Response):
+    normalized_email = user_data.email.strip().lower()
+    existing = await db.users.find_one({"email": normalized_email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user = User(
-        email=user_data.email,
+        email=normalized_email,
         name=user_data.name,
         role=user_data.role,
         phone=user_data.phone,
@@ -35,44 +47,48 @@ async def register(user_data: UserCreate):
         )
         await db.drivers.insert_one(driver.model_dump())
 
-    return {"message": "User registered", "user_id": user.id}
+    user_payload = await resolve_user_context(user.id)
+    access_token = create_access_token(user_payload)
+    refresh_token = create_refresh_token(user_payload)
+    set_auth_cookies(response, access_token, refresh_token)
+    return {"token": access_token, "user": user_payload}
 
 
 @router.post("/login")
-async def login(credentials: UserLogin):
-    user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+async def login(credentials: UserLogin, response: Response):
+    normalized_email = credentials.email.strip().lower()
+    user = await db.users.find_one({"email": normalized_email}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_token(user)
+    user_payload = await resolve_user_context(user["id"])
+    access_token = create_access_token(user_payload)
+    refresh_token = create_refresh_token(user_payload)
+    set_auth_cookies(response, access_token, refresh_token)
 
-    driver_id = None
-    if user["role"] == "driver":
-        driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
-        if driver:
-            driver_id = driver["id"]
+    return {"token": access_token, "user": user_payload}
 
-    restaurant_name = None
-    if user["role"] == "restaurant" and user.get("restaurant_id"):
-        restaurant = await db.restaurants.find_one({"id": user["restaurant_id"]}, {"_id": 0})
-        if restaurant:
-            restaurant_name = restaurant["name"]
 
-    return {
-        "token": token,
-        "user": {
-            "id": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "role": user["role"],
-            "driver_id": driver_id,
-            "restaurant_id": user.get("restaurant_id"),
-            "restaurant_name": restaurant_name
-        }
-    }
+@router.post("/logout")
+async def logout(response: Response):
+    clear_auth_cookies(response)
+    return {"message": "Logged out"}
+
+
+@router.post("/refresh")
+async def refresh_session(request: Request, response: Response):
+    refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    payload = decode_token(refresh_token, "refresh")
+    user_payload = await resolve_user_context(payload["user_id"])
+    access_token = create_access_token(user_payload)
+    set_auth_cookies(response, access_token, refresh_token)
+    return {"token": access_token, "user": user_payload}
 
 
 @router.get("/me")

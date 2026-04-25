@@ -76,6 +76,8 @@ const LoginPage = () => {
         navigate("/admin");
       } else if (result.user.role === "driver") {
         navigate("/driver");
+      } else if (result.user.role === "restaurant") {
+        navigate("/restaurant");
       }
     } else {
       toast.error(result.error);

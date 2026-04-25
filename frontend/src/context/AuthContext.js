@@ -4,26 +4,102 @@ import axios from "axios";
 const AuthContext = createContext(null);
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+axios.defaults.withCredentials = true;
+
+
+const formatApiErrorDetail = (detail) => {
+  if (detail == null) return "Something went wrong. Please try again.";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((entry) => (entry && typeof entry.msg === "string" ? entry.msg : JSON.stringify(entry)))
+      .filter(Boolean)
+      .join(" ");
+  }
+  if (detail && typeof detail.msg === "string") return detail.msg;
+  return String(detail);
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem("token"));
+  const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const clearAuthState = () => {
+    setToken(null);
+    setUser(null);
+    delete axios.defaults.headers.common.Authorization;
+  };
+
+  const applyAuthState = (userData, accessToken = null) => {
+    setUser(userData);
+    setToken(accessToken);
+    if (accessToken) {
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    } else {
+      delete axios.defaults.headers.common.Authorization;
+    }
+  };
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      const storedUser = localStorage.getItem("user");
-      
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        axios.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+      try {
+        const meResponse = await axios.get(`${API_URL}/api/auth/me`);
+        applyAuthState(meResponse.data);
+      } catch (error) {
+        if (error.response?.status === 401) {
+          try {
+            const refreshResponse = await axios.post(`${API_URL}/api/auth/refresh`, {});
+            const refreshedToken = refreshResponse.data?.token ?? null;
+            const meResponse = await axios.get(`${API_URL}/api/auth/me`);
+            applyAuthState(meResponse.data, refreshedToken);
+          } catch {
+            clearAuthState();
+          }
+        } else {
+          clearAuthState();
+        }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     
     initAuth();
+  }, []);
+
+  useEffect(() => {
+    const interceptorId = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (
+          error.response?.status === 401 &&
+          originalRequest &&
+          !originalRequest._retry &&
+          !originalRequest.url?.includes("/api/auth/")
+        ) {
+          originalRequest._retry = true;
+          try {
+            const refreshResponse = await axios.post(`${API_URL}/api/auth/refresh`, {});
+            const refreshedToken = refreshResponse.data?.token ?? null;
+            if (refreshedToken) {
+              axios.defaults.headers.common.Authorization = `Bearer ${refreshedToken}`;
+            }
+            return axios(originalRequest);
+          } catch (refreshError) {
+            clearAuthState();
+            return Promise.reject(refreshError);
+          }
+        }
+
+        return Promise.reject(error);
+      },
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptorId);
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -35,27 +111,23 @@ export const AuthProvider = ({ children }) => {
       
       const { token: newToken, user: userData } = response.data;
       
-      setToken(newToken);
-      setUser(userData);
-      localStorage.setItem("token", newToken);
-      localStorage.setItem("user", JSON.stringify(userData));
-      axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+      applyAuthState(userData, newToken ?? null);
       
       return { success: true, user: userData };
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || "Login failed",
+        error: formatApiErrorDetail(error.response?.data?.detail) || error.message,
       };
     }
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    delete axios.defaults.headers.common["Authorization"];
+  const logout = async () => {
+    try {
+      await axios.post(`${API_URL}/api/auth/logout`, {});
+    } finally {
+      clearAuthState();
+    }
   };
 
   const value = useMemo(

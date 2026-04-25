@@ -1,325 +1,297 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Driver Ranking Application
-Testing the seed endpoint and authentication flows after environment variable changes.
+Backend Auth Testing for httpOnly Cookie Migration
+Tests the auth flows after migration to httpOnly cookies on preview environment.
 """
 
 import requests
 import json
-import os
 import sys
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-# Get the backend URL from frontend environment
-BACKEND_URL = "https://driver-ranking-1.preview.emergentagent.com/api"
+# Test configuration
+BASE_URL = "https://driver-ranking-1.preview.emergentagent.com/api"
 
-# Test credentials from environment variables (matching backend .env)
+# Test credentials from environment
 TEST_CREDENTIALS = {
     "admin": {
         "email": "admin@delivery.ro",
         "password": "admin123"
     },
-    "driver_001": {
+    "driver": {
         "email": "driver-001@delivery.ro", 
         "password": "driver123"
     },
-    "restaurant_001": {
+    "restaurant": {
         "email": "rest-001@delivery.ro",
         "password": "restaurant123"
     }
 }
 
-class BackendTester:
+class AuthTester:
     def __init__(self):
         self.session = requests.Session()
-        self.admin_token = None
-        self.test_results = []
-        
-    def log_test(self, test_name: str, success: bool, details: str = "", response_data: Any = None):
-        """Log test results"""
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} {test_name}")
-        if details:
-            print(f"   Details: {details}")
-        if response_data and not success:
-            print(f"   Response: {response_data}")
-        print()
-        
-        self.test_results.append({
-            "test": test_name,
-            "success": success,
-            "details": details,
-            "response": response_data if not success else None
+        self.session.headers.update({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
         })
-    
-    def test_seed_endpoint(self):
-        """Test POST /api/seed endpoint"""
-        print("🧪 Testing POST /api/seed endpoint...")
+        
+    def test_login(self, user_type: str) -> Dict[str, Any]:
+        """Test login endpoint and verify cookie setting"""
+        print(f"\n=== Testing {user_type.upper()} Login ===")
+        
+        credentials = TEST_CREDENTIALS[user_type]
+        url = f"{BASE_URL}/auth/login"
         
         try:
-            response = self.session.post(f"{BACKEND_URL}/seed")
+            response = self.session.post(url, json=credentials)
+            print(f"POST {url}")
+            print(f"Request: {json.dumps(credentials, indent=2)}")
+            print(f"Status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
+                print(f"Response: {json.dumps(data, indent=2)}")
                 
-                # Check if response contains expected structure
-                if "message" in data and "credentials" in data and "data" in data:
-                    # Validate credentials structure
-                    creds = data["credentials"]
-                    expected_keys = ["admin", "drivers", "restaurants"]
+                # Check cookies
+                cookies = response.cookies
+                print(f"Cookies received: {dict(cookies)}")
+                
+                # Verify httpOnly cookies are set
+                access_token_cookie = cookies.get('access_token')
+                refresh_token_cookie = cookies.get('refresh_token')
+                
+                if access_token_cookie and refresh_token_cookie:
+                    print("✅ Both access_token and refresh_token cookies set")
                     
-                    if all(key in creds for key in expected_keys):
-                        # Check admin credentials match environment
-                        admin_creds = creds["admin"]
-                        if (admin_creds["email"] == TEST_CREDENTIALS["admin"]["email"] and 
-                            admin_creds["password"] == TEST_CREDENTIALS["admin"]["password"]):
-                            
-                            self.log_test("Seed endpoint returns 200 with valid credentials", True, 
-                                        f"Message: {data['message']}, Data: {data['data']}")
-                        else:
-                            self.log_test("Seed endpoint returns 200 with valid credentials", False,
-                                        f"Admin credentials don't match environment variables", data)
+                    # Verify response still includes token for compatibility
+                    if 'token' in data and 'user' in data:
+                        print("✅ Response includes token and user for compatibility")
+                        return {
+                            "success": True,
+                            "user": data['user'],
+                            "token": data['token'],
+                            "cookies": dict(cookies)
+                        }
                     else:
-                        self.log_test("Seed endpoint returns 200 with valid credentials", False,
-                                    f"Missing credential keys: {expected_keys}", data)
+                        print("❌ Response missing token or user fields")
+                        return {"success": False, "error": "Missing token or user in response"}
                 else:
-                    self.log_test("Seed endpoint returns 200 with valid credentials", False,
-                                "Response missing required keys: message, credentials, data", data)
+                    print("❌ Missing auth cookies")
+                    return {"success": False, "error": "Auth cookies not set"}
             else:
-                self.log_test("Seed endpoint returns 200 with valid credentials", False,
-                            f"HTTP {response.status_code}: {response.text}", response.text)
+                print(f"❌ Login failed: {response.text}")
+                return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
                 
         except Exception as e:
-            self.log_test("Seed endpoint returns 200 with valid credentials", False,
-                        f"Request failed: {str(e)}")
+            print(f"❌ Login error: {str(e)}")
+            return {"success": False, "error": str(e)}
     
-    def test_admin_login(self):
-        """Test admin login with demo credentials"""
-        print("🧪 Testing admin login...")
+    def test_me_with_cookies(self) -> Dict[str, Any]:
+        """Test /me endpoint using cookies from login"""
+        print(f"\n=== Testing GET /auth/me with Cookies ===")
+        
+        url = f"{BASE_URL}/auth/me"
         
         try:
-            login_data = {
-                "email": TEST_CREDENTIALS["admin"]["email"],
-                "password": TEST_CREDENTIALS["admin"]["password"]
-            }
-            
-            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            # Use session cookies from login
+            response = self.session.get(url)
+            print(f"GET {url}")
+            print(f"Status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
-                
-                if "token" in data and "user" in data:
-                    user = data["user"]
-                    if (user.get("email") == TEST_CREDENTIALS["admin"]["email"] and 
-                        user.get("role") == "admin"):
-                        
-                        self.admin_token = data["token"]
-                        self.log_test("Admin login with demo credentials", True,
-                                    f"User: {user['name']} ({user['email']}) - Role: {user['role']}")
-                    else:
-                        self.log_test("Admin login with demo credentials", False,
-                                    f"User data incorrect: {user}", data)
-                else:
-                    self.log_test("Admin login with demo credentials", False,
-                                "Response missing token or user", data)
+                print(f"Response: {json.dumps(data, indent=2)}")
+                print("✅ /auth/me works with cookies")
+                return {"success": True, "user": data}
             else:
-                self.log_test("Admin login with demo credentials", False,
-                            f"HTTP {response.status_code}: {response.text}", response.text)
+                print(f"❌ /auth/me failed: {response.text}")
+                return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
                 
         except Exception as e:
-            self.log_test("Admin login with demo credentials", False,
-                        f"Request failed: {str(e)}")
+            print(f"❌ /auth/me error: {str(e)}")
+            return {"success": False, "error": str(e)}
     
-    def test_driver_login(self):
-        """Test driver login with demo credentials"""
-        print("🧪 Testing driver-001 login...")
+    def test_refresh_token(self) -> Dict[str, Any]:
+        """Test refresh token endpoint"""
+        print(f"\n=== Testing POST /auth/refresh ===")
+        
+        url = f"{BASE_URL}/auth/refresh"
         
         try:
-            login_data = {
-                "email": TEST_CREDENTIALS["driver_001"]["email"],
-                "password": TEST_CREDENTIALS["driver_001"]["password"]
-            }
-            
-            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            # Use session cookies from login
+            response = self.session.post(url)
+            print(f"POST {url}")
+            print(f"Status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
+                print(f"Response: {json.dumps(data, indent=2)}")
                 
-                if "token" in data and "user" in data:
-                    user = data["user"]
-                    if (user.get("email") == TEST_CREDENTIALS["driver_001"]["email"] and 
-                        user.get("role") == "driver"):
-                        
-                        self.log_test("Driver-001 login with demo credentials", True,
-                                    f"User: {user['name']} ({user['email']}) - Role: {user['role']}, Driver ID: {user.get('driver_id')}")
-                    else:
-                        self.log_test("Driver-001 login with demo credentials", False,
-                                    f"User data incorrect: {user}", data)
+                # Check if new access_token cookie is set
+                cookies = response.cookies
+                print(f"New cookies: {dict(cookies)}")
+                
+                if cookies.get('access_token'):
+                    print("✅ Refresh token works and sets new access_token")
+                    return {"success": True, "token": data.get('token')}
                 else:
-                    self.log_test("Driver-001 login with demo credentials", False,
-                                "Response missing token or user", data)
+                    print("❌ Refresh didn't set new access_token cookie")
+                    return {"success": False, "error": "No new access_token cookie"}
             else:
-                self.log_test("Driver-001 login with demo credentials", False,
-                            f"HTTP {response.status_code}: {response.text}", response.text)
+                print(f"❌ Refresh failed: {response.text}")
+                return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
                 
         except Exception as e:
-            self.log_test("Driver-001 login with demo credentials", False,
-                        f"Request failed: {str(e)}")
+            print(f"❌ Refresh error: {str(e)}")
+            return {"success": False, "error": str(e)}
     
-    def test_restaurant_login(self):
-        """Test restaurant login with demo credentials"""
-        print("🧪 Testing restaurant-001 login...")
+    def test_logout(self) -> Dict[str, Any]:
+        """Test logout endpoint"""
+        print(f"\n=== Testing POST /auth/logout ===")
+        
+        url = f"{BASE_URL}/auth/logout"
         
         try:
-            login_data = {
-                "email": TEST_CREDENTIALS["restaurant_001"]["email"],
-                "password": TEST_CREDENTIALS["restaurant_001"]["password"]
-            }
-            
-            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            response = self.session.post(url)
+            print(f"POST {url}")
+            print(f"Status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
-                
-                if "token" in data and "user" in data:
-                    user = data["user"]
-                    if (user.get("email") == TEST_CREDENTIALS["restaurant_001"]["email"] and 
-                        user.get("role") == "restaurant"):
-                        
-                        self.log_test("Restaurant-001 login with demo credentials", True,
-                                    f"User: {user['name']} ({user['email']}) - Role: {user['role']}, Restaurant ID: {user.get('restaurant_id')}")
-                    else:
-                        self.log_test("Restaurant-001 login with demo credentials", False,
-                                    f"User data incorrect: {user}", data)
-                else:
-                    self.log_test("Restaurant-001 login with demo credentials", False,
-                                "Response missing token or user", data)
+                print(f"Response: {json.dumps(data, indent=2)}")
+                print("✅ Logout successful")
+                return {"success": True, "message": data.get('message')}
             else:
-                self.log_test("Restaurant-001 login with demo credentials", False,
-                            f"HTTP {response.status_code}: {response.text}", response.text)
+                print(f"❌ Logout failed: {response.text}")
+                return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
                 
         except Exception as e:
-            self.log_test("Restaurant-001 login with demo credentials", False,
-                        f"Request failed: {str(e)}")
+            print(f"❌ Logout error: {str(e)}")
+            return {"success": False, "error": str(e)}
     
-    def test_zones_endpoint(self):
-        """Test GET /api/zones with admin token"""
-        print("🧪 Testing GET /api/zones with admin token...")
+    def test_me_after_logout(self) -> Dict[str, Any]:
+        """Test /me endpoint after logout to verify cookies are cleared"""
+        print(f"\n=== Testing GET /auth/me After Logout ===")
         
-        if not self.admin_token:
-            self.log_test("GET /api/zones with admin token", False,
-                        "No admin token available (admin login failed)")
-            return
+        url = f"{BASE_URL}/auth/me"
         
         try:
-            headers = {"Authorization": f"Bearer {self.admin_token}"}
-            response = self.session.get(f"{BACKEND_URL}/zones", headers=headers)
+            response = self.session.get(url)
+            print(f"GET {url}")
+            print(f"Status: {response.status_code}")
+            
+            if response.status_code == 401:
+                print("✅ /auth/me correctly returns 401 after logout")
+                return {"success": True, "message": "Correctly unauthenticated"}
+            else:
+                print(f"❌ /auth/me should return 401 after logout, got {response.status_code}")
+                return {"success": False, "error": f"Expected 401, got {response.status_code}"}
+                
+        except Exception as e:
+            print(f"❌ /auth/me after logout error: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    def test_bearer_token_fallback(self, token: str) -> Dict[str, Any]:
+        """Test that Authorization Bearer fallback still works"""
+        print(f"\n=== Testing Authorization Bearer Fallback ===")
+        
+        # Create new session without cookies
+        test_session = requests.Session()
+        test_session.headers.update({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {token}'
+        })
+        
+        url = f"{BASE_URL}/auth/me"
+        
+        try:
+            response = test_session.get(url)
+            print(f"GET {url}")
+            print(f"Authorization: Bearer {token[:20]}...")
+            print(f"Status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
-                
-                if isinstance(data, list) and len(data) > 0:
-                    # Check if zones have expected structure
-                    first_zone = data[0]
-                    expected_keys = ["id", "sector", "zone_level", "name", "color", "fee", "polygon"]
-                    
-                    if all(key in first_zone for key in expected_keys):
-                        self.log_test("GET /api/zones with admin token", True,
-                                    f"Retrieved {len(data)} zones successfully")
-                    else:
-                        self.log_test("GET /api/zones with admin token", False,
-                                    f"Zone structure missing keys: {expected_keys}", first_zone)
-                else:
-                    self.log_test("GET /api/zones with admin token", False,
-                                "Empty zones list or invalid format", data)
+                print(f"Response: {json.dumps(data, indent=2)}")
+                print("✅ Authorization Bearer fallback works")
+                return {"success": True, "user": data}
             else:
-                self.log_test("GET /api/zones with admin token", False,
-                            f"HTTP {response.status_code}: {response.text}", response.text)
+                print(f"❌ Bearer fallback failed: {response.text}")
+                return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
                 
         except Exception as e:
-            self.log_test("GET /api/zones with admin token", False,
-                        f"Request failed: {str(e)}")
+            print(f"❌ Bearer fallback error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+def main():
+    """Run comprehensive auth testing"""
+    print("🔐 Starting Auth Testing for httpOnly Cookie Migration")
+    print(f"Base URL: {BASE_URL}")
     
-    def test_drivers_endpoint(self):
-        """Test GET /api/drivers with admin token"""
-        print("🧪 Testing GET /api/drivers with admin token...")
-        
-        if not self.admin_token:
-            self.log_test("GET /api/drivers with admin token", False,
-                        "No admin token available (admin login failed)")
-            return
-        
-        try:
-            headers = {"Authorization": f"Bearer {self.admin_token}"}
-            response = self.session.get(f"{BACKEND_URL}/drivers", headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if isinstance(data, list) and len(data) > 0:
-                    # Check if drivers have expected structure
-                    first_driver = data[0]
-                    expected_keys = ["id", "name", "phone", "is_active", "latitude", "longitude"]
-                    
-                    if all(key in first_driver for key in expected_keys):
-                        self.log_test("GET /api/drivers with admin token", True,
-                                    f"Retrieved {len(data)} drivers successfully")
-                    else:
-                        self.log_test("GET /api/drivers with admin token", False,
-                                    f"Driver structure missing keys: {expected_keys}", first_driver)
-                else:
-                    self.log_test("GET /api/drivers with admin token", False,
-                                "Empty drivers list or invalid format", data)
-            else:
-                self.log_test("GET /api/drivers with admin token", False,
-                            f"HTTP {response.status_code}: {response.text}", response.text)
-                
-        except Exception as e:
-            self.log_test("GET /api/drivers with admin token", False,
-                        f"Request failed: {str(e)}")
+    tester = AuthTester()
+    results = {}
     
-    def run_all_tests(self):
-        """Run all backend tests"""
-        print("🚀 Starting Backend API Tests")
-        print(f"Backend URL: {BACKEND_URL}")
-        print("=" * 60)
+    # Test 1: Admin Login
+    admin_result = tester.test_login("admin")
+    results["admin_login"] = admin_result
+    
+    if admin_result["success"]:
+        admin_token = admin_result["token"]
         
-        # Test sequence as specified in review request
-        self.test_seed_endpoint()
-        self.test_admin_login()
-        self.test_driver_login()
-        self.test_restaurant_login()
-        self.test_zones_endpoint()
-        self.test_drivers_endpoint()
+        # Test 2: /me with cookies
+        me_result = tester.test_me_with_cookies()
+        results["me_with_cookies"] = me_result
         
-        # Summary
-        print("=" * 60)
-        print("📊 TEST SUMMARY")
-        print("=" * 60)
+        # Test 3: Refresh token
+        refresh_result = tester.test_refresh_token()
+        results["refresh_token"] = refresh_result
         
-        passed = sum(1 for result in self.test_results if result["success"])
-        total = len(self.test_results)
+        # Test 4: Logout
+        logout_result = tester.test_logout()
+        results["logout"] = logout_result
         
-        print(f"Total Tests: {total}")
-        print(f"Passed: {passed}")
-        print(f"Failed: {total - passed}")
-        print()
+        # Test 5: /me after logout
+        me_after_logout = tester.test_me_after_logout()
+        results["me_after_logout"] = me_after_logout
         
-        if total - passed > 0:
-            print("❌ FAILED TESTS:")
-            for result in self.test_results:
-                if not result["success"]:
-                    print(f"  - {result['test']}: {result['details']}")
-            print()
-        
-        print("✅ PASSED TESTS:")
-        for result in self.test_results:
-            if result["success"]:
-                print(f"  - {result['test']}")
-        
-        return passed == total
+        # Test 6: Bearer token fallback
+        bearer_result = tester.test_bearer_token_fallback(admin_token)
+        results["bearer_fallback"] = bearer_result
+    
+    # Test 7: Driver login regression test
+    driver_result = tester.test_login("driver")
+    results["driver_login"] = driver_result
+    
+    # Test 8: Restaurant login regression test  
+    restaurant_result = tester.test_login("restaurant")
+    results["restaurant_login"] = restaurant_result
+    
+    # Summary
+    print(f"\n{'='*60}")
+    print("🔐 AUTH TESTING SUMMARY")
+    print(f"{'='*60}")
+    
+    passed = 0
+    total = len(results)
+    
+    for test_name, result in results.items():
+        status = "✅ PASS" if result["success"] else "❌ FAIL"
+        print(f"{test_name:25} {status}")
+        if result["success"]:
+            passed += 1
+        else:
+            print(f"  Error: {result.get('error', 'Unknown error')}")
+    
+    print(f"\nResults: {passed}/{total} tests passed")
+    
+    if passed == total:
+        print("🎉 All auth tests passed! httpOnly cookie migration successful.")
+        return 0
+    else:
+        print("⚠️  Some auth tests failed. Check implementation.")
+        return 1
 
 if __name__ == "__main__":
-    tester = BackendTester()
-    success = tester.run_all_tests()
-    sys.exit(0 if success else 1)
+    sys.exit(main())
