@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -238,17 +238,29 @@ export function DeliveryZonesManager() {
   });
   const [newPolygon, setNewPolygon] = useState(null);
 
-  const sectorOptions = Array.from(new Set(zones.map((zone) => zone.sector).filter(Boolean)));
-  const visibleZones = sectorFilter === "all" ? zones : zones.filter((zone) => zone.sector === sectorFilter);
-  const mapZones = sectorFilter === "all"
-    ? zones.filter((zone) => zone.zone_level === 3 || zone.id === selectedZone?.id)
-    : visibleZones;
-  const groupedZones = visibleZones.reduce((acc, zone) => {
-    const key = zone.sector || "General";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(zone);
-    return acc;
-  }, {});
+  const sectorOptions = useMemo(
+    () => Array.from(new Set(zones.map((zone) => zone.sector).filter(Boolean))),
+    [zones],
+  );
+  const visibleZones = useMemo(
+    () => (sectorFilter === "all" ? zones : zones.filter((zone) => zone.sector === sectorFilter)),
+    [sectorFilter, zones],
+  );
+  const mapZones = useMemo(
+    () => (sectorFilter === "all"
+      ? zones.filter((zone) => zone.zone_level === 3 || zone.id === selectedZone?.id)
+      : visibleZones),
+    [sectorFilter, selectedZone?.id, visibleZones, zones],
+  );
+  const groupedZones = useMemo(
+    () => visibleZones.reduce((acc, zone) => {
+      const key = zone.sector || "General";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(zone);
+      return acc;
+    }, {}),
+    [visibleZones],
+  );
 
   const fetchZones = useCallback(async () => {
     try {

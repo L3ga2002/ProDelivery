@@ -6,6 +6,7 @@ from auth import get_current_user
 from models.order import Order, OrderCreate, AssignOrder, UpdateOrderStatus, PreparationTime
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+VALID_ORDER_STATUSES = ["NEW", "PREPARING", "READY", "ASSIGNED", "ACCEPTED", "PICKED_UP", "DELIVERED", "CANCELLED"]
 
 
 def build_shapely_polygon(coords):
@@ -31,6 +32,45 @@ async def detect_delivery_zone(lat: float | None, lng: float | None):
     if matches:
         return sorted(matches, key=lambda item: item[0])[0][1]
     return None
+
+
+def build_status_update_payload(data: UpdateOrderStatus, current_user: dict) -> dict:
+    if data.status not in VALID_ORDER_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    if data.status == "CANCELLED" and not data.cancellation_reason:
+        raise HTTPException(status_code=400, detail="Cancellation reason is required")
+
+    update_data = {
+        "status": data.status,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    if data.status == "CANCELLED" and data.cancellation_reason:
+        update_data["cancellation_reason"] = data.cancellation_reason
+        update_data["cancelled_by"] = current_user.get("role", "unknown")
+    return update_data
+
+
+async def load_order_for_status_update(order_id: str) -> dict | None:
+    return await db.orders.find_one({"id": order_id}, {"_id": 0})
+
+
+async def clear_driver_assignment(order: dict | None) -> None:
+    if order and order.get("driver_id"):
+        await db.drivers.update_one(
+            {"id": order["driver_id"]},
+            {"$set": {"current_order_id": None}}
+        )
+
+
+async def finalize_delivered_order(order: dict | None) -> None:
+    if order and order.get("driver_id"):
+        await db.drivers.update_one(
+            {"id": order["driver_id"]},
+            {
+                "$set": {"current_order_id": None},
+                "$inc": {"total_deliveries": 1, "total_earnings": order.get("total_amount", 0) * 0.1}
+            }
+        )
 
 
 @router.get("")
@@ -171,41 +211,15 @@ async def set_ready(order_id: str, current_user: dict = Depends(get_current_user
 
 @router.put("/{order_id}/status")
 async def update_order_status(order_id: str, data: UpdateOrderStatus, current_user: dict = Depends(get_current_user)):
-    valid_statuses = ["NEW", "PREPARING", "READY", "ASSIGNED", "ACCEPTED", "PICKED_UP", "DELIVERED", "CANCELLED"]
-    if data.status not in valid_statuses:
-        raise HTTPException(status_code=400, detail="Invalid status")
-
-    if data.status == "CANCELLED" and not data.cancellation_reason:
-        raise HTTPException(status_code=400, detail="Cancellation reason is required")
-
-    update_data = {
-        "status": data.status,
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
-
-    if data.status == "CANCELLED" and data.cancellation_reason:
-        update_data["cancellation_reason"] = data.cancellation_reason
-        update_data["cancelled_by"] = current_user.get("role", "unknown")
+    update_data = build_status_update_payload(data, current_user)
 
     await db.orders.update_one({"id": order_id}, {"$set": update_data})
+    order = await load_order_for_status_update(order_id)
 
     if data.status == "DELIVERED":
-        order = await db.orders.find_one({"id": order_id}, {"_id": 0})
-        if order and order.get("driver_id"):
-            await db.drivers.update_one(
-                {"id": order["driver_id"]},
-                {
-                    "$set": {"current_order_id": None},
-                    "$inc": {"total_deliveries": 1, "total_earnings": order.get("total_amount", 0) * 0.1}
-                }
-            )
+        await finalize_delivered_order(order)
 
     if data.status == "CANCELLED":
-        order = await db.orders.find_one({"id": order_id}, {"_id": 0})
-        if order and order.get("driver_id"):
-            await db.drivers.update_one(
-                {"id": order["driver_id"]},
-                {"$set": {"current_order_id": None}}
-            )
+        await clear_driver_assignment(order)
 
     return {"message": "Status updated"}

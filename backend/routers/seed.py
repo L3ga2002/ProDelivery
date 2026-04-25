@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from datetime import datetime, timezone, timedelta
 import os
-import random
+import secrets
 from database import db
 from auth import hash_password
 from models.user import User
@@ -10,6 +10,7 @@ from models.restaurant import Restaurant
 from models.order import Order
 
 router = APIRouter(tags=["seed"])
+SYSTEM_RANDOM = secrets.SystemRandom()
 
 
 def _get_demo_credentials() -> dict:
@@ -31,6 +32,16 @@ def _get_demo_credentials() -> dict:
             "password": os.environ["DEMO_RESTAURANT_PASSWORD"],
         },
     }
+
+
+def weighted_choice(options: list[str], weights: list[int]) -> str:
+    threshold = SYSTEM_RANDOM.randrange(sum(weights))
+    cumulative = 0
+    for option, weight in zip(options, weights):
+        cumulative += weight
+        if threshold < cumulative:
+            return option
+    return options[-1]
 
 ZONE_COLORS = {
     1: "#2563eb",
@@ -356,27 +367,27 @@ async def seed_data():
     }
 
     for i in range(1, 101):
-        source = random.choices(sources, weights=source_weights)[0]
-        restaurant_id = random.choice(restaurants_ids)
+        source = weighted_choice(sources, source_weights)
+        restaurant_id = SYSTEM_RANDOM.choice(restaurants_ids)
 
-        first_name = random.choice(first_names)
-        last_name = random.choice(last_names)
+        first_name = SYSTEM_RANDOM.choice(first_names)
+        last_name = SYSTEM_RANDOM.choice(last_names)
         customer_name = f"{first_name} {last_name}"
-        customer_phone = f"07{random.randint(20, 99)}{random.randint(100000, 999999)}"
-        customer_address = f"{random.choice(streets)} {random.randint(1, 150)}, Ap. {random.randint(1, 50)}, Bacău"
+        customer_phone = f"07{SYSTEM_RANDOM.randint(20, 99)}{SYSTEM_RANDOM.randint(100000, 999999)}"
+        customer_address = f"{SYSTEM_RANDOM.choice(streets)} {SYSTEM_RANDOM.randint(1, 150)}, Ap. {SYSTEM_RANDOM.randint(1, 50)}, Bacău"
 
         available_items = food_items[restaurant_id]
-        num_items = random.randint(1, 4)
-        selected_items = random.sample(available_items, min(num_items, len(available_items)))
+        num_items = SYSTEM_RANDOM.randint(1, 4)
+        selected_items = SYSTEM_RANDOM.sample(available_items, min(num_items, len(available_items)))
         items = []
         total = 0
         for item in selected_items:
-            qty = random.randint(1, 3)
+            qty = SYSTEM_RANDOM.randint(1, 3)
             items.append({"name": item["name"], "quantity": qty, "price": item["price"]})
             total += item["price"] * qty
 
-        payment_type = random.choice(["CASH", "CASH", "CARD"])
-        notes = random.choice(notes_options)
+        payment_type = SYSTEM_RANDOM.choice(["CASH", "CASH", "CARD"])
+        notes = SYSTEM_RANDOM.choice(notes_options)
 
         # Assign zone based on restaurant location (temporary until Task 2.2)
         zone_map = {"rest-001": "Zona 1", "rest-002": "Zona 2", "rest-003": "Zona 3", "rest-004": "Zona 4", "rest-005": "Zona 1"}

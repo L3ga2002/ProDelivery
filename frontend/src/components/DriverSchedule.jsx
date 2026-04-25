@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button";
@@ -214,15 +214,25 @@ export const DriverSchedule = ({ driverId }) => {
     });
   };
 
-  const driverHoursCount = Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "driver" || !s.added_by).length, 0);
-  const adminHoursCount = Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "admin").length, 0);
-  const emergencyCount = Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "emergency").length, 0);
-
-  // Count available emergency slots for this driver
-  const availableEmergencyCount = emergencySlots.filter((s) => {
-    const hasSchedule = (slots[s.day] || []).some((sl) => sl.start === s.hour);
-    return !hasSchedule && s.remaining_spots > 0 && !(s.claimed_by || []).includes(driverId);
-  }).length;
+  const driverHoursCount = useMemo(
+    () => Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "driver" || !s.added_by).length, 0),
+    [slots],
+  );
+  const adminHoursCount = useMemo(
+    () => Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "admin").length, 0),
+    [slots],
+  );
+  const emergencyCount = useMemo(
+    () => Object.values(slots).reduce((sum, ds) => sum + ds.filter((s) => s.added_by === "emergency").length, 0),
+    [slots],
+  );
+  const availableEmergencyCount = useMemo(
+    () => emergencySlots.filter((slot) => {
+      const hasSchedule = (slots[slot.day] || []).some((scheduledSlot) => scheduledSlot.start === slot.hour);
+      return !hasSchedule && slot.remaining_spots > 0 && !(slot.claimed_by || []).includes(driverId);
+    }).length,
+    [driverId, emergencySlots, slots],
+  );
 
   return (
     <Card data-testid="driver-schedule-card">
