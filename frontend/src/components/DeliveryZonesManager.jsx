@@ -138,7 +138,8 @@ function ZonePolygons({ zones, selectedZoneId, onZoneClick }) {
               pathOptions={{
                 color: zone.color,
                 fillColor: zone.color,
-                fillOpacity: isSelected ? 0.35 : 0.15,
+                fillOpacity: isSelected ? 0.28 : 0.08,
+                opacity: isSelected ? 1 : 0.72,
                 weight: isSelected ? 3 : 2,
               }}
               eventHandlers={{ click: () => onZoneClick && onZoneClick(zone) }}
@@ -176,6 +177,9 @@ export function DeliveryZonesManager() {
 
   const sectorOptions = Array.from(new Set(zones.map((zone) => zone.sector).filter(Boolean)));
   const visibleZones = sectorFilter === "all" ? zones : zones.filter((zone) => zone.sector === sectorFilter);
+  const mapZones = sectorFilter === "all"
+    ? zones.filter((zone) => zone.zone_level === 3 || zone.id === selectedZone?.id)
+    : visibleZones;
   const groupedZones = visibleZones.reduce((acc, zone) => {
     const key = zone.sector || "General";
     if (!acc[key]) acc[key] = [];
@@ -300,6 +304,9 @@ export function DeliveryZonesManager() {
 
   const handleZoneClick = (zone) => {
     setSelectedZone(zone);
+    if (sectorFilter === "all" && zone.sector) {
+      setSectorFilter(zone.sector);
+    }
   };
 
   const startRedraw = () => {
@@ -381,6 +388,9 @@ export function DeliveryZonesManager() {
           <p className="text-sm text-muted-foreground mt-1">
             4 sectoare × 3 zone fixe. Zona 1 = 14 lei, Zona 2 = 22 lei, Zona 3 = 33 lei.
           </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            În modul „Toate” afișăm doar conturul exterior al fiecărui sector pentru o hartă mai clară. Când alegi un sector, vezi toate cele 3 zone ale lui.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-4 mb-4">
@@ -448,7 +458,7 @@ export function DeliveryZonesManager() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   <ZonePolygons
-                    zones={zones}
+                    zones={mapZones}
                     selectedZoneId={selectedZone?.id}
                     onZoneClick={handleZoneClick}
                   />
