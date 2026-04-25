@@ -405,7 +405,7 @@ export function DeliveryZonesManager() {
                 <>
                   <Badge
                     variant="outline"
-                    className="animate-pulse border-blue-400 text-blue-600 px-3 py-1"
+                    className="animate-pulse border-blue-400 text-blue-600 px-3 py-1 dark:border-blue-700 dark:text-blue-100"
                   >
                     <MousePointerClick className="w-3 h-3 mr-1" />
                     Click pe hartă pentru puncte, dublu-click pentru finalizare
@@ -457,22 +457,22 @@ export function DeliveryZonesManager() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-4 mb-4">
-            <Card className="border-blue-200 bg-blue-50">
+            <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
               <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-blue-700">Zona 1</p>
-                <p className="text-2xl font-bold text-blue-800">14 lei</p>
+                <p className="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-100">Zona 1</p>
+                <p className="text-2xl font-bold text-blue-800 dark:text-blue-50">14 lei</p>
               </CardContent>
             </Card>
-            <Card className="border-amber-200 bg-amber-50">
+            <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
               <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-amber-700">Zona 2</p>
-                <p className="text-2xl font-bold text-amber-800">22 lei</p>
+                <p className="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-100">Zona 2</p>
+                <p className="text-2xl font-bold text-amber-800 dark:text-amber-50">22 lei</p>
               </CardContent>
             </Card>
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20">
               <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-red-700">Zona 3</p>
-                <p className="text-2xl font-bold text-red-800">33 lei</p>
+                <p className="text-xs uppercase tracking-wide text-red-700 dark:text-red-100">Zona 3</p>
+                <p className="text-2xl font-bold text-red-800 dark:text-red-50">33 lei</p>
               </CardContent>
             </Card>
             <Card>

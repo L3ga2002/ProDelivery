@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import LoginPage from "./pages/LoginPage";
@@ -6,6 +5,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DriverApp from "./pages/DriverApp";
 import RestaurantApp from "./pages/RestaurantApp";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import "./App.css";
 
 // Register Service Worker for PWA
@@ -73,7 +73,19 @@ const HomeRedirect = () => {
 
 function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+const AppShell = () => {
+  const { theme } = useTheme();
+
+  return (
+    <>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -105,9 +117,9 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-      <Toaster position="top-center" richColors />
-    </AuthProvider>
+      <Toaster position="top-center" richColors theme={theme} />
+    </>
   );
-}
+};
 
 export default App;

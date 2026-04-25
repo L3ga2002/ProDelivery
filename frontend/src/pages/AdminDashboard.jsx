@@ -63,9 +63,12 @@ import {
   Loader2,
   Circle,
   XCircle,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
 import { DeliveryZonesManager, ZonePolygons } from "../components/DeliveryZonesManager";
+import { useTheme } from "../context/ThemeContext";
 import {
   BarChart,
   Bar,
@@ -115,14 +118,14 @@ const restaurantIcon = new L.Icon({
 
 const getStatusBadge = (status) => {
   const statusConfig = {
-    NEW: { label: "Nouă", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-    PREPARING: { label: "Pregătire", className: "bg-blue-100 text-blue-800 border-blue-300" },
-    READY: { label: "Gata", className: "bg-green-100 text-green-800 border-green-300" },
-    ASSIGNED: { label: "Alocată", className: "bg-purple-100 text-purple-800 border-purple-300" },
-    ACCEPTED: { label: "Acceptată", className: "bg-indigo-100 text-indigo-800 border-indigo-300" },
-    PICKED_UP: { label: "Ridicată", className: "bg-orange-100 text-orange-800 border-orange-300" },
-    DELIVERED: { label: "Livrată", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-    CANCELLED: { label: "Anulată", className: "bg-red-100 text-red-800 border-red-300" },
+    NEW: { label: "Nouă", className: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-100 dark:border-yellow-900" },
+    PREPARING: { label: "Pregătire", className: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-100 dark:border-blue-900" },
+    READY: { label: "Gata", className: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-100 dark:border-green-900" },
+    ASSIGNED: { label: "Alocată", className: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/40 dark:text-purple-100 dark:border-purple-900" },
+    ACCEPTED: { label: "Acceptată", className: "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-100 dark:border-indigo-900" },
+    PICKED_UP: { label: "Ridicată", className: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-100 dark:border-orange-900" },
+    DELIVERED: { label: "Livrată", className: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-900" },
+    CANCELLED: { label: "Anulată", className: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-100 dark:border-red-900" },
   };
   const config = statusConfig[status] || { label: status, className: "" };
   return <Badge className={`${config.className} border`}>{config.label}</Badge>;
@@ -130,10 +133,10 @@ const getStatusBadge = (status) => {
 
 const getSourceBadge = (source) => {
   const colors = {
-    S: "bg-gray-100 text-gray-800",
-    G: "bg-orange-100 text-orange-800",
-    W: "bg-cyan-100 text-cyan-800",
-    B: "bg-green-100 text-green-800",
+    S: "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100",
+    G: "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-100",
+    W: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100",
+    B: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-100",
   };
   const names = { S: "Site", G: "Glovo", W: "Wolt", B: "Bolt" };
   return <Badge className={colors[source] || "bg-gray-100"}>{names[source] || source}</Badge>;
@@ -179,6 +182,7 @@ const OrderLocationPicker = ({ value, onChange, zones }) => {
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
@@ -574,6 +578,17 @@ const AdminDashboard = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleTheme}
+              className="border-border/80 bg-card/85 backdrop-blur"
+              data-testid="admin-theme-toggle"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span className="hidden sm:inline">{isDark ? "Light" : "Dark"}</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={fetchData} data-testid="refresh-button">
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualizează
@@ -818,15 +833,15 @@ const AdminDashboard = () => {
                       <p className="text-3xl font-bold text-primary">{stats.total_orders || 0}</p>
                       <p className="text-sm text-muted-foreground mt-1">Total Comenzi</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-center">
+                    <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-center dark:bg-green-950/30 dark:border-green-900">
                       <p className="text-3xl font-bold text-green-600">{stats.delivered_orders || 0}</p>
                       <p className="text-sm text-muted-foreground mt-1">Livrate</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-center">
+                    <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-center dark:bg-yellow-950/30 dark:border-yellow-900">
                       <p className="text-3xl font-bold text-yellow-600">{stats.active_orders || 0}</p>
                       <p className="text-sm text-muted-foreground mt-1">Active</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-center">
+                    <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-center dark:bg-red-950/30 dark:border-red-900">
                       <p className="text-3xl font-bold text-red-600">{stats.cancelled_orders || 0}</p>
                       <p className="text-sm text-muted-foreground mt-1">Anulate</p>
                     </div>
@@ -867,13 +882,13 @@ const AdminDashboard = () => {
                   ) : (
                     <div className="space-y-3 max-h-[300px] overflow-y-auto">
                       {analyticsData.cancelled_orders.map((o, i) => (
-                        <div key={i} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div key={i} className="p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950/30 dark:border-red-900">
                           <div className="flex justify-between text-sm">
                             <span className="font-mono font-bold">{o.order_number}</span>
                             <Badge variant="outline" className="text-xs">{o.cancelled_by || "?"}</Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">{o.restaurant_name}</p>
-                          <p className="text-sm text-red-700 mt-1 font-medium">Motiv: {o.cancellation_reason}</p>
+                          <p className="text-sm text-red-700 mt-1 font-medium dark:text-red-100">Motiv: {o.cancellation_reason}</p>
                         </div>
                       ))}
                     </div>
@@ -890,7 +905,7 @@ const AdminDashboard = () => {
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <MapPin className="w-5 h-5" />
                   Hartă Live - Bacău
-                  <Badge variant="outline" className="ml-2 text-xs animate-pulse border-green-400 text-green-600">
+                  <Badge variant="outline" className="ml-2 text-xs animate-pulse border-green-400 text-green-600 dark:border-green-700 dark:text-green-100">
                     LIVE
                   </Badge>
                 </CardTitle>
@@ -915,7 +930,7 @@ const AdminDashboard = () => {
                             <div className="text-sm">
                               <p className="font-bold">{driver.name}</p>
                               <p>{driver.phone}</p>
-                              <Badge className={driver.is_active ? "bg-green-100" : "bg-gray-100"}>
+                              <Badge className={driver.is_active ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-100" : "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100"}>
                                 {driver.is_active ? "Activ" : "Inactiv"}
                               </Badge>
                             </div>
@@ -961,7 +976,7 @@ const AdminDashboard = () => {
                   {drivers.map((driver) => (
                     <div
                       key={driver.id}
-                      className={`p-4 rounded-lg border ${driver.is_active ? 'bg-green-50 border-green-200' : 'bg-muted/50'}`}
+                      className={`p-4 rounded-lg border ${driver.is_active ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : 'bg-muted/50'}`}
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${driver.is_active ? 'bg-green-500' : 'bg-gray-400'}`}>
@@ -977,7 +992,7 @@ const AdminDashboard = () => {
                         <span>Scor: {driver.ranking_score || 0}</span>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100'}`}>
                           {driver.is_active ? 'Activ' : 'Inactiv'}
                         </Badge>
                         {driver.ranking_tier && (
@@ -1004,7 +1019,7 @@ const AdminDashboard = () => {
               <CardContent className="p-4">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {restaurants.map((rest) => (
-                    <div key={rest.id} className="p-4 rounded-lg border bg-orange-50 border-orange-200">
+                    <div key={rest.id} className="p-4 rounded-lg border bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900">
                       <div className="flex items-center gap-3 mb-2">
                         <Store className="w-8 h-8 text-orange-600" />
                         <p className="font-bold">{rest.name}</p>
@@ -1125,8 +1140,8 @@ const AdminDashboard = () => {
                   Salvează Setările
                 </Button>
 
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-950/30 dark:border-yellow-900">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-100">
                     <strong>⚠️ Mod Demo:</strong> Setările sunt afișate pentru demonstrație. 
                     Funcționalitatea completă va fi activată în fazele următoare.
                   </p>
@@ -1363,8 +1378,8 @@ const AdminDashboard = () => {
           <div className="space-y-3 py-2" data-testid="simulation-steps">
             {simSteps.map((step, i) => (
               <div key={step.key} className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-500 ${
-                step.status === "active" ? "bg-blue-50 border border-blue-200 scale-[1.02]" :
-                step.status === "done" ? "bg-green-50 border border-green-200" :
+                step.status === "active" ? "bg-blue-50 border border-blue-200 scale-[1.02] dark:bg-blue-950/30 dark:border-blue-900" :
+                step.status === "done" ? "bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-900" :
                 "bg-muted/30 border border-transparent"
               }`}>
                 <div className="shrink-0">
@@ -1374,16 +1389,16 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${
-                    step.status === "done" ? "text-green-700" :
-                    step.status === "active" ? "text-blue-700" :
+                    step.status === "done" ? "text-green-700 dark:text-green-100" :
+                    step.status === "active" ? "text-blue-700 dark:text-blue-100" :
                     "text-muted-foreground"
                   }`}>
                     {step.label}
                   </p>
                 </div>
                 <span className="text-xs shrink-0">
-                  {step.status === "done" && <Badge className="bg-green-100 text-green-700 border-0">OK</Badge>}
-                  {step.status === "active" && <Badge className="bg-blue-100 text-blue-700 border-0 animate-pulse">...</Badge>}
+                  {step.status === "done" && <Badge className="bg-green-100 text-green-700 border-0 dark:bg-green-950/40 dark:text-green-100">OK</Badge>}
+                  {step.status === "active" && <Badge className="bg-blue-100 text-blue-700 border-0 animate-pulse dark:bg-blue-950/40 dark:text-blue-100">...</Badge>}
                 </span>
               </div>
             ))}

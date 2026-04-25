@@ -102,10 +102,10 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Testează frontendul aplicației ProDelivery pe preview URL-ul curent și verifică în special feature-ul nou din Admin > Zone Livrare. Context important: login demo admin este disponibil cu admin@delivery.ro / admin123 sau prin butonul demo admin din login. După login, mergi în tab-ul 'Zone Livrare'."
+user_problem_statement: "Testează în preview frontendul pentru dark/light theme la https://driver-ranking-1.preview.emergentagent.com. Obiectiv: confirmă că toggle-ul de temă funcționează și persistă corect pe ecranele principale, fără a testa alte faze/taskuri."
 
 frontend:
-  - task: "Admin Login Functionality"
+  - task: "Login Page Theme Toggle"
     implemented: true
     working: true
     file: "/app/frontend/src/pages/LoginPage.jsx"
@@ -115,9 +115,9 @@ frontend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "Admin login tested successfully using demo admin button. Login redirects to admin dashboard correctly. No errors detected."
+        comment: "Theme toggle button [data-testid='login-theme-toggle'] found and working correctly. Toggle switches between light and dark themes successfully. UI remains readable in both themes. Theme changes are applied to documentElement with 'dark' class."
 
-  - task: "Zone Livrare Tab Navigation"
+  - task: "Admin Dashboard Theme Toggle"
     implemented: true
     working: true
     file: "/app/frontend/src/pages/AdminDashboard.jsx"
@@ -127,118 +127,82 @@ frontend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "Zone Livrare tab opens successfully without errors. Tab navigation works correctly and content loads properly."
+        comment: "Theme toggle button [data-testid='admin-theme-toggle'] found and working correctly. Toggle switches between light and dark themes successfully. UI remains readable in both themes without layout breaks."
 
-  - task: "Fixed Price Cards Display"
+  - task: "Admin Theme Persistence Across Tabs"
     implemented: true
     working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
+    file: "/app/frontend/src/pages/AdminDashboard.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
-        comment: "All three fixed price cards are displayed correctly: Zona 1 = 14 lei, Zona 2 = 22 lei, Zona 3 = 33 lei. Cards are properly styled and visible."
+        comment: "Theme persists correctly when navigating between admin tabs. Tested on Comenzi, Analize, and Zone Livrare tabs. Theme state is maintained across all tab switches without reverting to default."
 
-  - task: "Sector Filters"
+  - task: "Driver App Theme Toggle"
     implemented: true
     working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
+    file: "/app/frontend/src/pages/DriverApp.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
-        comment: "All sector filters are present and visible: Toate, Nord, Centru, Sud, Nord Extrem. Filters are properly implemented with correct data-testid attributes."
+        comment: "Theme toggle button [data-testid='driver-theme-toggle'] found and working correctly. Toggle switches between light and dark themes successfully. No layout breaks detected. UI remains functional in both themes."
 
-  - task: "Zone List Grouping by Sector"
+  - task: "Restaurant App Theme Toggle"
     implemented: true
     working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
+    file: "/app/frontend/src/pages/RestaurantApp.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
-        comment: "Zone list is properly grouped by sector. Found 12 zones grouped into 4 sectors: NORD (3 zones), CENTRU (3 zones), SUD (3 zones), NORD EXTREM (3 zones). Grouping displays correctly with sector headers."
+        comment: "Theme toggle button [data-testid='restaurant-theme-toggle'] found and working correctly. Toggle switches between light and dark themes successfully. No layout breaks detected. UI remains functional in both themes."
 
-  - task: "Modifică Contur Flow"
+  - task: "Theme Implementation and Persistence"
     implemented: true
     working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
+    file: "/app/frontend/src/context/ThemeContext.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
-        comment: "Modifică Contur button works correctly. When clicked after selecting a zone, it activates drawing mode successfully. Cancel button appears and drawing instructions are displayed. Drawing mode can be cancelled successfully."
+        comment: "ThemeContext implementation is correct. Theme state is stored in localStorage with key 'prodelivery-theme'. Theme persists across page reloads and navigation. Dark class is correctly applied to documentElement."
 
-  - task: "Zone Edit Dialog Accessibility"
+  - task: "General Layout and Styling in Dark Mode"
     implemented: true
     working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "Zone edit dialog opens successfully and NO aria-describedby warnings are detected. All dialog fields are visible and functional: sector input, name input, zone level grid. Dialog is fully accessible."
-
-  - task: "Zone Edit Dialog Overlay Issue"
-    implemented: true
-    working: false
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
-    stuck_count: 0
-    priority: "low"
-    needs_retesting: false
-    status_history:
-      - working: false
-        agent: "testing"
-        comment: "Minor: Dialog overlay does not fully block interaction with the map behind it. The map polygons can intercept clicks intended for dialog buttons (e.g., Anulează button). This is a z-index/overlay issue. Not critical but should be fixed for better UX."
-
-  - task: "Map Display"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
+    file: "/app/frontend/src"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
-        comment: "Leaflet map loads successfully and displays zone polygons correctly. Map is interactive and zones are visible with proper colors and boundaries."
-
-  - task: "Layout and Visual Regression"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/components/DeliveryZonesManager.jsx"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "No visible layout regressions detected. No error messages on page. No blank state issues. Layout is clean and functional."
+        comment: "No horizontal overflow detected on any page. All UI elements remain readable in both light and dark themes. Color contrast is appropriate. Cards, badges, and status indicators have proper dark mode styling with dark:bg-* and dark:text-* classes."
 
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: true
   test_date: "2025-04-25"
 
 test_plan:
   current_focus:
-    - "All Zone Livrare features tested"
+    - "All theme toggle features tested successfully"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
 
 agent_communication:
   - agent: "testing"
-    message: "Completed comprehensive testing of Zone Livrare feature. All critical requirements verified successfully. Only one minor issue found with dialog overlay z-index. No aria-describedby warnings detected. Feature is ready for production."
+    message: "Completed comprehensive testing of dark/light theme toggle functionality across all main pages (Login, Admin, Driver, Restaurant). All theme toggles are working correctly with proper data-testid attributes. Theme persists correctly across navigation and page reloads. No critical issues found. Minor console warnings detected related to HTML structure in DriverSchedule component (not theme-related). All UI elements remain readable in both themes with proper dark mode styling."

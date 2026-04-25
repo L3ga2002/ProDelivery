@@ -5,8 +5,9 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { useTheme } from "../context/ThemeContext";
 import { toast } from "sonner";
-import { Truck, Lock, Mail, Download } from "lucide-react";
+import { Truck, Lock, Mail, Download, Moon, Sun } from "lucide-react";
 
 // PWA Install prompt
 let deferredPrompt = null;
@@ -21,6 +22,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const { login } = useAuth();
+  const { theme, isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   // Check if PWA can be installed
@@ -97,14 +99,35 @@ const LoginPage = () => {
     setIsLoading(false);
   };
 
+  const loginBackground =
+    theme === "dark"
+      ? "linear-gradient(135deg, hsl(215 75% 10% / 0.96), hsl(220 30% 6% / 0.92)), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?w=1920&q=80')"
+      : "linear-gradient(135deg, hsl(215 75% 92% / 0.86), hsl(24 95% 88% / 0.76)), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?w=1920&q=80')";
+
   return (
     <div 
-      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden p-4 bg-cover bg-center"
       style={{
-        backgroundImage: "linear-gradient(135deg, hsl(215 75% 12% / 0.95), hsl(220 30% 8% / 0.92)), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?w=1920&q=80')"
+        backgroundImage: loginBackground,
       }}
     >
-      <Card className="w-full max-w-md shadow-2xl border-0" data-testid="login-card">
+      <div className="absolute right-4 top-4 z-10">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={toggleTheme}
+          className="border-border/80 bg-card/85 backdrop-blur"
+          data-testid="login-theme-toggle"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <span className="ml-2 hidden sm:inline">Tema: {isDark ? "Dark" : "Light"}</span>
+        </Button>
+      </div>
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.22),transparent_30%)] dark:bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_30%)]" />
+
+      <Card className="relative z-10 w-full max-w-md border border-white/15 bg-card/92 shadow-2xl backdrop-blur-md" data-testid="login-card">
         <CardHeader className="space-y-4 text-center pb-2">
           <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, hsl(215 75% 22%), hsl(215 75% 30%))' }}>
             <Truck className="w-10 h-10 text-white" />
@@ -223,7 +246,7 @@ const LoginPage = () => {
             </Button>
           )}
 
-          <div className="text-xs text-center text-muted-foreground p-3 bg-muted/50 rounded-lg">
+          <div className="text-xs text-center text-muted-foreground p-3 bg-muted/60 rounded-lg">
             <p className="font-medium mb-1">📱 Instalare pe telefon:</p>
             <p>Android: Menu Chrome → "Adaugă pe ecranul principal"</p>
             <p>iPhone: Safari → Share → "Add to Home Screen"</p>

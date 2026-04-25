@@ -26,26 +26,30 @@ import {
   MapPin,
   XCircle,
   AlertTriangle,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getStatusConfig = (status) => {
   const config = {
-    NEW: { label: "Nouă", color: "bg-yellow-500", textColor: "text-yellow-800", bgColor: "bg-yellow-100" },
-    PREPARING: { label: "În Pregătire", color: "bg-blue-500", textColor: "text-blue-800", bgColor: "bg-blue-100" },
-    READY: { label: "GATA", color: "bg-green-500", textColor: "text-green-800", bgColor: "bg-green-100" },
-    ASSIGNED: { label: "Alocată", color: "bg-purple-500", textColor: "text-purple-800", bgColor: "bg-purple-100" },
-    ACCEPTED: { label: "Acceptată", color: "bg-purple-500", textColor: "text-purple-800", bgColor: "bg-purple-100" },
-    PICKED_UP: { label: "Ridicată", color: "bg-orange-500", textColor: "text-orange-800", bgColor: "bg-orange-100" },
-    DELIVERED: { label: "Livrată", color: "bg-gray-500", textColor: "text-gray-800", bgColor: "bg-gray-100" },
-    CANCELLED: { label: "Anulată", color: "bg-red-500", textColor: "text-red-800", bgColor: "bg-red-100" },
+    NEW: { label: "Nouă", color: "bg-yellow-500", textColor: "text-yellow-800 dark:text-yellow-100", bgColor: "bg-yellow-100 dark:bg-yellow-950/40" },
+    PREPARING: { label: "În Pregătire", color: "bg-blue-500", textColor: "text-blue-800 dark:text-blue-100", bgColor: "bg-blue-100 dark:bg-blue-950/40" },
+    READY: { label: "GATA", color: "bg-green-500", textColor: "text-green-800 dark:text-green-100", bgColor: "bg-green-100 dark:bg-green-950/40" },
+    ASSIGNED: { label: "Alocată", color: "bg-purple-500", textColor: "text-purple-800 dark:text-purple-100", bgColor: "bg-purple-100 dark:bg-purple-950/40" },
+    ACCEPTED: { label: "Acceptată", color: "bg-purple-500", textColor: "text-purple-800 dark:text-purple-100", bgColor: "bg-purple-100 dark:bg-purple-950/40" },
+    PICKED_UP: { label: "Ridicată", color: "bg-orange-500", textColor: "text-orange-800 dark:text-orange-100", bgColor: "bg-orange-100 dark:bg-orange-950/40" },
+    DELIVERED: { label: "Livrată", color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" },
+    CANCELLED: { label: "Anulată", color: "bg-red-500", textColor: "text-red-800 dark:text-red-100", bgColor: "bg-red-100 dark:bg-red-950/40" },
   };
-  return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800", bgColor: "bg-gray-100" };
+  return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" };
 };
 
 const RestaurantApp = () => {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [preparingOrder, setPreparingOrder] = useState(null);
@@ -191,6 +195,17 @@ const RestaurantApp = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              className="border-border/80 bg-card/85 backdrop-blur"
+              title={isDark ? "Schimbă la tema light" : "Schimbă la tema dark"}
+              data-testid="restaurant-theme-toggle"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button variant="ghost" size="icon" onClick={fetchOrders} data-testid="refresh-button">
               <RefreshCw className="w-5 h-5" />
             </Button>
@@ -250,7 +265,7 @@ const RestaurantApp = () => {
           activeOrders.map((order) => (
             <Card 
               key={order.id} 
-              className={`${order.status === 'NEW' ? 'border-yellow-400 border-2 animate-pulse' : ''}`}
+              className={`${order.status === 'NEW' ? 'border-yellow-400 border-2 animate-pulse dark:border-yellow-700' : ''}`}
               data-testid={`order-card-${order.id}`}
             >
               <CardHeader className="pb-2">
@@ -293,15 +308,15 @@ const RestaurantApp = () => {
                     <span className="text-muted-foreground">{order.customer_address}</span>
                   </div>
                   {order.notes && (
-                    <div className="text-orange-600 font-medium">📝 {order.notes}</div>
+                    <div className="text-orange-600 font-medium dark:text-orange-200">📝 {order.notes}</div>
                   )}
                 </div>
 
                 {/* Driver Info */}
                 {order.driver_name && (
-                  <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg dark:bg-purple-950/30">
                     <Truck className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm font-medium text-purple-700">Livrator: {order.driver_name}</span>
+                    <span className="text-sm font-medium text-purple-700 dark:text-purple-100">Livrator: {order.driver_name}</span>
                   </div>
                 )}
 
@@ -382,18 +397,18 @@ const RestaurantApp = () => {
                 )}
 
                 {order.status === 'READY' && (
-                  <div className="p-3 bg-green-100 rounded-lg text-center">
+                  <div className="p-3 bg-green-100 rounded-lg text-center dark:bg-green-950/30">
                     <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-1" />
-                    <p className="font-bold text-green-700">GATA PENTRU RIDICARE</p>
-                    <p className="text-sm text-green-600">Așteptăm livratorul</p>
+                    <p className="font-bold text-green-700 dark:text-green-100">GATA PENTRU RIDICARE</p>
+                    <p className="text-sm text-green-600 dark:text-green-200">Așteptăm livratorul</p>
                   </div>
                 )}
 
                 {['ASSIGNED', 'ACCEPTED'].includes(order.status) && (
-                  <div className="p-3 bg-purple-100 rounded-lg text-center">
+                  <div className="p-3 bg-purple-100 rounded-lg text-center dark:bg-purple-950/30">
                     <Truck className="w-8 h-8 text-purple-600 mx-auto mb-1" />
-                    <p className="font-bold text-purple-700">LIVRATORUL VINE</p>
-                    <p className="text-sm text-purple-600">{order.driver_name} preia comanda</p>
+                    <p className="font-bold text-purple-700 dark:text-purple-100">LIVRATORUL VINE</p>
+                    <p className="text-sm text-purple-600 dark:text-purple-200">{order.driver_name} preia comanda</p>
                   </div>
                 )}
 
@@ -401,7 +416,7 @@ const RestaurantApp = () => {
                 {['NEW', 'PREPARING', 'READY'].includes(order.status) && (
                   <Button
                     variant="outline"
-                    className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                    className="w-full text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                     onClick={() => { setCancelOrder(order); setCancelReason(""); }}
                     data-testid={`cancel-${order.id}`}
                   >

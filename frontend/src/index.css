@@ -15,6 +15,8 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: hsl(var(--background));
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -77,9 +79,14 @@ code, .mono {
 }
 
 @layer base {
+  html {
+    @apply bg-background;
+  }
+
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -90,6 +97,22 @@ code, .mono {
   height: 100%;
   width: 100%;
   border-radius: 0.5rem;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.leaflet-control-zoom a {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-bottom-color: hsl(var(--border));
+}
+
+.leaflet-control-zoom a:hover {
+  background: hsl(var(--muted));
 }
 
 /* Status badge colors */

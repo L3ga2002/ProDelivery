@@ -22,6 +22,8 @@ import {
   Download,
   XCircle,
   AlertTriangle,
+  Moon,
+  Sun,
 } from "lucide-react";
 import {
   Dialog,
@@ -32,6 +34,7 @@ import {
 } from "../components/ui/dialog";
 import { Textarea } from "../components/ui/textarea";
 import { DriverSchedule } from "../components/DriverSchedule";
+import { useTheme } from "../context/ThemeContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -44,16 +47,17 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 const getStatusConfig = (status) => {
   const config = {
-    ASSIGNED: { label: "Alocată", color: "bg-blue-500", textColor: "text-blue-800", bgColor: "bg-blue-100" },
-    ACCEPTED: { label: "Acceptată", color: "bg-purple-500", textColor: "text-purple-800", bgColor: "bg-purple-100" },
-    PICKED_UP: { label: "Ridicată", color: "bg-orange-500", textColor: "text-orange-800", bgColor: "bg-orange-100" },
-    DELIVERED: { label: "Livrată", color: "bg-green-500", textColor: "text-green-800", bgColor: "bg-green-100" },
+    ASSIGNED: { label: "Alocată", color: "bg-blue-500", textColor: "text-blue-800 dark:text-blue-100", bgColor: "bg-blue-100 dark:bg-blue-950/40" },
+    ACCEPTED: { label: "Acceptată", color: "bg-purple-500", textColor: "text-purple-800 dark:text-purple-100", bgColor: "bg-purple-100 dark:bg-purple-950/40" },
+    PICKED_UP: { label: "Ridicată", color: "bg-orange-500", textColor: "text-orange-800 dark:text-orange-100", bgColor: "bg-orange-100 dark:bg-orange-950/40" },
+    DELIVERED: { label: "Livrată", color: "bg-green-500", textColor: "text-green-800 dark:text-green-100", bgColor: "bg-green-100 dark:bg-green-950/40" },
   };
-  return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800", bgColor: "bg-gray-100" };
+  return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" };
 };
 
 const DriverApp = () => {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [currentOrder, setCurrentOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -226,6 +230,17 @@ const DriverApp = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={toggleTheme}
+              className="border-border/80 bg-card/85 backdrop-blur"
+              title={isDark ? "Schimbă la tema light" : "Schimbă la tema dark"}
+              data-testid="driver-theme-toggle"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             {canInstall && (
               <Button variant="outline" size="icon" onClick={installPWA} data-testid="install-pwa-button" title="Instalează aplicația">
                 <Download className="w-5 h-5" />
@@ -407,9 +422,9 @@ const DriverApp = () => {
 
                 {/* Notes */}
                 {currentOrder.notes && (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm font-medium text-yellow-800 mb-1">Observații:</p>
-                    <p className="text-yellow-900">{currentOrder.notes}</p>
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-950/30 dark:border-yellow-900">
+                    <p className="text-sm font-medium text-yellow-800 mb-1 dark:text-yellow-100">Observații:</p>
+                    <p className="text-yellow-900 dark:text-yellow-50">{currentOrder.notes}</p>
                   </div>
                 )}
 
@@ -467,7 +482,7 @@ const DriverApp = () => {
           {["ASSIGNED", "ACCEPTED"].includes(currentOrder.status) && (
             <Button
               variant="outline"
-              className="w-full text-red-600 border-red-300 hover:bg-red-50 h-12"
+              className="w-full text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 h-12"
               onClick={() => { setCancelDialog(true); setCancelReason(""); }}
               data-testid="cancel-order-button"
             >
