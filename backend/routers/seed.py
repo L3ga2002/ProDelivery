@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 import random
+import math
 from database import db
 from auth import hash_password
 from models.user import User
@@ -8,6 +9,79 @@ from models.restaurant import Restaurant
 from models.order import Order
 
 router = APIRouter(tags=["seed"])
+
+ZONE_COLORS = {
+    1: "#2563eb",
+    2: "#f59e0b",
+    3: "#dc2626",
+}
+
+ZONE_FEES = {
+    1: 14.0,
+    2: 22.0,
+    3: 33.0,
+}
+
+
+def build_sector_polygon(center_lat, center_lng, lat_radius, lng_radius, skew=None):
+    skew = skew or [1.0, 0.92, 1.08, 0.88, 1.04, 0.9, 1.1, 0.95]
+    points = []
+    for idx, angle_deg in enumerate([0, 35, 80, 125, 180, 225, 270, 320]):
+        angle = math.radians(angle_deg)
+        scale = skew[idx % len(skew)]
+        points.append({
+            "lat": round(center_lat + math.sin(angle) * lat_radius * scale, 6),
+            "lng": round(center_lng + math.cos(angle) * lng_radius * scale, 6),
+        })
+    return points
+
+
+SECTOR_MAPS = [
+    {
+        "sector": "Nord",
+        "source_map": "https://s.go.ro/fb57ezyt",
+        "center": (46.5905, 26.9085),
+        "radii": {
+            1: (0.010, 0.017),
+            2: (0.017, 0.026),
+            3: (0.024, 0.037),
+        },
+        "skew": [1.0, 0.9, 1.1, 0.88, 1.05, 0.94, 1.08, 0.96],
+    },
+    {
+        "sector": "Centru",
+        "source_map": "https://s.go.ro/yctb1v1x",
+        "center": (46.5702, 26.9155),
+        "radii": {
+            1: (0.0085, 0.013),
+            2: (0.015, 0.022),
+            3: (0.022, 0.032),
+        },
+        "skew": [1.0, 0.95, 1.04, 0.9, 1.06, 0.92, 1.02, 0.98],
+    },
+    {
+        "sector": "Sud",
+        "source_map": "https://s.go.ro/8j1ugnus",
+        "center": (46.5538, 26.9152),
+        "radii": {
+            1: (0.010, 0.015),
+            2: (0.017, 0.024),
+            3: (0.024, 0.034),
+        },
+        "skew": [1.04, 0.9, 1.0, 0.86, 1.08, 0.94, 1.12, 0.97],
+    },
+    {
+        "sector": "Nord Extrem",
+        "source_map": "https://s.go.ro/4t7zgqrk",
+        "center": (46.6035, 26.8978),
+        "radii": {
+            1: (0.011, 0.018),
+            2: (0.019, 0.029),
+            3: (0.027, 0.041),
+        },
+        "skew": [1.08, 0.96, 1.12, 0.9, 1.02, 0.88, 1.15, 0.98],
+    },
+]
 
 
 @router.post("/seed")
@@ -76,71 +150,28 @@ async def seed_data():
         rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
         await db.users.insert_one(rest_user_doc)
 
-    # Delivery Zones for Bacau
-    default_zones = [
-        {
-            "id": "zone-centru",
-            "name": "Zona 1 - Centru",
-            "color": "#22c55e",
-            "fee": 5.0,
-            "is_active": True,
-            "sort_order": 1,
-            "polygon": [
-                {"lat": 46.5730, "lng": 26.9050},
-                {"lat": 46.5730, "lng": 26.9220},
-                {"lat": 46.5620, "lng": 26.9220},
-                {"lat": 46.5620, "lng": 26.9050},
-            ],
-        },
-        {
-            "id": "zone-semicentral",
-            "name": "Zona 2 - Semicentral",
-            "color": "#3b82f6",
-            "fee": 8.0,
-            "is_active": True,
-            "sort_order": 2,
-            "polygon": [
-                {"lat": 46.5800, "lng": 26.8950},
-                {"lat": 46.5800, "lng": 26.9320},
-                {"lat": 46.5550, "lng": 26.9320},
-                {"lat": 46.5550, "lng": 26.8950},
-            ],
-        },
-        {
-            "id": "zone-periferie",
-            "name": "Zona 3 - Periferie",
-            "color": "#f59e0b",
-            "fee": 12.0,
-            "is_active": True,
-            "sort_order": 3,
-            "polygon": [
-                {"lat": 46.5900, "lng": 26.8800},
-                {"lat": 46.5900, "lng": 26.9450},
-                {"lat": 46.5450, "lng": 26.9450},
-                {"lat": 46.5450, "lng": 26.8800},
-            ],
-        },
-        {
-            "id": "zone-extins",
-            "name": "Zona 4 - Extins",
-            "color": "#ef4444",
-            "fee": 15.0,
-            "is_active": True,
-            "sort_order": 4,
-            "polygon": [
-                {"lat": 46.6050, "lng": 26.8600},
-                {"lat": 46.6050, "lng": 26.9600},
-                {"lat": 46.5300, "lng": 26.9600},
-                {"lat": 46.5300, "lng": 26.8600},
-            ],
-        },
-    ]
-
     from datetime import datetime, timezone
-    for z in default_zones:
-        z["created_at"] = datetime.now(timezone.utc).isoformat()
-        z["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await db.delivery_zones.insert_one(z)
+    sort_order = 1
+    for sector in SECTOR_MAPS:
+        center_lat, center_lng = sector["center"]
+        for zone_level in [1, 2, 3]:
+            lat_radius, lng_radius = sector["radii"][zone_level]
+            doc = {
+                "id": f"{sector['sector'].lower().replace(' ', '-')}-z{zone_level}",
+                "sector": sector["sector"],
+                "zone_level": zone_level,
+                "name": f"{sector['sector']} - Zona {zone_level}",
+                "color": ZONE_COLORS[zone_level],
+                "fee": ZONE_FEES[zone_level],
+                "is_active": True,
+                "sort_order": sort_order,
+                "source_map": sector["source_map"],
+                "polygon": build_sector_polygon(center_lat, center_lng, lat_radius, lng_radius, sector["skew"]),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.delivery_zones.insert_one(doc)
+            sort_order += 1
 
     # Orders (100)
     first_names = ["Alexandru", "Maria", "Ion", "Elena", "Andrei", "Ana", "Mihai", "Cristina", "Bogdan", "Diana",

@@ -12,6 +12,8 @@ class ZoneCoordinate(BaseModel):
 class DeliveryZone(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sector: str = "General"
+    zone_level: int = 1
     name: str
     color: str = "#3388ff"
     fee: float = 5.0
@@ -23,6 +25,8 @@ class DeliveryZone(BaseModel):
 
 
 class DeliveryZoneCreate(BaseModel):
+    sector: str = "General"
+    zone_level: int = 1
     name: str
     color: str = "#3388ff"
     fee: float = 5.0
@@ -32,6 +36,8 @@ class DeliveryZoneCreate(BaseModel):
 
 
 class DeliveryZoneUpdate(BaseModel):
+    sector: Optional[str] = None
+    zone_level: Optional[int] = None
     name: Optional[str] = None
     color: Optional[str] = None
     fee: Optional[float] = None

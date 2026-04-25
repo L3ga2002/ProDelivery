@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
-from typing import Optional
 from shapely.geometry import Point, Polygon
 from database import db
 from auth import get_current_user
 from models.delivery_zone import DeliveryZone, DeliveryZoneCreate, DeliveryZoneUpdate, ZoneDetectRequest
 
 router = APIRouter(prefix="/zones", tags=["zones"])
+
+FIXED_ZONE_FEES = {1: 14.0, 2: 22.0, 3: 33.0}
 
 
 def build_shapely_polygon(coords):
@@ -20,7 +21,7 @@ def build_shapely_polygon(coords):
 
 @router.get("")
 async def get_zones(current_user: dict = Depends(get_current_user)):
-    zones = await db.delivery_zones.find({}, {"_id": 0}).sort("sort_order", 1).to_list(100)
+    zones = await db.delivery_zones.find({}, {"_id": 0}).sort("sort_order", 1).to_list(300)
     return zones
 
 
@@ -38,9 +39,11 @@ async def create_zone(data: DeliveryZoneCreate, current_user: dict = Depends(get
         raise HTTPException(status_code=403, detail="Admin only")
 
     zone = DeliveryZone(
+        sector=data.sector,
+        zone_level=data.zone_level,
         name=data.name,
         color=data.color,
-        fee=data.fee,
+        fee=FIXED_ZONE_FEES.get(data.zone_level, data.fee),
         polygon=data.polygon,
         is_active=data.is_active,
         sort_order=data.sort_order,
@@ -64,11 +67,16 @@ async def update_zone(zone_id: str, data: DeliveryZoneUpdate, current_user: dict
         raise HTTPException(status_code=404, detail="Zone not found")
 
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if data.sector is not None:
+        update_data["sector"] = data.sector
+    if data.zone_level is not None:
+        update_data["zone_level"] = data.zone_level
+        update_data["fee"] = FIXED_ZONE_FEES.get(data.zone_level, existing.get("fee", 0))
     if data.name is not None:
         update_data["name"] = data.name
     if data.color is not None:
         update_data["color"] = data.color
-    if data.fee is not None:
+    if data.fee is not None and data.zone_level is None:
         update_data["fee"] = data.fee
     if data.polygon is not None:
         update_data["polygon"] = [{"lat": c.lat, "lng": c.lng} for c in data.polygon]
@@ -105,8 +113,17 @@ async def detect_zone(data: ZoneDetectRequest, current_user: dict = Depends(get_
             return {
                 "zone_id": zone["id"],
                 "zone_name": zone["name"],
+                "sector": zone.get("sector"),
+                "zone_level": zone.get("zone_level"),
                 "fee": zone["fee"],
                 "color": zone["color"],
             }
 
-    return {"zone_id": None, "zone_name": "In afara zonelor", "fee": 0, "color": "#999999"}
+    return {
+        "zone_id": None,
+        "zone_name": "In afara zonelor",
+        "sector": None,
+        "zone_level": None,
+        "fee": 0,
+        "color": "#999999",
+    }

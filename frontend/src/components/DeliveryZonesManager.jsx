@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const FIXED_ZONE_FEES = { 1: 14, 2: 22, 3: 33 };
+const ZONE_LEVEL_COLORS = { 1: "#2563eb", 2: "#f59e0b", 3: "#dc2626" };
 
 const ZONE_COLORS = [
   "#22c55e",
@@ -158,14 +160,27 @@ export function DeliveryZonesManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [selectedZone, setSelectedZone] = useState(null);
+  const [sectorFilter, setSectorFilter] = useState("all");
+  const [redrawMode, setRedrawMode] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [editForm, setEditForm] = useState({
+    sector: "Centru",
+    zone_level: 1,
     name: "",
-    color: "#3388ff",
-    fee: 5,
+    color: ZONE_LEVEL_COLORS[1],
+    fee: FIXED_ZONE_FEES[1],
     is_active: true,
   });
   const [newPolygon, setNewPolygon] = useState(null);
+
+  const sectorOptions = Array.from(new Set(zones.map((zone) => zone.sector).filter(Boolean)));
+  const visibleZones = sectorFilter === "all" ? zones : zones.filter((zone) => zone.sector === sectorFilter);
+  const groupedZones = visibleZones.reduce((acc, zone) => {
+    const key = zone.sector || "General";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(zone);
+    return acc;
+  }, {});
 
   const fetchZones = useCallback(async () => {
     try {
@@ -184,14 +199,32 @@ export function DeliveryZonesManager() {
 
   const handlePolygonCreated = (coords) => {
     setNewPolygon(coords);
+    if (redrawMode && selectedZone) {
+      setEditDialog(true);
+      setRedrawMode(false);
+      return;
+    }
+    const nextSector = sectorFilter !== "all" ? sectorFilter : sectorOptions[0] || "Centru";
     setEditForm({
-      name: `Zona ${zones.length + 1}`,
-      color: ZONE_COLORS[zones.length % ZONE_COLORS.length],
-      fee: 5,
+      sector: nextSector,
+      zone_level: 1,
+      name: `${nextSector} - Zona 1`,
+      color: ZONE_LEVEL_COLORS[1],
+      fee: FIXED_ZONE_FEES[1],
       is_active: true,
     });
     setSelectedZone(null);
     setEditDialog(true);
+  };
+
+  const updateZoneLevel = (zoneLevel) => {
+    setEditForm((prev) => ({
+      ...prev,
+      zone_level: zoneLevel,
+      color: ZONE_LEVEL_COLORS[zoneLevel],
+      fee: FIXED_ZONE_FEES[zoneLevel],
+      name: prev.sector ? `${prev.sector} - Zona ${zoneLevel}` : prev.name,
+    }));
   };
 
   const handleSaveZone = async () => {
@@ -203,6 +236,8 @@ export function DeliveryZonesManager() {
     try {
       if (selectedZone) {
         await axios.put(`${API_URL}/api/zones/${selectedZone.id}`, {
+          sector: editForm.sector,
+          zone_level: editForm.zone_level,
           name: editForm.name,
           color: editForm.color,
           fee: editForm.fee,
@@ -216,6 +251,8 @@ export function DeliveryZonesManager() {
           return;
         }
         await axios.post(`${API_URL}/api/zones`, {
+          sector: editForm.sector,
+          zone_level: editForm.zone_level,
           name: editForm.name,
           color: editForm.color,
           fee: editForm.fee,
@@ -228,6 +265,7 @@ export function DeliveryZonesManager() {
       setEditDialog(false);
       setNewPolygon(null);
       setSelectedZone(null);
+      setRedrawMode(false);
       fetchZones();
     } catch {
       toast.error("Eroare la salvarea zonei");
@@ -237,6 +275,8 @@ export function DeliveryZonesManager() {
   const handleEditZone = (zone) => {
     setSelectedZone(zone);
     setEditForm({
+      sector: zone.sector || "General",
+      zone_level: zone.zone_level || 1,
       name: zone.name,
       color: zone.color,
       fee: zone.fee,
@@ -259,6 +299,17 @@ export function DeliveryZonesManager() {
 
   const handleZoneClick = (zone) => {
     setSelectedZone(zone);
+  };
+
+  const startRedraw = () => {
+    if (!selectedZone && !editDialog) {
+      toast.error("Selectează mai întâi o zonă");
+      return;
+    }
+    setEditDialog(false);
+    setRedrawMode(!!selectedZone);
+    setIsDrawing(true);
+    toast.info("Desenează conturul pe hartă și fă dublu-click pentru finalizare");
   };
 
   if (isLoading) {
@@ -291,7 +342,10 @@ export function DeliveryZonesManager() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setIsDrawing(false)}
+                    onClick={() => {
+                      setIsDrawing(false);
+                      setRedrawMode(false);
+                    }}
                     data-testid="cancel-draw-btn"
                   >
                     <X className="w-4 h-4 mr-1" />
@@ -299,24 +353,82 @@ export function DeliveryZonesManager() {
                   </Button>
                 </>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={() => setIsDrawing(true)}
-                  className="gap-1"
-                  data-testid="draw-zone-btn"
-                >
-                  <Plus className="w-4 h-4" />
-                  Zonă Nouă
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={startRedraw}
+                    className="gap-1"
+                    data-testid="redraw-zone-btn"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Modifică Contur
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsDrawing(true)}
+                    className="gap-1"
+                    data-testid="draw-zone-btn"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Zonă Nouă
+                  </Button>
+                </>
               )}
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Desenează poligoane pe hartă pentru a defini zonele de livrare și
-            tarifele asociate
+            4 sectoare × 3 zone fixe. Zona 1 = 14 lei, Zona 2 = 22 lei, Zona 3 = 33 lei.
           </p>
         </CardHeader>
         <CardContent>
+          <div className="grid gap-3 md:grid-cols-4 mb-4">
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-wide text-blue-700">Zona 1</p>
+                <p className="text-2xl font-bold text-blue-800">14 lei</p>
+              </CardContent>
+            </Card>
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-wide text-amber-700">Zona 2</p>
+                <p className="text-2xl font-bold text-amber-800">22 lei</p>
+              </CardContent>
+            </Card>
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-wide text-red-700">Zona 3</p>
+                <p className="text-2xl font-bold text-red-800">33 lei</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Filtru sector</p>
+                <div className="flex flex-wrap gap-2 mt-2" data-testid="sector-filters">
+                  <Button
+                    size="sm"
+                    variant={sectorFilter === "all" ? "default" : "outline"}
+                    onClick={() => setSectorFilter("all")}
+                    data-testid="sector-filter-all"
+                  >
+                    Toate
+                  </Button>
+                  {sectorOptions.map((sector) => (
+                    <Button
+                      key={sector}
+                      size="sm"
+                      variant={sectorFilter === sector ? "default" : "outline"}
+                      onClick={() => setSectorFilter(sector)}
+                      data-testid={`sector-filter-${sector.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      {sector}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid lg:grid-cols-3 gap-4">
             {/* Map */}
             <div className="lg:col-span-2">
@@ -357,7 +469,7 @@ export function DeliveryZonesManager() {
                 </span>
               </div>
 
-              {zones.length === 0 ? (
+              {visibleZones.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   <MapPinned className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p>Nicio zonă definită</p>
@@ -366,67 +478,81 @@ export function DeliveryZonesManager() {
                   </p>
                 </div>
               ) : (
-                zones.map((zone) => (
-                  <div
-                    key={zone.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                      selectedZone?.id === zone.id
-                        ? "ring-2 ring-primary bg-primary/5"
-                        : "hover:bg-muted/50"
-                    } ${!zone.is_active ? "opacity-50" : ""}`}
-                    onClick={() => handleZoneClick(zone)}
-                    data-testid={`zone-card-${zone.id}`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div
-                        className="w-4 h-4 rounded-full shrink-0 border"
-                        style={{ backgroundColor: zone.color }}
-                      />
-                      <span className="font-semibold text-sm flex-1 truncate">
-                        {zone.name}
-                      </span>
-                      {!zone.is_active && (
-                        <EyeOff className="w-3 h-3 text-muted-foreground" />
-                      )}
+                Object.entries(groupedZones).map(([sector, sectorZones]) => (
+                  <div key={sector} className="space-y-2">
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{sector}</span>
+                      <Badge variant="secondary">{sectorZones.length} zone</Badge>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className="text-xs font-mono"
-                        style={{
-                          borderColor: zone.color,
-                          color: zone.color,
-                        }}
-                      >
-                        {zone.fee} RON
-                      </Badge>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditZone(zone);
-                          }}
-                          data-testid={`edit-zone-${zone.id}`}
+                    {sectorZones
+                      .slice()
+                      .sort((a, b) => (a.zone_level || 0) - (b.zone_level || 0))
+                      .map((zone) => (
+                        <div
+                          key={zone.id}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedZone?.id === zone.id
+                              ? "ring-2 ring-primary bg-primary/5"
+                              : "hover:bg-muted/50"
+                          } ${!zone.is_active ? "opacity-50" : ""}`}
+                          onClick={() => handleZoneClick(zone)}
+                          data-testid={`zone-card-${zone.id}`}
                         >
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-red-500 hover:text-red-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteZone(zone.id);
-                          }}
-                          data-testid={`delete-zone-${zone.id}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div
+                              className="w-4 h-4 rounded-full shrink-0 border"
+                              style={{ backgroundColor: zone.color }}
+                            />
+                            <span className="font-semibold text-sm flex-1 truncate">
+                              {zone.name}
+                            </span>
+                            {!zone.is_active && (
+                              <EyeOff className="w-3 h-3 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-mono"
+                                style={{
+                                  borderColor: zone.color,
+                                  color: zone.color,
+                                }}
+                              >
+                                {zone.fee} RON
+                              </Badge>
+                              <Badge variant="secondary">Zona {zone.zone_level || 1}</Badge>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditZone(zone);
+                                }}
+                                data-testid={`edit-zone-${zone.id}`}
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-red-500 hover:text-red-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteZone(zone.id);
+                                }}
+                                data-testid={`delete-zone-${zone.id}`}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 ))
               )}
@@ -445,6 +571,21 @@ export function DeliveryZonesManager() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label>Sector *</Label>
+              <Input
+                value={editForm.sector}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    sector: e.target.value,
+                    name: `${e.target.value || "Sector"} - Zona ${editForm.zone_level}`,
+                  })
+                }
+                placeholder="ex: Nord / Centru / Sud"
+                data-testid="zone-sector-input"
+              />
+            </div>
+            <div>
               <Label>Nume Zonă *</Label>
               <Input
                 value={editForm.name}
@@ -456,20 +597,29 @@ export function DeliveryZonesManager() {
               />
             </div>
             <div>
-              <Label>Taxă Livrare (RON) *</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.5"
-                value={editForm.fee}
-                onChange={(e) =>
-                  setEditForm({
-                    ...editForm,
-                    fee: parseFloat(e.target.value) || 0,
-                  })
-                }
-                data-testid="zone-fee-input"
-              />
+              <Label>Nivel Zonă *</Label>
+              <div className="grid grid-cols-3 gap-2 mt-2" data-testid="zone-level-grid">
+                {[1, 2, 3].map((level) => (
+                  <Button
+                    key={level}
+                    type="button"
+                    variant={editForm.zone_level === level ? "default" : "outline"}
+                    className="justify-between"
+                    onClick={() => updateZoneLevel(level)}
+                    data-testid={`zone-level-${level}`}
+                  >
+                    <span>Zona {level}</span>
+                    <span>{FIXED_ZONE_FEES[level]} lei</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>Taxă Livrare (fixă)</Label>
+              <Input type="number" value={editForm.fee} readOnly data-testid="zone-fee-input" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Tariful se aplică automat după nivel: 14 / 22 / 33 lei.
+              </p>
             </div>
             <div>
               <Label>Culoare</Label>
@@ -489,6 +639,20 @@ export function DeliveryZonesManager() {
                 ))}
               </div>
             </div>
+            <div className="rounded-lg border border-dashed p-3 bg-muted/30">
+              <p className="text-sm font-medium mb-1">Contur zonă</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                {newPolygon
+                  ? `Contur nou pregătit cu ${newPolygon.length} puncte.`
+                  : selectedZone
+                    ? `Folosești conturul curent al zonei ${selectedZone.name}.`
+                    : "Desenează zona pe hartă, apoi completează datele."}
+              </p>
+              <Button type="button" variant="outline" onClick={startRedraw} data-testid="dialog-redraw-zone-btn">
+                <Pencil className="w-4 h-4 mr-2" />
+                {selectedZone ? "Redesenează conturul" : "Desenează conturul"}
+              </Button>
+            </div>
             <div className="flex items-center justify-between">
               <Label>Zonă Activă</Label>
               <Switch
@@ -506,6 +670,7 @@ export function DeliveryZonesManager() {
               onClick={() => {
                 setEditDialog(false);
                 setNewPolygon(null);
+                setRedrawMode(false);
               }}
             >
               Anulează
