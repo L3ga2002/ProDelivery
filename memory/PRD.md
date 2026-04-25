@@ -38,6 +38,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - UI/UX 25 Apr 2026: Adăugat sistem light/dark theme cu toggle vizibil pe Login, Admin, Driver și Restaurant, cu persistență locală și ajustări de contrast pentru dark mode
 - Security/Quality 25 Apr 2026: migrare auth frontend/backend pe cookie-uri httpOnly + refresh/logout, fallback Bearer păstrat pentru compatibilitate, demo/test credentials mutate în variabile de mediu, curățare console logs, chei React stabilizate, helper comun pentru testele backend și refactor helper în `schedules.py` + `emergency_slots.py`
 - Security/Quality 25 Apr 2026 (batch 2): refactor helper în `zones.py` + `orders.py`, `seed.py` mutat pe `secrets.SystemRandom()`, memoizare pentru calculele grele din `DeliveryZonesManager` și `DriverSchedule`, validare completă frontend/backend după batch-ul mare
+- Production hardening 25 Apr 2026: cookie-urile auth trec pe `secure + SameSite=None` pe HTTPS, iar `CORS_ORIGINS` include și `prodeliverybacau.com` / `www.prodeliverybacau.com`; preview validat fără regresii după patch
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
