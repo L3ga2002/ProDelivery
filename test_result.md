@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Testează backendul auth după migrarea la cookie-uri httpOnly pe preview: https://driver-ranking-1.preview.emergentagent.com. Validează următoarele fluxuri: 1. POST /api/auth/login cu admin@delivery.ro / admin123 - returnează 200, setează cookie-urile access_token și refresh_token, încă returnează și user/token pentru compatibilitate 2. GET /api/auth/me folosind cookie-urile din login - returnează utilizatorul curent 3. POST /api/auth/refresh cu refresh_token - returnează 200, reemite access_token 4. POST /api/auth/logout - șterge cookie-urile 5. După logout, GET /api/auth/me nu mai trebuie să fie autentificat 6. Verifică și login pentru driver-001 și rest-001 ca regresie minimă. Context: fallback-ul pe Authorization Bearer trebuie să rămână funcțional, frontendul nu mai persistă tokenul în localStorage."
+user_problem_statement: "Testează frontendul în preview după migrarea auth pe cookie-uri httpOnly: https://driver-ranking-1.preview.emergentagent.com. Validează: 1. Login page - autentificarea normală cu email/parolă merge, butoanele Demo Admin/Demo Livrator/Demo Restaurant merg în continuare, nu există erori de sesiune după login. 2. Sesiune pe cookie-uri - după login, refresh de pagină păstrează sesiunea activă, accesul direct la /admin, /driver, /restaurant funcționează când sesiunea există, logout scoate utilizatorul din sesiune și redirecționează la login. 3. Regresii minime - theme toggle de pe login și dashboarduri încă funcționează, dashboardurile principale se încarcă fără blank page sau erori critice. Context: frontendul nu mai folosește localStorage pentru token auth, backendul setează access_token și refresh_token în cookie-uri httpOnly, fallback-ul Authorization Bearer a fost păstrat doar pentru compatibilitate."
 
 backend:
   - task: "Admin Login with httpOnly Cookies"
@@ -201,17 +201,139 @@ backend:
         agent: "testing"
         comment: "POST /api/auth/login tested successfully with restaurant-001 credentials (rest-001@delivery.ro / restaurant123). Returns 200 status with valid JWT token and user object. httpOnly cookies correctly set. User data shows: email: rest-001@delivery.ro, role: restaurant, name: Trattoria Da Vinci, restaurant_id: rest-001."
 
+frontend:
+  - task: "Login Page - Email/Password Authentication"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/LoginPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Email/password login tested successfully with admin credentials (admin@delivery.ro / admin123). Login form works correctly, redirects to /admin dashboard after successful authentication. No session errors after login. httpOnly cookies are being used correctly."
+
+  - task: "Login Page - Demo Admin Button"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/LoginPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Demo Admin button tested successfully. Clicking the button logs in with admin credentials and redirects to /admin dashboard. Authentication flow works correctly with httpOnly cookies."
+
+  - task: "Login Page - Demo Driver Button"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/LoginPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Demo Driver button tested successfully. Clicking the button logs in with driver-001 credentials and redirects to /driver dashboard. Driver dashboard loads correctly without errors."
+
+  - task: "Login Page - Demo Restaurant Button"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/LoginPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Demo Restaurant button tested successfully. Clicking the button logs in with rest-001 credentials and redirects to /restaurant dashboard. Restaurant dashboard loads correctly without errors."
+
+  - task: "Session Persistence on Page Refresh"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/context/AuthContext.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Session persistence tested successfully. After login, page refresh maintains the active session and user remains on the dashboard. httpOnly cookies are working correctly to maintain session state without localStorage."
+
+  - task: "Direct Access to Protected Routes with Session"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Direct access to protected routes tested successfully. When session exists, direct navigation to /admin, /driver, /restaurant works correctly. Role-based routing also works - admin user accessing /driver gets redirected to /admin."
+
+  - task: "Logout Functionality and Redirect"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/context/AuthContext.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Logout functionality tested successfully. Clicking logout button clears the session and redirects to /login page. After logout, attempting to access protected routes correctly redirects to login page."
+
+  - task: "Theme Toggle on Login Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/LoginPage.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Theme toggle on login page tested successfully. Toggle button switches between light and dark themes correctly. Theme state is persisted in localStorage."
+
+  - task: "Theme Toggle on Admin Dashboard"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/AdminDashboard.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Theme toggle on admin dashboard tested successfully. Toggle button switches between light and dark themes correctly. No regressions in theme functionality."
+
+  - task: "Dashboard Loading Without Errors"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/AdminDashboard.jsx, /app/frontend/src/pages/DriverApp.jsx, /app/frontend/src/pages/RestaurantApp.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "All dashboards (Admin, Driver, Restaurant) load successfully without blank pages or critical errors. Content renders correctly. Minor: Expected 401 errors in console during initial auth check and after logout are normal behavior and not bugs."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
-  run_ui: false
+  test_sequence: 2
+  run_ui: true
   test_date: "2025-01-27"
   backend_url: "https://driver-ranking-1.preview.emergentagent.com/api"
+  frontend_url: "https://driver-ranking-1.preview.emergentagent.com"
 
 test_plan:
   current_focus:
-    - "httpOnly Cookie Authentication Migration Testing Complete"
+    - "Frontend httpOnly Cookie Authentication Migration Testing Complete"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
@@ -219,3 +341,5 @@ test_plan:
 agent_communication:
   - agent: "testing"
     message: "Completed comprehensive backend auth testing for httpOnly cookie migration. All 8 critical auth flows tested successfully: 1) Admin login sets httpOnly cookies and returns 200 with token/user, 2) GET /auth/me works with cookies, 3) Refresh token works with cookies and reissues access_token, 4) Logout clears cookies properly, 5) GET /auth/me returns 401 after logout, 6) Authorization Bearer fallback still functional, 7) Driver-001 login regression test passed, 8) Restaurant-001 login regression test passed. httpOnly cookie migration successful with full backward compatibility maintained."
+  - agent: "testing"
+    message: "Completed comprehensive frontend auth testing for httpOnly cookie migration. All 10 critical frontend flows tested successfully: 1) Email/password login works correctly, 2) Demo Admin button works, 3) Demo Driver button works, 4) Demo Restaurant button works, 5) Session persists on page refresh, 6) Direct access to protected routes works with active session, 7) Logout clears session and redirects to login, 8) Protected routes redirect to login after logout, 9) Theme toggle works on login page, 10) Theme toggle works on dashboards. All dashboards load without blank pages or critical errors. The 401 errors in console logs are EXPECTED behavior during initial auth checks and after logout - they are not bugs. Frontend httpOnly cookie migration is fully successful."

@@ -135,7 +135,7 @@ const DriverApp = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.driver_id]);
+  }, [user?.driver_id, lastOrderIdRef, setCurrentOrder, setIsLoading, setNewOrderFlash]);
 
   useEffect(() => {
     fetchOrder();

@@ -298,7 +298,7 @@ const AdminDashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setAnalyticsData, setDeliveryZones, setDrivers, setHourlyData, setIsLoading, setOrders, setRestaurants, setStats]);
 
   useEffect(() => {
     fetchData();
@@ -390,7 +390,7 @@ const AdminDashboard = () => {
     } catch {
       toast.error("Nu am putut detecta zona");
     }
-  }, []);
+  }, [setNewOrder]);
 
   const updateOrderLocation = useCallback((location) => {
     setNewOrder((prev) => ({

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 
 const AuthContext = createContext(null);
@@ -25,13 +25,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const clearAuthState = () => {
+  const clearAuthState = useCallback(() => {
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common.Authorization;
-  };
+  }, []);
 
-  const applyAuthState = (userData, accessToken = null) => {
+  const applyAuthState = useCallback((userData, accessToken = null) => {
     setUser(userData);
     setToken(accessToken);
     if (accessToken) {
@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
     } else {
       delete axios.defaults.headers.common.Authorization;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     };
     
     initAuth();
-  }, []);
+  }, [applyAuthState, clearAuthState]);
 
   useEffect(() => {
     const interceptorId = axios.interceptors.response.use(
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.response.eject(interceptorId);
     };
-  }, []);
+  }, [clearAuthState]);
 
   const login = async (email, password) => {
     try {

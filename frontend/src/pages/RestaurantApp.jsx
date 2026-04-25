@@ -66,7 +66,7 @@ const RestaurantApp = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.restaurant_id]);
+  }, [user?.restaurant_id, setIsLoading, setOrders]);
 
   useEffect(() => {
     if (user?.restaurant_id) {

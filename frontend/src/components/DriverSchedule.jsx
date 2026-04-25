@@ -102,7 +102,7 @@ export const DriverSchedule = ({ driverId }) => {
       setSlots({});
       setTotalHours(0);
     }
-  }, [driverId, weekStart]);
+  }, [driverId, weekStart, setEmergencySlots, setScheduleWindowInfo, setSlots, setTotalHours, setWindowOpen]);
 
   useEffect(() => {
     fetchSchedule();

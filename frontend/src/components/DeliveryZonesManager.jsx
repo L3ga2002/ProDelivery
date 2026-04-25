@@ -127,7 +127,7 @@ function DrawControl({ onPolygonCreated, isDrawing, setIsDrawing }) {
     markersRef.current.forEach((m) => map.removeLayer(m));
     markersRef.current = [];
     pointsRef.current = [];
-  }, [map]);
+  }, [map, markersRef, pointsRef, polylineRef]);
 
   useEffect(() => {
     if (!isDrawing) {
@@ -259,7 +259,7 @@ export function DeliveryZonesManager() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setIsLoading, setZones]);
 
   useEffect(() => {
     fetchZones();
