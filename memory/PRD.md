@@ -28,6 +28,9 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 1: MVP, branding, hartă, demo
 - Phase 2: Backend modular, program șoferi, confirmări, analytics fără financiar, urgență
 - Task 2.2: Zone de livrare geospațiale (Leaflet/OSM, poligoane pe hartă, CRUD zone, detecție automată zonă, taxe livrare) - COMPLETAT 26 Mar 2026
+- Task 2.2.1: Sectoare livrare Bacău (Nord, Centru, Sud, Nord Extrem) cu 3 niveluri fixe per sector - IMPLEMENTAT 25 Apr 2026
+- Admin poate acum filtra pe sector, redesena conturul unei zone, adăuga zone noi manual și folosește tarifare fixă per nivel: Zona 1 = 14 lei, Zona 2 = 22 lei, Zona 3 = 33 lei
+- Seed demo creează 12 zone (4 sectoare × 3 zone) ca primă aproximare editabilă pe baza hărților primite de la user
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -38,10 +41,12 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 
 ## DB Schema - delivery_zones
 ```
-{id, name, color, fee, polygon: [{lat, lng}], is_active, sort_order, created_at, updated_at}
+{id, sector, zone_level, name, color, fee, polygon: [{lat, lng}], is_active, sort_order, created_at, updated_at}
 ```
 
 ## Rămas
+- P0: Validare și rafinare manuală a celor 12 poligoane pe baza hărților reale ale clientului până coincid exact cu limitele operaționale dorite
+- P0: Legare completă comandă -> coordonate -> detectare zonă -> taxă aplicată automat în fluxul real de creare comandă
 - Ranking-based Calendar Access (P1) - prioritate calendar pe baza rankingului șoferului
 - Algoritm automat urgență (P2) - creare automată sloturi când crește volumul
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi

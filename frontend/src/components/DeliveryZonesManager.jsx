@@ -10,6 +10,7 @@ import { Switch } from "./ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -568,6 +569,9 @@ export function DeliveryZonesManager() {
             <DialogTitle>
               {selectedZone ? "Editează Zona" : "Zonă Nouă"}
             </DialogTitle>
+            <DialogDescription>
+              Configurează sectorul, nivelul și conturul zonei de livrare.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
