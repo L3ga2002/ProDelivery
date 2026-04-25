@@ -974,10 +974,23 @@ const AdminDashboard = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Livrări: {driver.total_deliveries || 0}</span>
+                        <span>Scor: {driver.ranking_score || 0}</span>
                       </div>
-                      <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {driver.is_active ? 'Activ' : 'Inactiv'}
-                      </Badge>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {driver.is_active ? 'Activ' : 'Inactiv'}
+                        </Badge>
+                        {driver.ranking_tier && (
+                          <Badge variant="outline" data-testid={`driver-tier-${driver.id}`}>
+                            {driver.ranking_tier}
+                          </Badge>
+                        )}
+                      </div>
+                      {driver.schedule_access?.opens_at && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Acces calendar: {driver.schedule_access.opens_at_label || driver.schedule_access.opens_at}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

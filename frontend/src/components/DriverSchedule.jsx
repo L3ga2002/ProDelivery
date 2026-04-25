@@ -73,6 +73,7 @@ export const DriverSchedule = ({ driverId }) => {
   const [saving, setSaving] = useState(false);
   const [totalHours, setTotalHours] = useState(0);
   const [windowOpen, setWindowOpen] = useState(true);
+  const [scheduleWindowInfo, setScheduleWindowInfo] = useState(null);
   const [emergencySlots, setEmergencySlots] = useState([]);
   const [claimDialog, setClaimDialog] = useState(null);
   const [claiming, setClaiming] = useState(false);
@@ -94,7 +95,8 @@ export const DriverSchedule = ({ driverId }) => {
         setSlots({});
         setTotalHours(0);
       }
-      setWindowOpen(windowRes.data.is_open);
+      setWindowOpen(windowRes.data.can_select_schedule ?? windowRes.data.is_open);
+      setScheduleWindowInfo(windowRes.data);
       setEmergencySlots(emergencyRes.data);
     } catch {
       setSlots({});
@@ -253,6 +255,14 @@ export const DriverSchedule = ({ driverId }) => {
             </>
           )}
         </div>
+
+        {scheduleWindowInfo?.tier && (
+          <div className="flex flex-wrap gap-2 mt-2 text-xs" data-testid="driver-ranking-access-info">
+            <Badge className="bg-slate-900 text-white">Tier {scheduleWindowInfo.tier}</Badge>
+            <Badge variant="outline">Scor {scheduleWindowInfo.score}</Badge>
+            {!windowOpen && <Badge variant="outline">Acces de la {scheduleWindowInfo.opens_at_label || scheduleWindowInfo.opens_at}</Badge>}
+          </div>
+        )}
 
         {/* Emergency slots notification */}
         {availableEmergencyCount > 0 && (

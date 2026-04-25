@@ -1,9 +1,38 @@
 from fastapi import APIRouter, HTTPException, Depends
+from datetime import datetime
 from database import db
 from auth import get_current_user
 from models.emergency_slot import EmergencySlotCreate, EmergencySlot
 
 router = APIRouter(prefix="/schedules/emergency", tags=["emergency-slots"])
+
+DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+PEAK_HOURS = ["12:00", "13:00", "19:00", "20:00", "21:00"]
+
+
+def _extract_hour_from_created_at(created_at):
+    if not created_at:
+        return None
+    if isinstance(created_at, str):
+        try:
+            created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return f"{created_at.hour:02d}:00"
+
+
+def _required_emergency_spots(hourly_orders: int, scheduled_coverage: int):
+    if hourly_orders >= 30:
+        target = 4
+    elif hourly_orders >= 22:
+        target = 3
+    elif hourly_orders >= 15:
+        target = 2
+    elif hourly_orders >= 10:
+        target = 1
+    else:
+        target = 0
+    return max(target - scheduled_coverage, 0)
 
 
 @router.post("")
@@ -56,6 +85,81 @@ async def get_emergency_slots(week_start: str, current_user: dict = Depends(get_
         {"_id": 0}
     ).to_list(200)
     return slots
+
+
+@router.post("/auto-generate")
+async def auto_generate_emergency_slots(week_start: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    schedules = await db.schedules.find({"week_start": week_start}, {"_id": 0}).to_list(500)
+    orders = await db.orders.find({}, {"_id": 0, "created_at": 1}).to_list(1000)
+
+    hourly_demand = {hour: 0 for hour in PEAK_HOURS}
+    for order in orders:
+        hour = _extract_hour_from_created_at(order.get("created_at"))
+        if hour in hourly_demand:
+            hourly_demand[hour] += 1
+
+    fallback_demand = {"12:00": 18, "13:00": 15, "19:00": 20, "20:00": 28, "21:00": 19}
+    for hour in PEAK_HOURS:
+        if hourly_demand[hour] == 0:
+            hourly_demand[hour] = fallback_demand[hour]
+
+    coverage = {(day, hour): 0 for day in DAYS for hour in PEAK_HOURS}
+    for schedule in schedules:
+        for day, slots in (schedule.get("slots") or {}).items():
+            for slot in slots:
+                hour = slot.get("start")
+                if (day, hour) in coverage:
+                    coverage[(day, hour)] += 1
+
+    created = 0
+    updated = 0
+    touched_slots = []
+    existing_slots = await db.emergency_slots.find({"week_start": week_start}, {"_id": 0}).to_list(500)
+    existing_map = {(slot["day"], slot["hour"]): slot for slot in existing_slots}
+
+    for day in DAYS:
+        for hour in PEAK_HOURS:
+            required_spots = _required_emergency_spots(hourly_demand[hour], coverage[(day, hour)])
+            if required_spots <= 0:
+                continue
+
+            existing = existing_map.get((day, hour))
+            if existing:
+                if existing.get("created_by") == "admin":
+                    continue
+                claimed_count = len(existing.get("claimed_by", []))
+                total_spots = max(required_spots, claimed_count)
+                remaining_spots = max(total_spots - claimed_count, 0)
+                await db.emergency_slots.update_one(
+                    {"id": existing["id"]},
+                    {"$set": {"total_spots": total_spots, "remaining_spots": remaining_spots, "created_by": "system"}},
+                )
+                touched_slots.append({"day": day, "hour": hour, "spots": total_spots, "mode": "updated"})
+                updated += 1
+                continue
+
+            slot = EmergencySlot(
+                week_start=week_start,
+                day=day,
+                hour=hour,
+                total_spots=required_spots,
+                remaining_spots=required_spots,
+                created_by="system",
+            )
+            await db.emergency_slots.insert_one(slot.model_dump())
+            touched_slots.append({"day": day, "hour": hour, "spots": required_spots, "mode": "created"})
+            created += 1
+
+    return {
+        "message": f"Auto-generator complet: {created} create, {updated} actualizate",
+        "created": created,
+        "updated": updated,
+        "hourly_demand": hourly_demand,
+        "slots": touched_slots,
+    }
 
 
 @router.post("/{slot_id}/claim")

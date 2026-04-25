@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from datetime import datetime, timezone, timedelta
 import random
 from database import db
 from auth import hash_password
@@ -196,11 +197,11 @@ async def seed_data():
 
     # Drivers
     drivers_data = [
-        {"id": "driver-001", "name": "Ion Popescu", "phone": "0722111222", "lat": 46.5690, "lng": 26.9100, "active": True},
-        {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 46.5640, "lng": 26.9180, "active": True},
-        {"id": "driver-003", "name": "Andrei Popa", "phone": "0722555666", "lat": 46.5730, "lng": 26.9050, "active": False},
-        {"id": "driver-004", "name": "Elena Dumitrescu", "phone": "0722777888", "lat": 46.5580, "lng": 26.9220, "active": True},
-        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 46.5710, "lng": 26.9150, "active": True},
+        {"id": "driver-001", "name": "Ion Popescu", "phone": "0722111222", "lat": 46.5690, "lng": 26.9100, "active": True, "deliveries": 142, "punctuality": 0.97, "joined_days_ago": 720},
+        {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 46.5640, "lng": 26.9180, "active": True, "deliveries": 108, "punctuality": 0.93, "joined_days_ago": 510},
+        {"id": "driver-003", "name": "Andrei Popa", "phone": "0722555666", "lat": 46.5730, "lng": 26.9050, "active": False, "deliveries": 68, "punctuality": 0.89, "joined_days_ago": 300},
+        {"id": "driver-004", "name": "Elena Dumitrescu", "phone": "0722777888", "lat": 46.5580, "lng": 26.9220, "active": True, "deliveries": 36, "punctuality": 0.84, "joined_days_ago": 150},
+        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 46.5710, "lng": 26.9150, "active": True, "deliveries": 12, "punctuality": 0.78, "joined_days_ago": 45},
     ]
 
     for d in drivers_data:
@@ -210,13 +211,17 @@ async def seed_data():
         )
         user_doc = user.model_dump()
         user_doc["password_hash"] = hash_password("driver123")
-        user_doc["created_at"] = user_doc["created_at"].isoformat()
+        joined_at = datetime.now(timezone.utc) - timedelta(days=d["joined_days_ago"])
+        user_doc["created_at"] = joined_at.isoformat()
         await db.users.insert_one(user_doc)
 
         driver = Driver(
             id=d["id"], user_id=user.id, name=d["name"],
             phone=d["phone"], is_active=d["active"],
-            latitude=d["lat"], longitude=d["lng"]
+            latitude=d["lat"], longitude=d["lng"],
+            total_deliveries=d["deliveries"],
+            punctuality_rate=d["punctuality"],
+            joined_at=joined_at.isoformat(),
         )
         await db.drivers.insert_one(driver.model_dump())
 
@@ -243,7 +248,6 @@ async def seed_data():
         rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
         await db.users.insert_one(rest_user_doc)
 
-    from datetime import datetime, timezone
     sort_order = 1
     for sector in SECTOR_MAPS:
         for zone_level in [1, 2, 3]:

@@ -95,6 +95,7 @@ export const AdminScheduleView = () => {
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [emergencyDialog, setEmergencyDialog] = useState(null); // {day, hour}
   const [emergencySpots, setEmergencySpots] = useState(1);
+  const [autoGenerating, setAutoGenerating] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -207,6 +208,21 @@ export const AdminScheduleView = () => {
     }
   };
 
+  const autoGenerateEmergencySlots = async () => {
+    setAutoGenerating(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/schedules/emergency/auto-generate`, null, {
+        params: { week_start: toISODate(weekStart) },
+      });
+      toast.success(response.data.message);
+      fetchData();
+    } catch {
+      toast.error("Eroare la generarea automată a sloturilor");
+    } finally {
+      setAutoGenerating(false);
+    }
+  };
+
   const getDayHoursCount = (schedules, dayKey) => {
     const sched = schedules?.find((s) => s.week_start === toISODate(weekStart));
     return (sched?.slots?.[dayKey] || []).length;
@@ -244,18 +260,30 @@ export const AdminScheduleView = () => {
       </div>
 
       {/* Emergency Mode Toggle */}
-      <Button
-        variant={emergencyMode ? "default" : "outline"}
-        className={emergencyMode
-          ? "w-full bg-red-600 hover:bg-red-700 text-white"
-          : "w-full border-red-300 text-red-600 hover:bg-red-50"
-        }
-        onClick={() => setEmergencyMode(!emergencyMode)}
-        data-testid="emergency-mode-toggle"
-      >
-        <Flame className="w-5 h-5 mr-2" />
-        {emergencyMode ? "MOD URGENȚĂ ACTIV - Click pe oră pentru a seta locuri" : "Setează Sloturi de Urgență"}
-      </Button>
+      <div className="grid md:grid-cols-2 gap-3">
+        <Button
+          variant={emergencyMode ? "default" : "outline"}
+          className={emergencyMode
+            ? "w-full bg-red-600 hover:bg-red-700 text-white"
+            : "w-full border-red-300 text-red-600 hover:bg-red-50"
+          }
+          onClick={() => setEmergencyMode(!emergencyMode)}
+          data-testid="emergency-mode-toggle"
+        >
+          <Flame className="w-5 h-5 mr-2" />
+          {emergencyMode ? "MOD URGENȚĂ ACTIV - Click pe oră pentru a seta locuri" : "Setează Sloturi de Urgență"}
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
+          onClick={autoGenerateEmergencySlots}
+          disabled={autoGenerating}
+          data-testid="auto-generate-emergency-btn"
+        >
+          <AlertTriangle className="w-5 h-5 mr-2" />
+          {autoGenerating ? "Generez automat..." : "Generează Automat Sloturi"}
+        </Button>
+      </div>
 
       {/* Emergency Slots Grid (when mode is active) */}
       {emergencyMode && (
@@ -325,6 +353,7 @@ export const AdminScheduleView = () => {
                 return (
                   <Badge key={s.id} className={`text-xs ${s.remaining_spots > 0 ? "bg-red-500 text-white" : "bg-red-200 text-red-800"}`}>
                     {dayLabel} {formatInterval(s.hour)}: {s.remaining_spots}/{s.total_spots}
+                    {s.created_by === "system" && " · AUTO"}
                     {s.claimed_names?.length > 0 && ` (${s.claimed_names.join(", ")})`}
                   </Badge>
                 );
@@ -363,6 +392,11 @@ export const AdminScheduleView = () => {
                       {weekHours}h
                     </Badge>
                   </div>
+
+                    <div className="flex items-center justify-between mb-2 text-xs">
+                      <Badge variant="outline">{driver.ranking_priority || "Start"}</Badge>
+                      <span className="text-muted-foreground">Scor {driver.ranking_score || 0}</span>
+                    </div>
 
                   <div className="flex gap-1 mb-3">
                     {DAYS.map((d) => {

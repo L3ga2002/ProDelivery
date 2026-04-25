@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from datetime import datetime, timezone
 import uuid
 
 
@@ -15,6 +16,8 @@ class Driver(BaseModel):
     current_order_id: Optional[str] = None
     total_deliveries: int = 0
     total_earnings: float = 0
+    punctuality_rate: float = 0.85
+    joined_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class DriverCreate(BaseModel):

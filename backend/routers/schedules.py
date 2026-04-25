@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from database import db
 from auth import get_current_user
 from models.schedule import ScheduleCreate, ScheduleUpdate, Schedule
+from utils.driver_ranking import build_driver_ranking_payload, build_tier_access_state, ROMANIA_TZ
 
 router = APIRouter(prefix="/schedules", tags=["schedules"])
 
@@ -49,6 +50,12 @@ async def create_or_update_schedule(data: ScheduleCreate, current_user: dict = D
         driver = await db.drivers.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
         if not driver or driver["id"] != data.driver_id:
             raise HTTPException(status_code=403, detail="Cannot edit another driver's schedule")
+        ranking = await build_driver_ranking_payload(db, driver)
+        if not ranking["schedule_access"]["can_select_schedule"]:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Calendarul se deschide pentru tier-ul {ranking['ranking_tier']} la {ranking['schedule_access']['opens_at']}"
+            )
     elif not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -73,7 +80,7 @@ async def create_or_update_schedule(data: ScheduleCreate, current_user: dict = D
                 if slot["start"] not in DRIVER_ALLOWED_HOURS:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Poți selecta ore doar între 10:00-22:00."
+                        detail="Poți selecta ore doar între 10:00-22:00."
                     )
 
         # Merge: keep admin night slots, replace driver day slots
@@ -174,6 +181,7 @@ async def get_admin_schedule_summary(week_start: str = None, current_user: dict 
             zone_key = z["_id"] if z["_id"] else "Neatribuită"
             orders_by_zone[zone_key] = z["count"]
 
+        ranking = await build_driver_ranking_payload(db, driver)
         result.append({
             "driver_id": driver["id"],
             "driver_name": driver["name"],
@@ -184,7 +192,9 @@ async def get_admin_schedule_summary(week_start: str = None, current_user: dict 
             "orders_by_restaurant": {r["_id"]: r["count"] for r in by_restaurant},
             "orders_by_zone": orders_by_zone,
             "schedules": schedules,
-            "ranking_priority": None  # Future: ranking system
+            "ranking_priority": ranking["ranking_tier"],
+            "ranking_score": ranking["ranking_score"],
+            "schedule_access": ranking["schedule_access"],
         })
 
     return result
@@ -192,22 +202,33 @@ async def get_admin_schedule_summary(week_start: str = None, current_user: dict 
 
 @router.get("/scheduling-window")
 async def get_scheduling_window(current_user: dict = Depends(get_current_user)):
-    """Check if the scheduling window is currently open for drivers.
-    Window: Sunday 22:00 - Monday 10:00"""
-    now = datetime.now(timezone.utc)
-    day_of_week = now.weekday()  # 0=Monday, 6=Sunday
-    hour = now.hour
+    now_local = datetime.now(ROMANIA_TZ)
 
-    is_open = False
-    if day_of_week == 6 and hour >= 22:  # Sunday after 22:00
-        is_open = True
-    elif day_of_week == 0 and hour < 10:  # Monday before 10:00
-        is_open = True
+    if current_user["role"] == "driver":
+        driver = await db.drivers.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+        if not driver:
+            raise HTTPException(status_code=404, detail="Driver not found")
+        ranking = await build_driver_ranking_payload(db, driver)
+        access = ranking["schedule_access"]
+        return {
+            "is_open": access["can_select_schedule"],
+            "can_select_schedule": access["can_select_schedule"],
+            "tier": ranking["ranking_tier"],
+            "tier_key": ranking["ranking_tier_key"],
+            "score": ranking["ranking_score"],
+            "opens_at": access["opens_at"],
+            "opens_at_label": access["opens_at_label"],
+            "closes_at": access["closes_at"],
+            "closes_at_label": access["closes_at_label"],
+            "next_open_at": access["next_open_at"],
+            "next_open_at_label": access["next_open_at_label"],
+            "current_local_time": access["current_local_time"],
+        }
 
+    global_access = build_tier_access_state("gold")
     return {
-        "is_open": is_open,
-        "opens_at": "Duminică 22:00",
-        "closes_at": "Luni 10:00",
-        "current_day": day_of_week,
-        "current_hour": hour
+        "is_open": global_access["can_select_schedule"],
+        "opens_at": global_access["opens_at"],
+        "closes_at": global_access["closes_at"],
+        "current_local_time": now_local.isoformat(),
     }
