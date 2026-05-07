@@ -51,6 +51,10 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 Rework P1 07 Mai 2026: Program/Sloturi reorganizat în jurul sloturilor normale; există modal setup pentru generare automată cu zile, interval, număr sloturi, tip normal/urgență și repetare
 - Phase 2 Rework P1 07 Mai 2026: backend-ul include generare automată sloturi normale, ștergere bulk a sloturilor automate și generare setup pentru sloturi de urgență
 - Phase 2 Design Polish 07 Mai 2026: roșul agresiv a fost redus; UI-ul folosește mai mult slate/navy/amber pentru un look de dispecerat logistic, păstrând roșu doar pentru alerte/întârzieri/acțiuni distructive
+- Phase 2 UX/Design Polish 07 Mai 2026: la adăugare restaurant, după autocomplete/geocoding, pinul de pe hartă poate fi ajustat manual prin drag sau click pe hartă; coordonatele lat/lng se actualizează înainte de salvare
+- Phase 2 UX/Design Polish 07 Mai 2026: Admin Dashboard are hero premium „Control Room · Bacău” și KPI cards redesenate pentru o prezentare mai solidă în fața clientului
+- Phase 2 Analytics Polish 07 Mai 2026: analytics restaurant extins în UI cu grafice vizibile pe ore, zile, săptămâni, luni, ani + card de insight operațional
+- Phase 2 Program Polish 07 Mai 2026: adăugat endpoint și UI pentru ștergere bulk sloturi de urgență generate conform setup-ului; curăță și intrările de urgență din programele livratorilor
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -67,6 +71,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `POST /api/schedules/admin/auto-generate` - generează sloturi normale după setup admin
 - `POST /api/schedules/admin/bulk-delete` - șterge bulk sloturile automate normale
 - `POST /api/schedules/emergency/setup-generate` - generează/actualizează sloturi de urgență după setup admin
+- `POST /api/schedules/emergency/bulk-delete` - șterge bulk sloturi de urgență după săptămână/zile/interval și curăță programările asociate
 
 ## DB Schema - delivery_zones
 ```
@@ -76,10 +81,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 ## Rămas
 - P0: Validare cu clientul pe workflow-ul nou: fiecare restaurant își desenează propriile zone și nu mai există zone globale pe harta live
 - P0: Testare reală cu mai multe restaurante + zone suprapuse pentru confirmarea filtrării pe restaurant
-- P1: Extindere analytics restaurant cu grafice pe zile/săptămâni/ani în UI complet, nu doar API + panouri principale
-- P1: Finisare bulk delete pentru sloturi de urgență direct din UI, dacă clientul cere control complet pe curățare
-- P1: Testare UX cu clientul pe modalul de generare sloturi pentru a regla terminologia „slot/oră” vs. „slot total”
-- P2: refactor structural suplimentar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
+- P1: Testare UX cu clientul pe pinul ajustabil, zone per restaurant și modalul de generare sloturi pentru a regla terminologia „slot/oră” vs. „slot total”
+- P2: refactor structural prioritar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
