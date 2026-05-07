@@ -89,32 +89,26 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-const driverIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const createMapMarkerIcon = ({ kind, active = true, id = "marker" }) => {
+  const isDriver = kind === "driver";
+  const icon = isDriver ? "🛵" : "🏪";
+  const label = isDriver ? (active ? "Livrator activ" : "Livrator inactiv") : "Restaurant";
+  const tone = isDriver ? (active ? "driver-active" : "driver-idle") : "restaurant";
 
-const activeDriverIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+  return L.divIcon({
+    className: "delivery-map-div-icon",
+    html: `
+      <div class="delivery-map-marker delivery-map-marker-${tone}" data-testid="map-${kind}-marker-${id}" aria-label="${label}">
+        <span class="delivery-map-marker-icon">${icon}</span>
+      </div>
+    `,
+    iconSize: [42, 48],
+    iconAnchor: [21, 42],
+    popupAnchor: [0, -38],
+  });
+};
 
-const restaurantIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const restaurantIcon = createMapMarkerIcon({ kind: "restaurant", id: "preview" });
 
 const getStatusBadge = (status) => {
   const statusConfig = {
@@ -426,6 +420,8 @@ const AdminDashboard = () => {
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
   const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
   const [isRestaurantPickerOpen, setIsRestaurantPickerOpen] = useState(false);
+  const [isClientTourOpen, setIsClientTourOpen] = useState(false);
+  const [activeAdminTab, setActiveAdminTab] = useState("orders");
   
   // Hourly data for charts
   const [hourlyData, setHourlyData] = useState({ hourly_orders: [] });
@@ -936,6 +932,15 @@ const AdminDashboard = () => {
             {isSimRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             {isSimRunning ? "Simulare în curs..." : "Simulare Demo"}
           </Button>
+          <Button
+            variant="outline"
+            className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-100"
+            onClick={() => setIsClientTourOpen(true)}
+            data-testid="client-tour-button"
+          >
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Tur Client
+          </Button>
           <Button onClick={() => setIsNewOrderDialogOpen(true)} data-testid="new-order-btn">
             <Plus className="w-4 h-4 mr-2" />
             Comandă Nouă
@@ -951,7 +956,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="orders" className="space-y-4">
+        <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="orders" data-testid="tab-orders">Comenzi ({activeOrders.length})</TabsTrigger>
             <TabsTrigger value="analytics" data-testid="tab-analytics">Analize</TabsTrigger>
@@ -1164,16 +1169,24 @@ const AdminDashboard = () => {
           <TabsContent value="map">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <MapPin className="w-5 h-5" />
-                  Hartă Live - Bacău
-                  <Badge variant="outline" className="ml-2 text-xs animate-pulse border-green-400 text-green-600 dark:border-green-700 dark:text-green-100">
-                    LIVE
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <MapPin className="w-5 h-5 text-indigo-600" />
+                      Hartă Live - Bacău
+                      <Badge variant="outline" className="ml-2 text-xs animate-pulse border-emerald-400 text-emerald-600 dark:border-emerald-700 dark:text-emerald-100">
+                        LIVE
+                      </Badge>
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">Livratori pe scuter + restaurante storefront, fără poligoane de livrare pe harta principală.</p>
+                  </div>
+                  <Badge variant="outline" className="border-slate-300 bg-white dark:bg-slate-950" data-testid="live-map-marker-style-badge">
+                    Iconițe operaționale
                   </Badge>
-                </CardTitle>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[500px] rounded-lg overflow-hidden border">
+                <div className="h-[500px] rounded-lg overflow-hidden border shadow-sm" data-testid="admin-live-map-container">
                   <MapContainer center={[46.567, 26.913]} zoom={14} className="h-full w-full">
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1185,7 +1198,7 @@ const AdminDashboard = () => {
                         <Marker
                           key={driver.id}
                           position={[pos?.lat || driver.latitude, pos?.lng || driver.longitude]}
-                          icon={driver.is_active ? activeDriverIcon : driverIcon}
+                          icon={createMapMarkerIcon({ kind: "driver", active: driver.is_active, id: driver.id })}
                         >
                           <Popup>
                             <div className="text-sm">
@@ -1200,7 +1213,7 @@ const AdminDashboard = () => {
                       );
                     })}
                     {restaurants.map((rest) => (
-                      <Marker key={rest.id} position={[rest.latitude, rest.longitude]} icon={restaurantIcon}>
+                      <Marker key={rest.id} position={[rest.latitude, rest.longitude]} icon={createMapMarkerIcon({ kind: "restaurant", id: rest.id })}>
                         <Popup>
                           <div className="text-sm">
                             <p className="font-bold">{rest.name}</p>
@@ -1211,17 +1224,17 @@ const AdminDashboard = () => {
                     ))}
                   </MapContainer>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                <div className="mt-3 flex flex-wrap gap-4 text-sm" data-testid="admin-live-map-legend">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <span>Livrator Activ</span>
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-sm shadow-sm">🛵</span>
+                    <span>Livrator activ</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500" />
-                    <span>Livrator Inactiv</span>
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-500 text-sm shadow-sm">🛵</span>
+                    <span>Livrator inactiv</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-orange-500" />
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-sm shadow-sm">🏪</span>
                     <span>Restaurant</span>
                   </div>
                 </div>
@@ -1447,6 +1460,50 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Client Presentation Tour */}
+      <Dialog open={isClientTourOpen} onOpenChange={setIsClientTourOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+              Tur rapid pentru prezentarea clientului
+            </DialogTitle>
+            <DialogDescription>
+              O listă scurtă cu zonele unde se vede cel mai clar munca depusă în Faza 2.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 md:grid-cols-2" data-testid="client-tour-steps">
+            {[
+              { tab: "restaurants", title: "Restaurant → pin → zone", text: "Adaugi restaurantul, ajustezi pinul și desenezi zone individuale." },
+              { tab: "restaurants", title: "Analytics restaurant", text: "Vezi timpi de preparare, întârzieri, livrare și grafice pe perioade." },
+              { tab: "program", title: "Program normal + urgențe", text: "Generezi sloturi pe zile, intervale și tipuri, apoi cureți bulk." },
+              { tab: "map", title: "Hartă operațională", text: "Livratori pe scuter și restaurante storefront, fără poligoane care aglomerează." },
+            ].map((item, index) => (
+              <button
+                key={`${item.tab}-${item.title}`}
+                type="button"
+                className="premium-card rounded-lg border bg-card p-4 text-left hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20"
+                onClick={() => {
+                  setActiveAdminTab(item.tab);
+                  setIsClientTourOpen(false);
+                }}
+                data-testid={`client-tour-step-${index}`}
+              >
+                <Badge variant="outline" className="mb-3">Pas {index + 1}</Badge>
+                <p className="font-bold">{item.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsClientTourOpen(false)} data-testid="client-tour-close-button">Închide</Button>
+            <Button onClick={() => { setActiveAdminTab("restaurants"); setIsClientTourOpen(false); }} data-testid="client-tour-start-button">
+              Începe cu restaurantele
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>

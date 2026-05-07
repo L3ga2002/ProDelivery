@@ -168,3 +168,52 @@
   background: linear-gradient(90deg, rgb(225 29 72), rgb(251 146 60), rgb(225 29 72));
   animation: pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+.delivery-map-div-icon {
+  background: transparent;
+  border: 0;
+}
+
+.delivery-map-marker {
+  position: relative;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid rgb(255 255 255 / 0.95);
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: 0 18px 28px -18px rgb(15 23 42 / 0.85), 0 0 0 1px rgb(15 23 42 / 0.12);
+  transform: rotate(-45deg);
+}
+
+.delivery-map-marker::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid white;
+  background: inherit;
+}
+
+.delivery-map-marker-icon {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+  transform: rotate(45deg);
+  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 0.22));
+}
+
+.delivery-map-marker-driver-active {
+  background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
+}
+
+.delivery-map-marker-driver-idle {
+  background: linear-gradient(135deg, rgb(100 116 139), rgb(51 65 85));
+}
+
+.delivery-map-marker-restaurant {
+  background: linear-gradient(135deg, rgb(249 115 22), rgb(234 88 12));
+}

@@ -1,0 +1,48 @@
+{
+  "summary": "Frontend-only verification completed for Admin map and client tour scope. Requested flows passed on public URL: custom map markers/legend, no polygons on main map, expected marker counts, client tour step navigation to map, controlled tabs behavior, and no client-facing /client UI route.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Pre-login auth bootstrap",
+        "issues": [
+          "Expected pre-login auth 401 noise persists in console for /api/auth/me and /api/auth/refresh (acceptable per scope)."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/root/.emergent/automation_output/20260507_173455/console_20260507_173455.log"
+  ],
+  "action_items": [
+    "No functional fixes required for this requested scope.",
+    "Optional maintainability: split AdminDashboard.jsx (>1800 lines) into smaller modules/components before next feature wave."
+  ],
+  "critical_code_review_comments": [
+    "AdminDashboard.jsx is significantly oversized, which increases regression risk and slows future testing/debugging.",
+    "Admin Settings tab remains MOCKED/demo from previous phase (known state, unchanged)."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_14.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only requested)",
+    "frontend": "100% (all requested checks passed)"
+  },
+  "seed_data_creation": "No seed data created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Validated with credentials from /app/memory/test_credentials.md (admin@delivery.ro/admin123). Confirmed client tour has exactly 4 steps; clicking step 4 (Hartă operațională) activates Map tab and closes modal. Map tab shows legend with 🛵 active/inactive + 🏪 restaurant and marker counts drivers=5/restaurants=5 with polygons=0 on main map. /client resolves to /admin (no client-facing route).",
+  "rca of the issue": "No blocking issue reproduced in this scope. The only console errors were expected auth bootstrap 401 calls before login (/api/auth/me, /api/auth/refresh), plus external cdn-cgi/rum aborted requests that did not affect functionality.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "Admin Settings tab remains MOCKED/demo from previous phase only"
+    ]
+  }
+}
