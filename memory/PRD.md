@@ -41,7 +41,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Production hardening 25 Apr 2026: cookie-urile auth trec pe `secure + SameSite=None` pe HTTPS, iar `CORS_ORIGINS` include și `prodeliverybacau.com` / `www.prodeliverybacau.com`; preview validat fără regresii după patch
 - Phase 2 Rework P0 07 Mai 2026: restaurantele au acum locație individuală cu autocomplete/geocoding gratuit OpenStreetMap/Nominatim prin backend proxy, hartă care se centrează pe restaurant și marker automat
 - Phase 2 Rework P0 07 Mai 2026: zonele de livrare sunt gestionate individual per restaurant; zonele globale vechi Zona 1/2/3 au fost eliminate din workflow și seed-ul demo creează doar zone per restaurant
-- Phase 2 Rework P0 07 Mai 2026: tab-ul Restaurante include managerul de arii de livrare pentru restaurantul selectat, cu desenare UX nouă, auto-închidere poligon când se apasă primul punct, nume zonă, preț livrare, culoare, activ/inactiv și undo prin buton / C / Backspace
+- Phase 2 Rework P0 07 Mai 2026: tab-ul Restaurante include managerul de arii de livrare pentru restaurantul selectat, cu desenare UX nouă, auto-închidere poligon când se apasă primul punct, nume zonă, preț livrare, culoare, activ/inactiv și undo prin buton / Ctrl
 - Phase 2 Rework P0 07 Mai 2026: harta live principală nu mai afișează poligoane de livrare; rămâne concentrată pe livratori și restaurante
 - Phase 2 Rework P0 07 Mai 2026: backend-ul detectează zona doar în contextul restaurantului selectat și expune `/api/restaurants/available` pentru filtrarea internă a restaurantelor disponibile după coordonate
 - Phase 2 Rework P1 07 Mai 2026: UX desenare zone modificat conform cerinței userului — tasta `Ctrl` șterge ultimul punct/ultima linie, nu Backspace/C
@@ -57,6 +57,9 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 Program Polish 07 Mai 2026: adăugat endpoint și UI pentru ștergere bulk sloturi de urgență generate conform setup-ului; curăță și intrările de urgență din programele livratorilor
 - Phase 2 UX Bugfix 07 Mai 2026: schimbarea între restaurante în tab-ul Restaurante nu mai demontează/înlocuiește agresiv panoul analytics; datele rămân afișate și se actualizează discret, fără refresh vizual/jump urât
 - Phase 2 Design Pass 07 Mai 2026: aplicat polish A+B+C+D cerut de user — tab Restaurante cu carduri premium și selector stabil, Program/Sloturi cu contrast indigo/amber mai curat, Comenzi/Admin cu control surface și tabel mai profesional, Restaurant App cu hero „Kitchen Queue”, stat tiles și timer mare premium
+- Phase 2 Map/Presentation Polish 07 Mai 2026: harta principală folosește iconițe operaționale custom — livratori pe scuter 🛵 și restaurante storefront 🏪, cu legendă dedicată și fără poligoane de zone pe harta live
+- Phase 2 Client Demo Polish 07 Mai 2026: adăugat buton „Tur Client” în Admin, cu 4 pași de prezentare pentru restaurant→pin→zone, analytics, program și hartă operațională; taburile admin sunt acum controlate pentru navigare fluidă din tur
+- Phase 2 Demo Data Cleanup 07 Mai 2026: curățat restaurant test non-demo din baza preview; demo-ul afișează 5 restaurante curate
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -86,6 +89,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Testare UX cu clientul pe pinul ajustabil, zone per restaurant și modalul de generare sloturi pentru a regla terminologia „slot/oră” vs. „slot total”
 - P1: Design polish propus pentru următorul pas: cards restaurante mai profesionale, skeleton-uri subtile, detalii vizuale pe hărți/analytics și ordine mai clară în tab-ul Restaurante
 - P1: Testare vizuală cu clientul pe noul contrast indigo/slate/amber și ajustări fine dacă preferă altă direcție cromatică
+- P1: Testare vizuală cu clientul pe iconițele hărții și Tur Client; ajustare dacă preferă alt simbol pentru restaurante decât storefront
 - P2: refactor structural prioritar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
