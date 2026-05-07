@@ -81,6 +81,27 @@ import {
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const DRIVER_SCOOTER_SVG = `
+  <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <path d="M18 44c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8Z" fill="rgba(255,255,255,.92)"/>
+    <path d="M58 44c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8Z" fill="rgba(255,255,255,.92)"/>
+    <path d="M15 43h16c7 0 12-5 12-12h-8l-6 7H16" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M38 22h10l7 13" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M30 26h-8l-5-8h10l5 8Z" fill="rgba(255,255,255,.82)"/>
+    <path d="M40 17c0 3.2-2.5 5.7-5.7 5.7s-5.7-2.5-5.7-5.7 2.5-5.7 5.7-5.7S40 13.8 40 17Z" fill="white"/>
+  </svg>
+`;
+
+const RESTAURANT_STOREFRONT_SVG = `
+  <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <path d="M11 27h42v26H11V27Z" fill="rgba(255,255,255,.9)"/>
+    <path d="M16 31h32v18H16V31Z" fill="rgba(15,23,42,.18)"/>
+    <path d="M9 23 15 10h34l6 13H9Z" fill="white"/>
+    <path d="M13 23h10v8c0 2.8-2.2 5-5 5s-5-2.2-5-5v-8Zm10 0h9v8c0 2.8-2 5-4.5 5S23 33.8 23 31v-8Zm9 0h9v8c0 2.8-2 5-4.5 5S32 33.8 32 31v-8Zm9 0h10v8c0 2.8-2.2 5-5 5s-5-2.2-5-5v-8Z" fill="rgba(255,255,255,.74)"/>
+    <path d="M22 39h20M26 47h12" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  </svg>
+`;
+
 // Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -91,7 +112,7 @@ L.Icon.Default.mergeOptions({
 
 const createMapMarkerIcon = ({ kind, active = true, id = "marker" }) => {
   const isDriver = kind === "driver";
-  const icon = isDriver ? "🛵" : "🏪";
+  const icon = isDriver ? DRIVER_SCOOTER_SVG : RESTAURANT_STOREFRONT_SVG;
   const label = isDriver ? (active ? "Livrator activ" : "Livrator inactiv") : "Restaurant";
   const tone = isDriver ? (active ? "driver-active" : "driver-idle") : "restaurant";
 
@@ -102,9 +123,9 @@ const createMapMarkerIcon = ({ kind, active = true, id = "marker" }) => {
         <span class="delivery-map-marker-icon">${icon}</span>
       </div>
     `,
-    iconSize: [42, 48],
-    iconAnchor: [21, 42],
-    popupAnchor: [0, -38],
+    iconSize: [48, 54],
+    iconAnchor: [24, 48],
+    popupAnchor: [0, -42],
   });
 };
 
@@ -420,7 +441,6 @@ const AdminDashboard = () => {
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
   const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
   const [isRestaurantPickerOpen, setIsRestaurantPickerOpen] = useState(false);
-  const [isClientTourOpen, setIsClientTourOpen] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState("orders");
   
   // Hourly data for charts
@@ -932,15 +952,6 @@ const AdminDashboard = () => {
             {isSimRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             {isSimRunning ? "Simulare în curs..." : "Simulare Demo"}
           </Button>
-          <Button
-            variant="outline"
-            className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-100"
-            onClick={() => setIsClientTourOpen(true)}
-            data-testid="client-tour-button"
-          >
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Tur Client
-          </Button>
           <Button onClick={() => setIsNewOrderDialogOpen(true)} data-testid="new-order-btn">
             <Plus className="w-4 h-4 mr-2" />
             Comandă Nouă
@@ -1226,15 +1237,15 @@ const AdminDashboard = () => {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-4 text-sm" data-testid="admin-live-map-legend">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-sm shadow-sm">🛵</span>
+                    <span className="delivery-map-legend-icon delivery-map-legend-driver-active" dangerouslySetInnerHTML={{ __html: DRIVER_SCOOTER_SVG }} />
                     <span>Livrator activ</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-500 text-sm shadow-sm">🛵</span>
+                    <span className="delivery-map-legend-icon delivery-map-legend-driver-idle" dangerouslySetInnerHTML={{ __html: DRIVER_SCOOTER_SVG }} />
                     <span>Livrator inactiv</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-sm shadow-sm">🏪</span>
+                    <span className="delivery-map-legend-icon delivery-map-legend-restaurant" dangerouslySetInnerHTML={{ __html: RESTAURANT_STOREFRONT_SVG }} />
                     <span>Restaurant</span>
                   </div>
                 </div>
@@ -1460,50 +1471,6 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
-
-      {/* Client Presentation Tour */}
-      <Dialog open={isClientTourOpen} onOpenChange={setIsClientTourOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-indigo-600" />
-              Tur rapid pentru prezentarea clientului
-            </DialogTitle>
-            <DialogDescription>
-              O listă scurtă cu zonele unde se vede cel mai clar munca depusă în Faza 2.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 md:grid-cols-2" data-testid="client-tour-steps">
-            {[
-              { tab: "restaurants", title: "Restaurant → pin → zone", text: "Adaugi restaurantul, ajustezi pinul și desenezi zone individuale." },
-              { tab: "restaurants", title: "Analytics restaurant", text: "Vezi timpi de preparare, întârzieri, livrare și grafice pe perioade." },
-              { tab: "program", title: "Program normal + urgențe", text: "Generezi sloturi pe zile, intervale și tipuri, apoi cureți bulk." },
-              { tab: "map", title: "Hartă operațională", text: "Livratori pe scuter și restaurante storefront, fără poligoane care aglomerează." },
-            ].map((item, index) => (
-              <button
-                key={`${item.tab}-${item.title}`}
-                type="button"
-                className="premium-card rounded-lg border bg-card p-4 text-left hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20"
-                onClick={() => {
-                  setActiveAdminTab(item.tab);
-                  setIsClientTourOpen(false);
-                }}
-                data-testid={`client-tour-step-${index}`}
-              >
-                <Badge variant="outline" className="mb-3">Pas {index + 1}</Badge>
-                <p className="font-bold">{item.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
-              </button>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsClientTourOpen(false)} data-testid="client-tour-close-button">Închide</Button>
-            <Button onClick={() => { setActiveAdminTab("restaurants"); setIsClientTourOpen(false); }} data-testid="client-tour-start-button">
-              Începe cu restaurantele
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Assign Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
