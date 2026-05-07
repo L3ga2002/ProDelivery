@@ -59,6 +59,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 Design Pass 07 Mai 2026: aplicat polish A+B+C+D cerut de user — tab Restaurante cu carduri premium și selector stabil, Program/Sloturi cu contrast indigo/amber mai curat, Comenzi/Admin cu control surface și tabel mai profesional, Restaurant App cu hero „Kitchen Queue”, stat tiles și timer mare premium
 - Phase 2 Map Polish 07 Mai 2026: harta principală folosește iconițe operaționale custom 3D/SVG — livratori pe scuter și restaurante storefront, cu legendă dedicată și fără poligoane de zone pe harta live
 - Phase 2 UX Cleanup 07 Mai 2026: butonul și modalul „Tur Client” au fost eliminate la cererea userului
+- Phase 2 Refactor 07 Mai 2026: extras harta live în `components/admin/LiveMapPanel.jsx`, iconițele/Leaflet setup în `components/admin/MapMarkerIcons.jsx` și hero/KPI/action buttons în `components/admin/AdminCommandCenter.jsx`, reducând riscul pentru modificări înainte de redeploy
+- Phase 2 Map Status Polish 07 Mai 2026: marker-ele livratorilor au status vizual disponibil/ocupat/offline cu culori și mini-badge; popup-urile de hartă au fost redesenate cu informații clare pentru livrator/restaurant
 - Phase 2 Demo Data Cleanup 07 Mai 2026: curățat restaurant test non-demo din baza preview; demo-ul afișează 5 restaurante curate
 
 ## Key API Endpoints - Zone
@@ -90,7 +92,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Design polish propus pentru următorul pas: cards restaurante mai profesionale, skeleton-uri subtile, detalii vizuale pe hărți/analytics și ordine mai clară în tab-ul Restaurante
 - P1: Testare vizuală cu clientul pe noul contrast indigo/slate/amber și ajustări fine dacă preferă altă direcție cromatică
 - P1: Testare vizuală cu clientul pe iconițele 3D ale hărții; ajustare dacă preferă alt simbol pentru restaurante decât storefront
-- P2: refactor structural prioritar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
+- P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
