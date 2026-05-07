@@ -1,0 +1,68 @@
+{
+  "summary": "Executed backend + frontend P0 regression for restaurant-scoped zones and Nominatim flow. Backend requested APIs passed. Frontend has critical regressions in New Order modal (restaurant select not binding, zone detection not triggered) and runtime error overlay during admin navigation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminDashboard New Order dialog",
+        "issue": "Restaurant Select in modal does not persist selected option (trigger remains 'Selectează'), blocking downstream zone detection",
+        "selector": "[data-testid='new-order-restaurant-select']",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "AdminDashboard runtime overlay",
+        "issue": "Uncaught runtime errors shown in UI: 'ResizeObserver loop completed with undelivered notifications.'",
+        "selector": "runtime overlay (webpack/react error overlay)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Create Order -> select restaurant -> click delivery location map -> detect zone",
+        "issue": "delivery_zone_name remains empty and delivery_fee remains 0 in UI flow because selected restaurant_id is not applied in form state",
+        "affected_selectors": [
+          "[data-testid='new-order-restaurant-select']",
+          "[data-testid='new-order-detected-zone']",
+          "[data-testid='new-order-delivery-fee']"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase2_p0_restaurant_zones.py",
+    "/app/test_reports/pytest/phase2_p0_results.xml"
+  ],
+  "action_items": [
+    "Fix New Order modal restaurant Select binding so chosen restaurant label/state updates correctly",
+    "After restaurant selection fix, verify detectOrderZone receives restaurant_id and updates detected zone + delivery fee",
+    "Fix Runtime overlay issue (ResizeObserver error) so Admin tabs/dialog navigation has no uncaught runtime errors",
+    "Re-run UI smoke specifically for Restaurants tab, Map tab, and New Order modal"
+  ],
+  "critical_code_review_comments": [
+    "AdminDashboard new order flow depends on newOrder.restaurant_id but current UI selection path is not reliably updating this state in modal interaction",
+    "Runtime errors are surfacing to users in production-like preview, which is a release blocker for admin usability"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase2_p0_restaurant_zones.py",
+    "/app/test_reports/iteration_10.json"
+  ],
+  "success_rate": {
+    "backend": "100% (4/4)",
+    "frontend": "73% (8/11 requested checks passed)"
+  },
+  "seed_data_creation": "POST /api/seed executed in backend pytest fixture for stable baseline data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend P0 APIs are stable: auth cookie+me, geocoding search, restaurant-scoped zones list/create/detect, restaurants/available, and order zone persistence passed in pytest. Frontend reproduced: New Order modal restaurant select not binding and zone detection not populating. Live map polygon diagnostic shows overlay path count 0 when modal closed. Restaurants tab + RestaurantZonesManager + Nominatim autocomplete in Create Restaurant dialog are working.",
+  "rca of the issue": "Repro: Login as admin -> New Order -> open restaurant select -> click option -> trigger still shows placeholder ('Selectează') -> click map in location picker -> zone detection toast/values stay empty. Likely root cause is Select interaction/state sync issue inside modal (selected value not committed), causing detectOrderZone to run with missing restaurant_id. Separate issue: ResizeObserver loop error is thrown and rendered in runtime overlay during admin flow, indicating unhandled client runtime exception/noise.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "Settings tab admin remains demo/MOCKED from previous phase"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from datetime import datetime, timezone
 from shapely.geometry import Point, Polygon
 from database import db
@@ -6,9 +6,6 @@ from auth import get_current_user
 from models.delivery_zone import DeliveryZone, DeliveryZoneCreate, DeliveryZoneUpdate, ZoneDetectRequest
 
 router = APIRouter(prefix="/zones", tags=["zones"])
-
-FIXED_ZONE_FEES = {1: 14.0, 2: 22.0, 3: 33.0}
-
 
 def ensure_admin(current_user: dict) -> None:
     if current_user["role"] != "admin":
@@ -26,16 +23,19 @@ def build_shapely_polygon(coords):
 
 def build_zone_update_payload(data: DeliveryZoneUpdate, existing: dict) -> dict:
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if data.restaurant_id is not None:
+        update_data["restaurant_id"] = data.restaurant_id
+    if data.restaurant_name is not None:
+        update_data["restaurant_name"] = data.restaurant_name
     if data.sector is not None:
         update_data["sector"] = data.sector
     if data.zone_level is not None:
         update_data["zone_level"] = data.zone_level
-        update_data["fee"] = FIXED_ZONE_FEES.get(data.zone_level, existing.get("fee", 0))
     if data.name is not None:
         update_data["name"] = data.name
     if data.color is not None:
         update_data["color"] = data.color
-    if data.fee is not None and data.zone_level is None:
+    if data.fee is not None:
         update_data["fee"] = data.fee
     if data.polygon is not None:
         update_data["polygon"] = [{"lat": coord.lat, "lng": coord.lng} for coord in data.polygon]
@@ -51,6 +51,8 @@ def build_detect_response(zone: dict | None) -> dict:
         return {
             "zone_id": zone["id"],
             "zone_name": zone["name"],
+            "restaurant_id": zone.get("restaurant_id"),
+            "restaurant_name": zone.get("restaurant_name"),
             "sector": zone.get("sector"),
             "zone_level": zone.get("zone_level"),
             "fee": zone["fee"],
@@ -60,6 +62,8 @@ def build_detect_response(zone: dict | None) -> dict:
     return {
         "zone_id": None,
         "zone_name": "In afara zonelor",
+        "restaurant_id": None,
+        "restaurant_name": None,
         "sector": None,
         "zone_level": None,
         "fee": 0,
@@ -68,8 +72,18 @@ def build_detect_response(zone: dict | None) -> dict:
 
 
 @router.get("")
-async def get_zones(current_user: dict = Depends(get_current_user)):
-    zones = await db.delivery_zones.find({}, {"_id": 0}).sort("sort_order", 1).to_list(300)
+async def get_zones(
+    restaurant_id: str | None = Query(default=None),
+    include_legacy: bool = Query(default=False),
+    current_user: dict = Depends(get_current_user),
+):
+    query = {}
+    if restaurant_id:
+        query["restaurant_id"] = restaurant_id
+    elif not include_legacy:
+        query["restaurant_id"] = {"$exists": True, "$ne": None}
+
+    zones = await db.delivery_zones.find(query, {"_id": 0}).sort("sort_order", 1).to_list(1000)
     return zones
 
 
@@ -85,12 +99,18 @@ async def get_zone(zone_id: str, current_user: dict = Depends(get_current_user))
 async def create_zone(data: DeliveryZoneCreate, current_user: dict = Depends(get_current_user)):
     ensure_admin(current_user)
 
+    restaurant = await db.restaurants.find_one({"id": data.restaurant_id}, {"_id": 0})
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
     zone = DeliveryZone(
+        restaurant_id=data.restaurant_id,
+        restaurant_name=data.restaurant_name or restaurant["name"],
         sector=data.sector,
         zone_level=data.zone_level,
         name=data.name,
         color=data.color,
-        fee=FIXED_ZONE_FEES.get(data.zone_level, data.fee),
+        fee=data.fee,
         polygon=data.polygon,
         is_active=data.is_active,
         sort_order=data.sort_order,
@@ -132,7 +152,10 @@ async def delete_zone(zone_id: str, current_user: dict = Depends(get_current_use
 @router.post("/detect")
 async def detect_zone(data: ZoneDetectRequest, current_user: dict = Depends(get_current_user)):
     point = Point(data.lng, data.lat)
-    zones = await db.delivery_zones.find({"is_active": True}, {"_id": 0}).to_list(100)
+    query = {"is_active": True, "restaurant_id": {"$exists": True, "$ne": None}}
+    if data.restaurant_id:
+        query["restaurant_id"] = data.restaurant_id
+    zones = await db.delivery_zones.find(query, {"_id": 0}).to_list(1000)
     matches = []
 
     for zone in zones:
@@ -146,3 +169,10 @@ async def detect_zone(data: ZoneDetectRequest, current_user: dict = Depends(get_
         return build_detect_response(best_zone)
 
     return build_detect_response(None)
+
+
+@router.delete("/legacy/global")
+async def delete_legacy_global_zones(current_user: dict = Depends(get_current_user)):
+    ensure_admin(current_user)
+    result = await db.delivery_zones.delete_many({"restaurant_id": {"$exists": False}})
+    return {"message": "Legacy global zones deleted", "deleted_count": result.deleted_count}

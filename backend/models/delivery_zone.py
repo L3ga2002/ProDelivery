@@ -12,6 +12,8 @@ class ZoneCoordinate(BaseModel):
 class DeliveryZone(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    restaurant_id: str
+    restaurant_name: Optional[str] = None
     sector: str = "General"
     zone_level: int = 1
     name: str
@@ -25,6 +27,8 @@ class DeliveryZone(BaseModel):
 
 
 class DeliveryZoneCreate(BaseModel):
+    restaurant_id: str
+    restaurant_name: Optional[str] = None
     sector: str = "General"
     zone_level: int = 1
     name: str
@@ -36,6 +40,8 @@ class DeliveryZoneCreate(BaseModel):
 
 
 class DeliveryZoneUpdate(BaseModel):
+    restaurant_id: Optional[str] = None
+    restaurant_name: Optional[str] = None
     sector: Optional[str] = None
     zone_level: Optional[int] = None
     name: Optional[str] = None
@@ -47,5 +53,6 @@ class DeliveryZoneUpdate(BaseModel):
 
 
 class ZoneDetectRequest(BaseModel):
+    restaurant_id: Optional[str] = None
     lat: float
     lng: float

@@ -37,7 +37,7 @@ import {
   TabsTrigger,
 } from "../components/ui/tabs";
 import { Switch } from "../components/ui/switch";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -51,9 +51,7 @@ import {
   Clock,
   Plus,
   Store,
-  DollarSign,
   Settings,
-  MapPinned,
   Timer,
   CalendarCheck,
   BarChart3,
@@ -67,7 +65,8 @@ import {
   Sun,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
-import { DeliveryZonesManager, ZonePolygons } from "../components/DeliveryZonesManager";
+import { RestaurantZonesManager } from "../components/RestaurantZonesManager";
+import { LocationAutocomplete } from "../components/LocationAutocomplete";
 import { useTheme } from "../context/ThemeContext";
 import {
   BarChart,
@@ -154,7 +153,19 @@ const OrderLocationMapEvents = ({ onChange }) => {
   return null;
 };
 
-const OrderLocationPicker = ({ value, onChange, zones }) => {
+const MapAutoCenter = ({ position, zoom = 15 }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (position?.lat && position?.lng) {
+      map.setView([position.lat, position.lng], zoom, { animate: true });
+    }
+  }, [map, position, zoom]);
+
+  return null;
+};
+
+const OrderLocationPicker = ({ value, onChange }) => {
 
   return (
     <div className="space-y-2" data-testid="order-location-picker">
@@ -164,7 +175,6 @@ const OrderLocationPicker = ({ value, onChange, zones }) => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <ZonePolygons zones={zones.filter((zone) => zone.zone_level === 3)} />
           <OrderLocationMapEvents onChange={onChange} />
           {value.customer_latitude && value.customer_longitude && (
             <Marker position={[value.customer_latitude, value.customer_longitude]}>
@@ -174,8 +184,30 @@ const OrderLocationPicker = ({ value, onChange, zones }) => {
         </MapContainer>
       </div>
       <p className="text-xs text-muted-foreground">
-        Click pe hartă pentru a seta locația clientului și a detecta automat zona și taxa.
+        Click pe hartă pentru a seta locația clientului. Sistemul verifică zona restaurantului selectat.
       </p>
+    </div>
+  );
+};
+
+const RestaurantLocationPreview = ({ restaurant }) => {
+  const position = {
+    lat: restaurant.latitude || 46.567,
+    lng: restaurant.longitude || 26.913,
+  };
+
+  return (
+    <div className="h-56 overflow-hidden rounded-lg border" data-testid="new-restaurant-location-map">
+      <MapContainer center={[position.lat, position.lng]} zoom={15} className="h-full w-full">
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapAutoCenter position={position} />
+        <Marker position={[position.lat, position.lng]} icon={restaurantIcon}>
+          <Popup>{restaurant.name || "Restaurant nou"}</Popup>
+        </Marker>
+      </MapContainer>
     </div>
   );
 };
@@ -207,8 +239,7 @@ const AdminDashboard = () => {
   const [isSimRunning, setIsSimRunning] = useState(false);
   const simAbort = useRef(false);
   
-  // Delivery zones for map overlay
-  const [deliveryZones, setDeliveryZones] = useState([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
   
   // New order form
   const [newOrder, setNewOrder] = useState({
@@ -235,7 +266,16 @@ const AdminDashboard = () => {
   const [newDriver, setNewDriver] = useState({ name: "", phone: "", email: "" });
   
   // New restaurant form
-  const [newRestaurant, setNewRestaurant] = useState({ name: "", address: "", phone: "" });
+  const [newRestaurant, setNewRestaurant] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    contact_name: "",
+    email: "",
+    latitude: 46.567,
+    longitude: 26.913,
+    location_source: "manual",
+  });
   
   // Settings (demo)
   const [settings, setSettings] = useState({
@@ -277,14 +317,13 @@ const AdminDashboard = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes, analyticsRes, zonesRes] = await Promise.all([
+      const [ordersRes, driversRes, restaurantsRes, statsRes, hourlyRes, analyticsRes] = await Promise.all([
         axios.get(`${API_URL}/api/orders`),
         axios.get(`${API_URL}/api/drivers`),
         axios.get(`${API_URL}/api/restaurants`),
         axios.get(`${API_URL}/api/stats`),
         axios.get(`${API_URL}/api/stats/hourly`),
         axios.get(`${API_URL}/api/stats/analytics`).catch(() => ({ data: null })),
-        axios.get(`${API_URL}/api/zones`).catch(() => ({ data: [] })),
       ]);
       setOrders(ordersRes.data);
       setDrivers(driversRes.data);
@@ -292,13 +331,12 @@ const AdminDashboard = () => {
       setStats(statsRes.data);
       setHourlyData(hourlyRes.data);
       if (analyticsRes.data) setAnalyticsData(analyticsRes.data);
-      setDeliveryZones(zonesRes.data || []);
     } catch (error) {
       toast.error("Eroare la încărcarea datelor");
     } finally {
       setIsLoading(false);
     }
-  }, [setAnalyticsData, setDeliveryZones, setDrivers, setHourlyData, setIsLoading, setOrders, setRestaurants, setStats]);
+  }, [setAnalyticsData, setDrivers, setHourlyData, setIsLoading, setOrders, setRestaurants, setStats]);
 
   useEffect(() => {
     fetchData();
@@ -366,8 +404,16 @@ const AdminDashboard = () => {
   };
 
   const detectOrderZone = useCallback(async (lat, lng) => {
+    if (!newOrder.restaurant_id) {
+      toast.error("Selectează restaurantul înainte de verificarea zonei");
+      return;
+    }
     try {
-      const response = await axios.post(`${API_URL}/api/zones/detect`, { lat, lng });
+      const response = await axios.post(`${API_URL}/api/zones/detect`, {
+        restaurant_id: newOrder.restaurant_id,
+        lat,
+        lng,
+      });
       const zone = response.data;
       setNewOrder((prev) => {
         const deliveryFee = zone.fee || 0;
@@ -385,12 +431,12 @@ const AdminDashboard = () => {
       if (zone.zone_id) {
         toast.success(`Zonă detectată: ${zone.zone_name} · ${zone.fee} lei`);
       } else {
-        toast.error("Adresa este în afara zonelor definite");
+        toast.error("Adresa este în afara zonelor acestui restaurant");
       }
     } catch {
       toast.error("Nu am putut detecta zona");
     }
-  }, [setNewOrder]);
+  }, [newOrder.restaurant_id, setNewOrder]);
 
   const updateOrderLocation = useCallback((location) => {
     setNewOrder((prev) => ({
@@ -419,7 +465,7 @@ const AdminDashboard = () => {
   };
 
   const createRestaurant = async () => {
-    if (!newRestaurant.name || !newRestaurant.address || !newRestaurant.phone) {
+    if (!newRestaurant.name || !newRestaurant.address || !newRestaurant.phone || !newRestaurant.latitude || !newRestaurant.longitude) {
       toast.error("Completează toate câmpurile");
       return;
     }
@@ -427,7 +473,17 @@ const AdminDashboard = () => {
       const res = await axios.post(`${API_URL}/api/restaurants`, newRestaurant);
       toast.success(`Restaurant creat! Login: ${res.data.login_email} / ${res.data.password}`);
       setIsNewRestaurantDialogOpen(false);
-      setNewRestaurant({ name: "", address: "", phone: "" });
+      setNewRestaurant({
+        name: "",
+        address: "",
+        phone: "",
+        contact_name: "",
+        email: "",
+        latitude: 46.567,
+        longitude: 26.913,
+        location_source: "manual",
+      });
+      setSelectedRestaurantId(res.data.restaurant_id);
       fetchData();
     } catch (error) {
       toast.error("Eroare la creare restaurant");
@@ -551,6 +607,7 @@ const AdminDashboard = () => {
   const activeOrders = orders.filter((o) => o.status !== "DELIVERED");
   const activeDrivers = drivers.filter((d) => d.is_active);
   const availableDrivers = drivers.filter((d) => d.is_active && !d.current_order_id);
+  const selectedRestaurant = restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) || restaurants[0] || null;
 
   if (isLoading) {
     return (
@@ -710,7 +767,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="drivers" data-testid="tab-drivers">Livratori ({drivers.length})</TabsTrigger>
             <TabsTrigger value="program" data-testid="tab-program">Program</TabsTrigger>
             <TabsTrigger value="restaurants" data-testid="tab-restaurants">Restaurante ({restaurants.length})</TabsTrigger>
-            <TabsTrigger value="zones" data-testid="tab-zones">Zone Livrare</TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Setări</TabsTrigger>
           </TabsList>
 
@@ -917,7 +973,6 @@ const AdminDashboard = () => {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <ZonePolygons zones={deliveryZones} />
                     {drivers.map((driver) => {
                       const pos = driverPositions[driver.id];
                       return (
@@ -1015,35 +1070,44 @@ const AdminDashboard = () => {
 
           {/* Restaurants Tab */}
           <TabsContent value="restaurants">
-            <Card>
-              <CardContent className="p-4">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {restaurants.map((rest) => (
-                    <div key={rest.id} className="p-4 rounded-lg border bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Store className="w-8 h-8 text-orange-600" />
-                        <p className="font-bold">{rest.name}</p>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{rest.address}</p>
-                      <p className="text-sm font-mono mt-1">{rest.phone}</p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Login: {rest.id.replace("rest-", "rest-")}@delivery.ro
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {restaurants.map((rest) => {
+                      const isSelected = selectedRestaurant?.id === rest.id;
+                      return (
+                        <button
+                          key={rest.id}
+                          type="button"
+                          onClick={() => setSelectedRestaurantId(rest.id)}
+                          className={`p-4 rounded-lg border text-left transition-all ${isSelected ? "bg-orange-50 border-orange-300 ring-2 ring-orange-200 dark:bg-orange-950/20 dark:border-orange-800" : "bg-card hover:bg-muted/40"}`}
+                          data-testid={`restaurant-card-${rest.id}`}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Store className="w-8 h-8 text-orange-600" />
+                            <p className="font-bold">{rest.name}</p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{rest.address}</p>
+                          <p className="text-sm font-mono mt-1">{rest.phone}</p>
+                          {rest.email && <p className="text-xs text-muted-foreground mt-1">{rest.email}</p>}
+                          <Badge className="mt-3" variant={isSelected ? "default" : "outline"}>
+                            {isSelected ? "Selectat" : "Alege pentru zone"}
+                          </Badge>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <RestaurantZonesManager restaurant={selectedRestaurant} />
+            </div>
           </TabsContent>
 
           {/* Program Tab */}
           <TabsContent value="program">
             <AdminScheduleView />
-          </TabsContent>
-
-          {/* Zones Tab */}
-          <TabsContent value="zones">
-            <DeliveryZonesManager />
           </TabsContent>
 
           {/* Settings Tab */}
@@ -1200,7 +1264,18 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Restaurant *</Label>
-                <Select value={newOrder.restaurant_id} onValueChange={(v) => setNewOrder({...newOrder, restaurant_id: v})}>
+                <Select value={newOrder.restaurant_id} onValueChange={(v) => {
+                  setNewOrder({
+                    ...newOrder,
+                    restaurant_id: v,
+                    delivery_zone_id: null,
+                    delivery_zone_name: "",
+                    delivery_sector: "",
+                    delivery_zone_level: null,
+                    delivery_fee: 0,
+                    total_amount: Number(newOrder.subtotal_amount || 0),
+                  });
+                }}>
                   <SelectTrigger data-testid="new-order-restaurant-select">
                     <SelectValue placeholder="Selectează" />
                   </SelectTrigger>
@@ -1240,7 +1315,7 @@ const AdminDashboard = () => {
             </div>
             <div>
               <Label>Locație livrare pe hartă *</Label>
-              <OrderLocationPicker value={newOrder} onChange={updateOrderLocation} zones={deliveryZones} />
+              <OrderLocationPicker value={newOrder} onChange={updateOrderLocation} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1293,8 +1368,8 @@ const AdminDashboard = () => {
             </div>
             {newOrder.delivery_zone_name && (
               <div className="rounded-lg border bg-muted/40 p-3 text-sm" data-testid="new-order-zone-summary">
-                <p><strong>Sector:</strong> {newOrder.delivery_sector || "-"}</p>
-                <p><strong>Nivel:</strong> Zona {newOrder.delivery_zone_level || "-"}</p>
+                <p><strong>Restaurant:</strong> {restaurants.find((rest) => rest.id === newOrder.restaurant_id)?.name || "-"}</p>
+                <p><strong>Zonă:</strong> {newOrder.delivery_zone_name || "-"}</p>
                 <p><strong>Taxă aplicată:</strong> {newOrder.delivery_fee} lei</p>
               </div>
             )}
@@ -1340,28 +1415,79 @@ const AdminDashboard = () => {
 
       {/* New Restaurant Dialog */}
       <Dialog open={isNewRestaurantDialogOpen} onOpenChange={setIsNewRestaurantDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Restaurant Nou</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <div>
               <Label>Nume Restaurant *</Label>
-              <Input value={newRestaurant.name} onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})} />
+              <Input
+                value={newRestaurant.name}
+                onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})}
+                data-testid="new-restaurant-name-input"
+              />
             </div>
             <div>
-              <Label>Adresă *</Label>
-              <Input value={newRestaurant.address} onChange={(e) => setNewRestaurant({...newRestaurant, address: e.target.value})} />
+              <Label>Adresă / locație *</Label>
+              <LocationAutocomplete
+                value={newRestaurant.address}
+                onChange={(address) => setNewRestaurant({...newRestaurant, address})}
+                onSelect={(location) => {
+                  setNewRestaurant((prev) => ({
+                    ...prev,
+                    address: location.label,
+                    latitude: location.lat,
+                    longitude: location.lng,
+                    location_source: "nominatim",
+                  }));
+                }}
+                placeholder="Caută restaurantul sau adresa în Bacău"
+                testIdPrefix="new-restaurant-location"
+              />
+            </div>
+            <RestaurantLocationPreview restaurant={newRestaurant} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Latitudine</Label>
+                <Input value={newRestaurant.latitude || ""} readOnly data-testid="new-restaurant-latitude-input" />
+              </div>
+              <div>
+                <Label>Longitudine</Label>
+                <Input value={newRestaurant.longitude || ""} readOnly data-testid="new-restaurant-longitude-input" />
+              </div>
             </div>
             <div>
               <Label>Telefon *</Label>
-              <Input value={newRestaurant.phone} onChange={(e) => setNewRestaurant({...newRestaurant, phone: e.target.value})} />
+              <Input
+                value={newRestaurant.phone}
+                onChange={(e) => setNewRestaurant({...newRestaurant, phone: e.target.value})}
+                data-testid="new-restaurant-phone-input"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Persoană contact</Label>
+                <Input
+                  value={newRestaurant.contact_name}
+                  onChange={(e) => setNewRestaurant({...newRestaurant, contact_name: e.target.value})}
+                  data-testid="new-restaurant-contact-name-input"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  value={newRestaurant.email}
+                  onChange={(e) => setNewRestaurant({...newRestaurant, email: e.target.value})}
+                  data-testid="new-restaurant-email-input"
+                />
+              </div>
             </div>
             <p className="text-sm text-muted-foreground">Se va crea automat un cont pentru restaurant cu parola: restaurant123</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNewRestaurantDialogOpen(false)}>Anulează</Button>
-            <Button onClick={createRestaurant}>Creează Restaurant</Button>
+            <Button variant="outline" onClick={() => setIsNewRestaurantDialogOpen(false)} data-testid="new-restaurant-cancel-button">Anulează</Button>
+            <Button onClick={createRestaurant} data-testid="new-restaurant-submit-button">Creează Restaurant</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

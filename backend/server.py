@@ -10,7 +10,7 @@ import os
 import logging
 
 from database import db, client
-from routers import auth, drivers, restaurants, orders, stats, seed, schedules, emergency_slots, zones
+from routers import auth, drivers, restaurants, orders, stats, seed, schedules, emergency_slots, zones, geocoding
 
 app = FastAPI(title="Delivery Platform API")
 
@@ -28,6 +28,7 @@ api_router.include_router(seed.router)
 api_router.include_router(schedules.router)
 api_router.include_router(emergency_slots.router)
 api_router.include_router(zones.router)
+api_router.include_router(geocoding.router)
 
 
 @api_router.get("/")

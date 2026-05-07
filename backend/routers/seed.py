@@ -54,6 +54,17 @@ ZONE_FEES = {
     2: 22.0,
     3: 33.0,
 }
+
+
+def build_restaurant_zone_polygon(lat: float, lng: float, radius: float) -> list[dict]:
+    return [
+        {"lat": lat + radius, "lng": lng - radius},
+        {"lat": lat + radius, "lng": lng + radius},
+        {"lat": lat - radius, "lng": lng + radius},
+        {"lat": lat - radius, "lng": lng - radius},
+    ]
+
+
 SECTOR_MAPS = [
     {
         "sector": "Nord",
@@ -291,19 +302,24 @@ async def seed_data():
         await db.users.insert_one(rest_user_doc)
 
     sort_order = 1
-    for sector in SECTOR_MAPS:
-        for zone_level in [1, 2, 3]:
+    for restaurant_data in restaurants_data:
+        for zone_level, radius in [(1, 0.015), (2, 0.026)]:
             doc = {
-                "id": f"{sector['sector'].lower().replace(' ', '-')}-z{zone_level}",
-                "sector": sector["sector"],
+                "id": f"{restaurant_data['id']}-zone-{zone_level}",
+                "restaurant_id": restaurant_data["id"],
+                "restaurant_name": restaurant_data["name"],
+                "sector": restaurant_data["name"],
                 "zone_level": zone_level,
-                "name": f"{sector['sector']} - Zona {zone_level}",
+                "name": "Aproape" if zone_level == 1 else "Extinsă",
                 "color": ZONE_COLORS[zone_level],
-                "fee": ZONE_FEES[zone_level],
+                "fee": 10.0 if zone_level == 1 else 18.0,
                 "is_active": True,
                 "sort_order": sort_order,
-                "source_map": sector["source_map"],
-                "polygon": sector["polygons"][zone_level],
+                "polygon": build_restaurant_zone_polygon(
+                    restaurant_data["latitude"],
+                    restaurant_data["longitude"],
+                    radius,
+                ),
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }

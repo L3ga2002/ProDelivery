@@ -18,12 +18,15 @@ def build_shapely_polygon(coords):
     return Polygon(ring)
 
 
-async def detect_delivery_zone(lat: float | None, lng: float | None):
+async def detect_delivery_zone(lat: float | None, lng: float | None, restaurant_id: str | None):
     if lat is None or lng is None:
         return None
 
     point = Point(lng, lat)
-    zones = await db.delivery_zones.find({"is_active": True}, {"_id": 0}).to_list(200)
+    zones = await db.delivery_zones.find(
+        {"is_active": True, "restaurant_id": restaurant_id},
+        {"_id": 0},
+    ).to_list(300)
     matches = []
     for zone in zones:
         poly = build_shapely_polygon(zone.get("polygon", []))
@@ -119,7 +122,11 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
     count = await db.orders.count_documents({})
     order_number = f"{order_data.source}.{count + 1:04d}"
 
-    detected_zone = await detect_delivery_zone(order_data.customer_latitude, order_data.customer_longitude)
+    detected_zone = await detect_delivery_zone(
+        order_data.customer_latitude,
+        order_data.customer_longitude,
+        order_data.restaurant_id,
+    )
     subtotal_amount = order_data.subtotal_amount if order_data.subtotal_amount is not None else order_data.total_amount
     delivery_fee = detected_zone.get("fee", 0) if detected_zone else (order_data.delivery_fee or 0)
     total_amount = round(subtotal_amount + delivery_fee, 2)
@@ -152,7 +159,8 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
     doc["updated_at"] = doc["updated_at"].isoformat()
 
     await db.orders.insert_one(doc)
-    return order
+    doc.pop("_id", None)
+    return doc
 
 
 @router.put("/{order_id}/assign")
