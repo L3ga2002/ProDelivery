@@ -964,11 +964,25 @@ const AdminDashboard = () => {
 
           {/* Orders Tab */}
           <TabsContent value="orders">
-            <Card>
+            <Card className="control-surface overflow-hidden" data-testid="admin-orders-control-surface">
+              <CardHeader className="border-b bg-slate-50/70 pb-4 dark:bg-slate-900/50">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Package className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
+                      Comenzi active în dispecerat
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">Prioritizare rapidă pentru pregătire, alocare și urmărire.</p>
+                  </div>
+                  <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100" data-testid="admin-orders-active-count">
+                    {activeOrders.length} active
+                  </Badge>
+                </div>
+              </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="w-[100px]">Nr.</TableHead>
                       <TableHead>Sursă</TableHead>
                       <TableHead>Restaurant</TableHead>
@@ -988,8 +1002,8 @@ const AdminDashboard = () => {
                       </TableRow>
                     ) : (
                       activeOrders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-mono text-xs">{order.order_number}</TableCell>
+                        <TableRow key={order.id} className="group border-l-4 border-l-transparent transition-colors hover:border-l-indigo-500 hover:bg-slate-50/80 dark:hover:bg-slate-900/60" data-testid={`admin-order-row-${order.id}`}>
+                          <TableCell className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-100">{order.order_number}</TableCell>
                           <TableCell>{getSourceBadge(order.source)}</TableCell>
                           <TableCell className="font-medium">{order.restaurant_name}</TableCell>
                           <TableCell>
@@ -1006,7 +1020,7 @@ const AdminDashboard = () => {
                           <TableCell>{order.driver_name || "-"}</TableCell>
                           <TableCell className="text-right">
                             {["NEW", "PREPARING", "READY"].includes(order.status) && (
-                              <Button size="sm" onClick={() => handleAssignOrder(order)}>
+                              <Button size="sm" className="bg-indigo-700 hover:bg-indigo-600" onClick={() => handleAssignOrder(order)} data-testid={`admin-order-assign-button-${order.id}`}>
                                 Alocă
                               </Button>
                             )}
@@ -1263,27 +1277,51 @@ const AdminDashboard = () => {
           {/* Restaurants Tab */}
           <TabsContent value="restaurants">
             <div className="space-y-4">
-              <Card>
+              <Card className="control-surface overflow-hidden">
+                <CardHeader className="border-b bg-slate-50/70 dark:bg-slate-900/50">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Store className="h-5 w-5 text-orange-600" />
+                        Restaurante operaționale
+                      </CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">Alege restaurantul pentru performanță, zone și coordonate.</p>
+                    </div>
+                    <Badge variant="outline" className="border-slate-300 bg-white dark:bg-slate-950" data-testid="restaurants-panel-count">
+                      {restaurants.length} restaurante
+                    </Badge>
+                  </div>
+                </CardHeader>
                 <CardContent className="p-4">
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {restaurants.map((rest) => {
                       const isSelected = selectedRestaurant?.id === rest.id;
+                      const activeForRestaurant = activeOrders.filter((order) => order.restaurant_id === rest.id).length;
+                      const totalForRestaurant = orders.filter((order) => order.restaurant_id === rest.id).length;
                       return (
                         <button
                           key={rest.id}
                           type="button"
                           onClick={() => setSelectedRestaurantId(rest.id)}
-                          className={`p-4 rounded-lg border text-left transition-all ${isSelected ? "bg-orange-50 border-orange-300 ring-2 ring-orange-200 dark:bg-orange-950/20 dark:border-orange-800" : "bg-card hover:bg-muted/40"}`}
+                          className={`premium-card relative overflow-hidden rounded-lg border p-4 text-left ${isSelected ? "border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/20 dark:ring-indigo-950" : "bg-card hover:border-slate-300 hover:bg-slate-50/70 dark:hover:bg-slate-900/60"}`}
                           data-testid={`restaurant-card-${rest.id}`}
                         >
-                          <div className="flex items-center gap-3 mb-2">
-                            <Store className="w-8 h-8 text-orange-600" />
-                            <p className="font-bold">{rest.name}</p>
+                          <div className="absolute right-3 top-3 rounded-full border bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-950/80">
+                            {isSelected ? "activ" : "profil"}
                           </div>
-                          <p className="text-sm text-muted-foreground">{rest.address}</p>
-                          <p className="text-sm font-mono mt-1">{rest.phone}</p>
+                          <div className="flex items-center gap-3 mb-3 pr-14">
+                            <div className="rounded-lg bg-orange-50 p-2 text-orange-600 dark:bg-orange-950/30">
+                              <Store className="w-6 h-6" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-bold">{rest.name}</p>
+                              <p className="text-xs text-muted-foreground">{activeForRestaurant} active · {totalForRestaurant} total</p>
+                            </div>
+                          </div>
+                          <p className="line-clamp-2 text-sm text-muted-foreground">{rest.address}</p>
+                          <p className="text-sm font-mono mt-2 font-medium">{rest.phone}</p>
                           {rest.email && <p className="text-xs text-muted-foreground mt-1">{rest.email}</p>}
-                          <Badge className="mt-3" variant={isSelected ? "default" : "outline"}>
+                          <Badge className={`mt-3 ${isSelected ? "bg-indigo-700 text-white" : ""}`} variant={isSelected ? "default" : "outline"}>
                             {isSelected ? "Selectat" : "Alege pentru zone"}
                           </Badge>
                         </button>

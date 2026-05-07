@@ -330,12 +330,12 @@ export const AdminScheduleView = () => {
         </Button>
       </div>
 
-      <Card className="border-blue-100 bg-blue-50/50 shadow-sm dark:border-blue-900 dark:bg-blue-950/10">
-        <CardContent className="p-4">
+      <Card className="control-surface overflow-hidden border-indigo-100 bg-indigo-50/40 shadow-sm dark:border-indigo-900 dark:bg-indigo-950/10" data-testid="schedule-normal-control-panel">
+        <CardContent className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-bold flex items-center gap-2">
-                <CalendarCheck className="h-5 w-5 text-blue-700 dark:text-blue-100" />
+                <CalendarCheck className="h-5 w-5 text-indigo-700 dark:text-indigo-100" />
                 Program normal de muncă
               </h3>
               <p className="text-sm text-muted-foreground">Sloturile normale sunt principale. Urgențele rămân doar suplimentare.</p>
@@ -370,8 +370,8 @@ export const AdminScheduleView = () => {
         <Button
           variant={emergencyMode ? "default" : "outline"}
           className={emergencyMode
-            ? "w-full bg-amber-600 hover:bg-amber-700 text-white"
-            : "w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+            ? "w-full bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+            : "w-full border-amber-300 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
           }
           onClick={() => setEmergencyMode(!emergencyMode)}
           data-testid="emergency-mode-toggle"
@@ -381,7 +381,7 @@ export const AdminScheduleView = () => {
         </Button>
         <Button
           variant="outline"
-          className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
+          className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-950/20"
           onClick={autoGenerateEmergencySlots}
           disabled={autoGenerating}
           data-testid="auto-generate-emergency-btn"
@@ -393,9 +393,9 @@ export const AdminScheduleView = () => {
 
       {/* Emergency Slots Grid (when mode is active) */}
       {emergencyMode && (
-        <Card className="border-red-300 border-2">
+        <Card className="border-amber-300 border-2 bg-amber-50/30 dark:bg-amber-950/10">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-red-600">
+            <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-100">
               <AlertTriangle className="w-5 h-5" />
               Sloturi de Urgență - Click pe o celulă pentru a seta locuri
             </CardTitle>
@@ -424,9 +424,9 @@ export const AdminScheduleView = () => {
                               className={`w-full h-8 rounded transition-all text-xs font-bold ${
                                 eSlot
                                   ? eSlot.remaining_spots > 0
-                                    ? "bg-red-500 text-white hover:bg-red-600"
-                                    : "bg-red-200 text-red-800 hover:bg-red-300"
-                                  : "bg-muted/30 hover:bg-red-100 border border-transparent hover:border-red-300"
+                                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                                    : "bg-amber-200 text-amber-900 hover:bg-amber-300"
+                                  : "bg-muted/30 hover:bg-amber-100 border border-transparent hover:border-amber-300"
                               }`}
                               data-testid={`emergency-${d.key}-${hour}`}
                             >
@@ -446,18 +446,18 @@ export const AdminScheduleView = () => {
 
       {/* Emergency slots summary (always visible if there are any) */}
       {emergencySlots.length > 0 && !emergencyMode && (
-        <Card className="border-red-200">
+        <Card className="border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Flame className="w-5 h-5 text-red-500" />
+              <Flame className="w-5 h-5 text-amber-600" />
               <span className="font-bold text-sm">Sloturi Urgență Active</span>
-              <Badge className="bg-red-100 text-red-700">{emergencySlots.length}</Badge>
+              <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-100">{emergencySlots.length}</Badge>
             </div>
             <div className="flex flex-wrap gap-2">
               {emergencySlots.map((s) => {
                 const dayLabel = DAYS.find((d) => d.key === s.day)?.label || s.day;
                 return (
-                  <Badge key={s.id} className={`text-xs ${s.remaining_spots > 0 ? "bg-red-500 text-white" : "bg-red-200 text-red-800"}`}>
+                  <Badge key={s.id} className={`text-xs ${s.remaining_spots > 0 ? "bg-amber-600 text-white" : "bg-amber-200 text-amber-900"}`}>
                     {dayLabel} {formatInterval(s.hour)}: {s.remaining_spots}/{s.total_spots}
                     {s.created_by === "system" && " · AUTO"}
                     {s.claimed_names?.length > 0 && ` (${s.claimed_names.join(", ")})`}
@@ -481,7 +481,7 @@ export const AdminScheduleView = () => {
             return (
               <Card
                 key={driver.driver_id}
-                className={`cursor-pointer hover:shadow-md transition-shadow ${weekHours > 0 ? "border-green-200" : "border-red-200"}`}
+                className={`premium-card cursor-pointer transition-shadow ${weekHours > 0 ? "border-emerald-200" : "border-amber-200"}`}
                 onClick={() => openEdit(driver)}
                 data-testid={`driver-schedule-card-${driver.driver_id}`}
               >
@@ -494,7 +494,7 @@ export const AdminScheduleView = () => {
                       <p className="font-bold">{driver.driver_name}</p>
                       <p className="text-xs text-muted-foreground font-mono">{driver.phone}</p>
                     </div>
-                    <Badge className={weekHours > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                    <Badge className={weekHours > 0 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}>
                       {weekHours}h
                     </Badge>
                   </div>
@@ -562,7 +562,7 @@ export const AdminScheduleView = () => {
                 <div
                   key={hour}
                   className={`flex flex-col items-center p-1.5 rounded min-w-[48px] ${
-                    avg === 0 ? "bg-red-100" : avg <= 1 ? "bg-yellow-100" : avg <= 2 ? "bg-blue-100" : "bg-green-100"
+                    avg === 0 ? "bg-amber-100" : avg <= 1 ? "bg-yellow-100" : avg <= 2 ? "bg-blue-100" : "bg-emerald-100"
                   } ${isNight ? "ring-1 ring-indigo-300" : ""}`}
                 >
                   <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
@@ -570,10 +570,10 @@ export const AdminScheduleView = () => {
                     {formatInterval(hour)}
                   </span>
                   <span className={`text-lg font-bold ${
-                    avg === 0 ? "text-red-600" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-green-600"
+                    avg === 0 ? "text-amber-700" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-emerald-600"
                   }`}>{avg}</span>
                   {eCount > 0 && (
-                    <span className="text-[9px] text-red-600 font-bold">+{eCount}u</span>
+                    <span className="text-[9px] text-amber-700 font-bold">+{eCount}u</span>
                   )}
                 </div>
               );

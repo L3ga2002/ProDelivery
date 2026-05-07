@@ -78,16 +78,32 @@ const playLatePreparationAlert = () => {
 
 const getStatusConfig = (status) => {
   const config = {
-    NEW: { label: "Nouă", color: "bg-yellow-500", textColor: "text-yellow-800 dark:text-yellow-100", bgColor: "bg-yellow-100 dark:bg-yellow-950/40" },
-    PREPARING: { label: "În Pregătire", color: "bg-blue-500", textColor: "text-blue-800 dark:text-blue-100", bgColor: "bg-blue-100 dark:bg-blue-950/40" },
-    READY: { label: "GATA", color: "bg-green-500", textColor: "text-green-800 dark:text-green-100", bgColor: "bg-green-100 dark:bg-green-950/40" },
-    ASSIGNED: { label: "Alocată", color: "bg-purple-500", textColor: "text-purple-800 dark:text-purple-100", bgColor: "bg-purple-100 dark:bg-purple-950/40" },
-    ACCEPTED: { label: "Acceptată", color: "bg-purple-500", textColor: "text-purple-800 dark:text-purple-100", bgColor: "bg-purple-100 dark:bg-purple-950/40" },
+    NEW: { label: "Nouă", color: "bg-amber-500", textColor: "text-amber-800 dark:text-amber-100", bgColor: "bg-amber-100 dark:bg-amber-950/40" },
+    PREPARING: { label: "În Pregătire", color: "bg-indigo-500", textColor: "text-indigo-800 dark:text-indigo-100", bgColor: "bg-indigo-100 dark:bg-indigo-950/40" },
+    READY: { label: "GATA", color: "bg-emerald-500", textColor: "text-emerald-800 dark:text-emerald-100", bgColor: "bg-emerald-100 dark:bg-emerald-950/40" },
+    ASSIGNED: { label: "Alocată", color: "bg-blue-500", textColor: "text-blue-800 dark:text-blue-100", bgColor: "bg-blue-100 dark:bg-blue-950/40" },
+    ACCEPTED: { label: "Acceptată", color: "bg-blue-500", textColor: "text-blue-800 dark:text-blue-100", bgColor: "bg-blue-100 dark:bg-blue-950/40" },
     PICKED_UP: { label: "Ridicată", color: "bg-orange-500", textColor: "text-orange-800 dark:text-orange-100", bgColor: "bg-orange-100 dark:bg-orange-950/40" },
     DELIVERED: { label: "Livrată", color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" },
     CANCELLED: { label: "Anulată", color: "bg-red-500", textColor: "text-red-800 dark:text-red-100", bgColor: "bg-red-100 dark:bg-red-950/40" },
   };
   return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" };
+};
+
+const RestaurantStatTile = ({ label, value, tone, testId }) => {
+  const tones = {
+    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-100",
+    indigo: "border-indigo-200 bg-indigo-50 text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-100",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100",
+  };
+  return (
+    <Card className={`premium-card ${tones[tone]}`} data-testid={testId}>
+      <CardContent className="p-4 text-center">
+        <p className="text-3xl font-black tracking-tight">{value}</p>
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
+      </CardContent>
+    </Card>
+  );
 };
 
 const RestaurantApp = () => {
@@ -239,12 +255,12 @@ const RestaurantApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30" data-testid="restaurant-app">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-testid="restaurant-app">
       {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-50">
+      <header className="sticky top-0 z-50 border-b bg-white/85 backdrop-blur-xl dark:bg-slate-950/85">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'hsl(24 95% 53%)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-700 shadow-sm">
               <ChefHat className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -292,25 +308,21 @@ const RestaurantApp = () => {
       )}
 
       {/* Stats */}
+      <section className="mx-4 mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="restaurant-kitchen-hero">
+        <div className="grid gap-3 p-5 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <Badge className="mb-2 border-white/20 bg-white/10 text-white hover:bg-white/10">Kitchen Queue</Badge>
+            <h2 className="text-2xl font-black tracking-tight">Comenzi pregătite rapid, fără haos în bucătărie.</h2>
+            <p className="mt-1 text-sm text-slate-300">Timerul live măsoară pregătirea reală și întârzierea pentru analytics.</p>
+          </div>
+          <div className="font-mono text-sm text-slate-300">{new Date(now).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</div>
+        </div>
+      </section>
+
       <div className="p-4 grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-yellow-600">{orders.filter(o => o.status === 'NEW').length}</p>
-            <p className="text-xs text-muted-foreground">Noi</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-blue-600">{orders.filter(o => o.status === 'PREPARING').length}</p>
-            <p className="text-xs text-muted-foreground">În Pregătire</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-green-600">{completedToday}</p>
-            <p className="text-xs text-muted-foreground">Livrate</p>
-          </CardContent>
-        </Card>
+        <RestaurantStatTile label="Noi" value={orders.filter(o => o.status === 'NEW').length} tone="amber" testId="restaurant-stat-new" />
+        <RestaurantStatTile label="În pregătire" value={orders.filter(o => o.status === 'PREPARING').length} tone="indigo" testId="restaurant-stat-preparing" />
+        <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" testId="restaurant-stat-delivered" />
       </div>
 
       {/* Orders List */}
@@ -325,13 +337,13 @@ const RestaurantApp = () => {
           activeOrders.map((order) => (
             <Card 
               key={order.id} 
-              className={`${order.status === 'NEW' ? 'border-yellow-400 border-2 animate-pulse dark:border-yellow-700' : ''}`}
+              className={`premium-card overflow-hidden ${order.status === 'NEW' ? 'border-amber-300 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/10' : 'control-surface'}`}
               data-testid={`order-card-${order.id}`}
             >
-              <CardHeader className="pb-2">
+              <CardHeader className="border-b bg-white/60 pb-3 dark:bg-slate-900/40">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold">{order.order_number}</span>
+                    <span className="font-mono text-sm font-bold tracking-tight">{order.order_number}</span>
                     <Badge className={`${getStatusConfig(order.status).bgColor} ${getStatusConfig(order.status).textColor} border-0`}>
                       {getStatusConfig(order.status).label}
                     </Badge>
@@ -344,14 +356,14 @@ const RestaurantApp = () => {
               
               <CardContent className="space-y-3">
                 {/* Items */}
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="rounded-lg border bg-slate-50/80 p-3 dark:bg-slate-900/60">
                   {order.items?.map((item) => (
                     <div key={`${order.id}-${item.name}-${item.price}-${item.quantity}`} className="flex justify-between text-sm">
                       <span className="font-medium">{item.quantity}x {item.name}</span>
                       <span className="text-muted-foreground">{item.price * item.quantity} RON</span>
                     </div>
                   ))}
-                  <div className="border-t mt-2 pt-2 flex justify-between font-bold">
+                  <div className="border-t mt-2 pt-2 flex justify-between font-bold text-lg">
                     <span>TOTAL</span>
                     <span>{order.total_amount} RON</span>
                   </div>
@@ -374,9 +386,9 @@ const RestaurantApp = () => {
 
                 {/* Driver Info */}
                 {order.driver_name && (
-                  <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg dark:bg-purple-950/30">
-                    <Truck className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm font-medium text-purple-700 dark:text-purple-100">Livrator: {order.driver_name}</span>
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg dark:bg-blue-950/30">
+                    <Truck className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-100">Livrator: {order.driver_name}</span>
                   </div>
                 )}
 
@@ -443,19 +455,19 @@ const RestaurantApp = () => {
                       const timer = getPreparationTimer(order, now);
                       return (
                         <div
-                          className={`rounded-lg border p-4 ${timer?.isLate ? "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30" : "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30"}`}
+                          className={`tracing-timer ${timer?.isLate ? "timer-late" : ""} rounded-xl border p-4 ${timer?.isLate ? "border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30" : "border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950/30"}`}
                           data-testid={`preparation-timer-${order.id}`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
-                              <Clock className={`w-5 h-5 ${timer?.isLate ? "text-red-600" : "text-blue-600"}`} />
+                              <Clock className={`w-5 h-5 ${timer?.isLate ? "text-rose-600" : "text-indigo-600"}`} />
                               <div>
                                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Timer preparare</p>
                                 <p className="text-sm font-medium">Estimare: {order.preparation_time || "-"} min</p>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className={`font-mono text-3xl font-bold ${timer?.isLate ? "text-red-700 dark:text-red-100" : "text-blue-700 dark:text-blue-100"}`}>
+                              <p className={`font-mono text-5xl font-black tracking-tight ${timer?.isLate ? "text-rose-700 dark:text-rose-100" : "text-indigo-700 dark:text-indigo-100"}`} data-testid={`restaurant-timer-display-${order.id}`}>
                                 {timer?.label || "--:--"}
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -467,7 +479,7 @@ const RestaurantApp = () => {
                       );
                     })()}
                     <Button 
-                      className="w-full h-14 text-lg font-bold bg-green-600 hover:bg-green-700"
+                      className="w-full h-14 text-lg font-bold bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => setConfirmReadyOrder(order)}
                       data-testid={`ready-${order.id}`}
                     >
@@ -478,18 +490,18 @@ const RestaurantApp = () => {
                 )}
 
                 {order.status === 'READY' && (
-                  <div className="p-3 bg-green-100 rounded-lg text-center dark:bg-green-950/30">
-                    <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-1" />
-                    <p className="font-bold text-green-700 dark:text-green-100">GATA PENTRU RIDICARE</p>
-                    <p className="text-sm text-green-600 dark:text-green-200">Așteptăm livratorul</p>
+                  <div className="p-3 bg-emerald-100 rounded-lg text-center dark:bg-emerald-950/30">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-1" />
+                    <p className="font-bold text-emerald-700 dark:text-emerald-100">GATA PENTRU RIDICARE</p>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-200">Așteptăm livratorul</p>
                   </div>
                 )}
 
                 {['ASSIGNED', 'ACCEPTED'].includes(order.status) && (
-                  <div className="p-3 bg-purple-100 rounded-lg text-center dark:bg-purple-950/30">
-                    <Truck className="w-8 h-8 text-purple-600 mx-auto mb-1" />
-                    <p className="font-bold text-purple-700 dark:text-purple-100">LIVRATORUL VINE</p>
-                    <p className="text-sm text-purple-600 dark:text-purple-200">{order.driver_name} preia comanda</p>
+                  <div className="p-3 bg-blue-100 rounded-lg text-center dark:bg-blue-950/30">
+                    <Truck className="w-8 h-8 text-blue-600 mx-auto mb-1" />
+                    <p className="font-bold text-blue-700 dark:text-blue-100">LIVRATORUL VINE</p>
+                    <p className="text-sm text-blue-600 dark:text-blue-200">{order.driver_name} preia comanda</p>
                   </div>
                 )}
 

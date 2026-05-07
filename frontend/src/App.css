@@ -125,3 +125,46 @@
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Premium logistics polish */
+.control-surface {
+  border: 1px solid hsl(var(--border));
+  background:
+    linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.92) 100%);
+  box-shadow: 0 18px 45px -32px rgb(15 23 42 / 0.55);
+}
+
+.dark .control-surface {
+  box-shadow: 0 18px 60px -36px rgb(15 23 42 / 0.95);
+}
+
+.premium-card {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.premium-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 38px -28px rgb(15 23 42 / 0.55);
+}
+
+.tracing-timer {
+  position: relative;
+  overflow: hidden;
+}
+
+.tracing-timer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, rgb(37 99 235), rgb(20 184 166), rgb(37 99 235));
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.tracing-timer.timer-late::before {
+  background: linear-gradient(90deg, rgb(225 29 72), rgb(251 146 60), rgb(225 29 72));
+  animation: pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
