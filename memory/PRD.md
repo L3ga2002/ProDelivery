@@ -44,6 +44,13 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 Rework P0 07 Mai 2026: tab-ul Restaurante include managerul de arii de livrare pentru restaurantul selectat, cu desenare UX nouă, auto-închidere poligon când se apasă primul punct, nume zonă, preț livrare, culoare, activ/inactiv și undo prin buton / C / Backspace
 - Phase 2 Rework P0 07 Mai 2026: harta live principală nu mai afișează poligoane de livrare; rămâne concentrată pe livratori și restaurante
 - Phase 2 Rework P0 07 Mai 2026: backend-ul detectează zona doar în contextul restaurantului selectat și expune `/api/restaurants/available` pentru filtrarea internă a restaurantelor disponibile după coordonate
+- Phase 2 Rework P1 07 Mai 2026: UX desenare zone modificat conform cerinței userului — tasta `Ctrl` șterge ultimul punct/ultima linie, nu Backspace/C
+- Phase 2 Rework P1 07 Mai 2026: Restaurant App afișează timer live după selectarea timpului de preparare; timerul numără invers, devine întârziere după expirare, redă alertă sonoră scurtă și păstrează butonul „Comanda gata” sub timer
+- Phase 2 Rework P1 07 Mai 2026: backend-ul salvează timp estimat, start, deadline, timp real și întârziere pentru prepararea comenzilor (`preparation_*` fields)
+- Phase 2 Rework P1 07 Mai 2026: Admin Restaurants include analytics detaliat per restaurant cu KPI-uri, grafice pe ore/luni și istoric comenzi cu timpi de preparare/livrare
+- Phase 2 Rework P1 07 Mai 2026: Program/Sloturi reorganizat în jurul sloturilor normale; există modal setup pentru generare automată cu zile, interval, număr sloturi, tip normal/urgență și repetare
+- Phase 2 Rework P1 07 Mai 2026: backend-ul include generare automată sloturi normale, ștergere bulk a sloturilor automate și generare setup pentru sloturi de urgență
+- Phase 2 Design Polish 07 Mai 2026: roșul agresiv a fost redus; UI-ul folosește mai mult slate/navy/amber pentru un look de dispecerat logistic, păstrând roșu doar pentru alerte/întârzieri/acțiuni distructive
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -54,6 +61,12 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `GET /api/geocoding/search` - autocomplete/geocoding Nominatim pentru adrese/restaurante în Bacău
 - `GET /api/zones?restaurant_id=...` - listează doar zonele unui restaurant
 - `POST /api/restaurants/available` - returnează restaurantele care acoperă coordonatele date prin zonele proprii
+- `GET /api/restaurants/{restaurant_id}/analytics` - analytics operațional per restaurant
+- `PUT /api/orders/{order_id}/preparing` - pornește timerul de preparare și salvează estimarea/deadline-ul
+- `PUT /api/orders/{order_id}/ready` - finalizează prepararea și salvează timpul real + întârzierea
+- `POST /api/schedules/admin/auto-generate` - generează sloturi normale după setup admin
+- `POST /api/schedules/admin/bulk-delete` - șterge bulk sloturile automate normale
+- `POST /api/schedules/emergency/setup-generate` - generează/actualizează sloturi de urgență după setup admin
 
 ## DB Schema - delivery_zones
 ```
@@ -63,12 +76,12 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 ## Rămas
 - P0: Validare cu clientul pe workflow-ul nou: fiecare restaurant își desenează propriile zone și nu mai există zone globale pe harta live
 - P0: Testare reală cu mai multe restaurante + zone suprapuse pentru confirmarea filtrării pe restaurant
-- P1: Timer live în Restaurant App pentru timpul de preparare, cu sunet alertă, întârziere și salvare analytics în backend
-- P1: Dashboard analytics detaliat per restaurant: timpi medii, întârzieri, comenzi pe ore/zile/săptămâni/luni/ani și istoric comandă
-- P1: Rework Program/Sloturi în jurul sloturilor normale, cu sloturile de urgență secundare
-- P1: Modal setup pentru generare automată sloturi: zile, interval orar, număr sloturi, tip, repetare, ștergere individuală/bulk/automată
+- P1: Extindere analytics restaurant cu grafice pe zile/săptămâni/ani în UI complet, nu doar API + panouri principale
+- P1: Finisare bulk delete pentru sloturi de urgență direct din UI, dacă clientul cere control complet pe curățare
+- P1: Testare UX cu clientul pe modalul de generare sloturi pentru a regla terminologia „slot/oră” vs. „slot total”
 - P2: refactor structural suplimentar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
+- P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
 - Phase 4: Push Notifications (Firebase)
 - Phase 5: Integrări externe (Glovo/Wolt/Bolt API)
