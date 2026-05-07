@@ -166,6 +166,19 @@ const MapAutoCenter = ({ position, zoom = 15 }) => {
   return null;
 };
 
+const RestaurantLocationMapInteractions = ({ onLocationChange }) => {
+  useMapEvents({
+    click(event) {
+      onLocationChange?.({
+        latitude: Number(event.latlng.lat.toFixed(6)),
+        longitude: Number(event.latlng.lng.toFixed(6)),
+        location_source: "manual_adjusted",
+      });
+    },
+  });
+  return null;
+};
+
 const OrderLocationPicker = ({ value, onChange }) => {
 
   return (
@@ -191,25 +204,76 @@ const OrderLocationPicker = ({ value, onChange }) => {
   );
 };
 
-const RestaurantLocationPreview = ({ restaurant }) => {
+const RestaurantLocationPreview = ({ restaurant, onLocationChange }) => {
   const position = {
     lat: restaurant.latitude || 46.567,
     lng: restaurant.longitude || 26.913,
   };
 
+  const handleDragEnd = (event) => {
+    const marker = event.target;
+    const nextPosition = marker.getLatLng();
+    onLocationChange?.({
+      latitude: Number(nextPosition.lat.toFixed(6)),
+      longitude: Number(nextPosition.lng.toFixed(6)),
+      location_source: "manual_adjusted",
+    });
+  };
+
   return (
-    <div className="h-56 overflow-hidden rounded-lg border" data-testid="new-restaurant-location-map">
-      <MapContainer center={[position.lat, position.lng]} zoom={15} className="h-full w-full">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <MapAutoCenter position={position} />
-        <Marker position={[position.lat, position.lng]} icon={restaurantIcon}>
-          <Popup>{restaurant.name || "Restaurant nou"}</Popup>
-        </Marker>
-      </MapContainer>
+    <div className="space-y-2">
+      <div className="relative h-64 overflow-hidden rounded-lg border border-slate-200 shadow-sm" data-testid="new-restaurant-location-map">
+        <MapContainer center={[position.lat, position.lng]} zoom={15} className="h-full w-full">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <MapAutoCenter position={position} />
+          <RestaurantLocationMapInteractions onLocationChange={onLocationChange} />
+          <Marker
+            position={[position.lat, position.lng]}
+            icon={restaurantIcon}
+            draggable
+            eventHandlers={{ dragend: handleDragEnd }}
+          >
+            <Popup>{restaurant.name || "Restaurant nou"}</Popup>
+          </Marker>
+        </MapContainer>
+        <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950/90 dark:text-slate-100">
+          Mută pinul prin drag sau click pe hartă
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground" data-testid="new-restaurant-pin-help-text">
+        După geocoding, poziția poate fi ajustată manual înainte de salvarea restaurantului.
+      </p>
     </div>
+  );
+};
+
+const AdminStatCard = ({ icon: Icon, label, value, tone = "slate", testId }) => {
+  const toneClasses = {
+    slate: "border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-950",
+    blue: "border-blue-200 bg-blue-50/80 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100",
+    green: "border-emerald-200 bg-emerald-50/80 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100",
+    amber: "border-amber-200 bg-amber-50/80 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-100",
+    orange: "border-orange-200 bg-orange-50/80 text-orange-900 dark:border-orange-900 dark:bg-orange-950/20 dark:text-orange-100",
+    red: "border-red-200 bg-red-50/80 text-red-900 dark:border-red-900 dark:bg-red-950/20 dark:text-red-100",
+  };
+
+  return (
+    <Card className={`overflow-hidden transition-transform hover:-translate-y-0.5 hover:shadow-md ${toneClasses[tone]}`} data-testid={testId}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
+            <p className="mt-1 text-3xl font-bold tracking-tight">{value}</p>
+          </div>
+          <div className="rounded-lg bg-white/70 p-2 shadow-sm dark:bg-slate-900/70">
+            <Icon className="h-6 w-6 opacity-80" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -234,6 +298,28 @@ const MetricTile = ({ label, value, icon: Icon, tone = "blue", testId }) => {
   );
 };
 
+const RestaurantChartCard = ({ title, icon: Icon, data, color = "hsl(215 75% 22%)", testId, interval }) => (
+  <Card className="border-slate-200 shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md" data-testid={testId}>
+    <CardHeader className="pb-2">
+      <CardTitle className="flex items-center gap-2 text-base">
+        {Icon && <Icon className="h-5 w-5 text-slate-700 dark:text-slate-100" />}
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data || []}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
+          <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={interval} />
+          <YAxis tick={{ fontSize: 11 }} />
+          <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
+          <Bar dataKey="count" name="Comenzi" fill={color} radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+);
+
 const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
   if (isLoading) {
     return <Card data-testid="restaurant-analytics-loading"><CardContent className="p-5 text-sm text-muted-foreground">Se încarcă analytics...</CardContent></Card>;
@@ -253,44 +339,20 @@ const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
         <MetricTile label="Livrare medie" value={`${summary.avg_delivery_minutes || 0} min`} icon={Truck} tone="green" testId="restaurant-analytics-average-delivery" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Comenzi pe ore
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={charts.by_hour || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
-                <Bar dataKey="count" name="Comenzi" fill="hsl(215 75% 22%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-5 w-5 text-orange-600" />
-              Comenzi pe luni
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={charts.by_month || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
-                <Bar dataKey="count" name="Comenzi" fill="hsl(24 90% 50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+      <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <RestaurantChartCard title="Comenzi pe ore" icon={BarChart3} data={charts.by_hour || []} testId="restaurant-chart-hour" interval={2} />
+        <RestaurantChartCard title="Comenzi pe zile" icon={CalendarCheck} data={charts.by_day || []} color="hsl(158 64% 36%)" testId="restaurant-chart-day" />
+        <RestaurantChartCard title="Comenzi pe săptămâni" icon={TrendingUp} data={charts.by_week || []} color="hsl(217 33% 35%)" testId="restaurant-chart-week" />
+        <RestaurantChartCard title="Comenzi pe luni" icon={TrendingUp} data={charts.by_month || []} color="hsl(24 90% 50%)" testId="restaurant-chart-month" />
+        <RestaurantChartCard title="Comenzi pe ani" icon={BarChart3} data={charts.by_year || []} color="hsl(220 14% 46%)" testId="restaurant-chart-year" />
+        <Card className="border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="restaurant-analytics-insight-card">
+          <CardContent className="flex h-full min-h-[220px] flex-col justify-between p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Insight operațional</p>
+              <p className="mt-3 text-3xl font-bold">{summary.avg_preparation_delay_minutes || 0} min</p>
+              <p className="mt-1 text-sm text-slate-300">întârziere medie restaurant</p>
+            </div>
+            <p className="text-sm text-slate-300">Datele se actualizează din comenzile reale și ajută la discuții clare cu restaurantul.</p>
           </CardContent>
         </Card>
       </div>
@@ -796,74 +858,40 @@ const AdminDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="admin-command-center-hero">
+          <div className="grid gap-4 p-5 lg:grid-cols-[1.5fr_1fr] lg:p-6">
+            <div>
+              <Badge className="mb-3 border-white/20 bg-white/10 text-white hover:bg-white/10">Control Room · Bacău</Badge>
+              <h2 className="text-3xl font-bold tracking-tight">Operațiuni live, restaurante și program într-un singur panou.</h2>
+              <p className="mt-2 max-w-2xl text-sm text-slate-300">
+                Fluxul este construit pentru dispecerat: comenzi active, timp de preparare, zone per restaurant și sloturi normale generate rapid.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-active-orders">
+                <p className="text-2xl font-bold">{stats.active_orders || 0}</p>
+                <p className="text-xs text-slate-300">active</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-active-drivers">
+                <p className="text-2xl font-bold">{activeDrivers.length}</p>
+                <p className="text-xs text-slate-300">livratori</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-restaurants">
+                <p className="text-2xl font-bold">{restaurants.length}</p>
+                <p className="text-xs text-slate-300">restaurante</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Package className="w-8 h-8 text-yellow-600" />
-                <div>
-                  <p className="text-2xl font-bold">{stats.active_orders || 0}</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Clock className="w-8 h-8 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold">{stats.total_orders || 0}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <UserCheck className="w-8 h-8 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold">{stats.active_drivers || 0}</p>
-                  <p className="text-xs text-muted-foreground">Livratori</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Store className="w-8 h-8 text-orange-600" />
-                <div>
-                  <p className="text-2xl font-bold">{stats.total_restaurants || 0}</p>
-                  <p className="text-xs text-muted-foreground">Restaurante</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Package className="w-8 h-8 text-emerald-600" />
-                <div>
-                  <p className="text-2xl font-bold">{stats.delivered_orders || 0}</p>
-                  <p className="text-xs text-muted-foreground">Livrate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <XCircle className="w-8 h-8 text-red-600" />
-                <div>
-                  <p className="text-2xl font-bold">{stats.cancelled_orders || 0}</p>
-                  <p className="text-xs text-muted-foreground">Anulate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+          <AdminStatCard icon={Package} label="Active" value={stats.active_orders || 0} tone="amber" testId="admin-stat-active-orders" />
+          <AdminStatCard icon={Clock} label="Total" value={stats.total_orders || 0} tone="blue" testId="admin-stat-total-orders" />
+          <AdminStatCard icon={UserCheck} label="Livratori" value={stats.active_drivers || 0} tone="green" testId="admin-stat-active-drivers" />
+          <AdminStatCard icon={Store} label="Restaurante" value={stats.total_restaurants || 0} tone="orange" testId="admin-stat-restaurants" />
+          <AdminStatCard icon={Package} label="Livrate" value={stats.delivered_orders || 0} tone="green" testId="admin-stat-delivered" />
+          <AdminStatCard icon={XCircle} label="Anulate" value={stats.cancelled_orders || 0} tone="red" testId="admin-stat-cancelled" />
         </div>
 
         {/* Action Buttons */}
@@ -1613,7 +1641,10 @@ const AdminDashboard = () => {
                 testIdPrefix="new-restaurant-location"
               />
             </div>
-            <RestaurantLocationPreview restaurant={newRestaurant} />
+            <RestaurantLocationPreview
+              restaurant={newRestaurant}
+              onLocationChange={(location) => setNewRestaurant((prev) => ({ ...prev, ...location }))}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Latitudine</Label>

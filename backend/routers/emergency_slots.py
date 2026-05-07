@@ -283,6 +283,67 @@ async def setup_generate_emergency_slots(payload: dict, current_user: dict = Dep
     return {"message": f"Sloturi generate: {created} create, {updated} actualizate", "created": created, "updated": updated}
 
 
+@router.post("/bulk-delete")
+async def bulk_delete_emergency_slots(payload: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    week_start = payload.get("week_start")
+    days = payload.get("days") or []
+    start_hour = payload.get("start_hour")
+    end_hour = payload.get("end_hour")
+    created_by = payload.get("created_by", "system")
+    if not week_start or not days or not start_hour or not end_hour:
+        raise HTTPException(status_code=400, detail="Setări invalide")
+
+    start = int(start_hour.split(":")[0])
+    end = int(end_hour.split(":")[0])
+    hours = []
+    current = start
+    while current != end:
+        hour = f"{current:02d}:00"
+        if hour not in _allowed_emergency_hours():
+            raise HTTPException(status_code=400, detail="Sloturile de urgență sunt doar între 10:00-22:00")
+        hours.append(hour)
+        current = (current + 1) % 24
+        if len(hours) > 24:
+            raise HTTPException(status_code=400, detail="Interval invalid")
+
+    query = {"week_start": week_start, "day": {"$in": days}, "hour": {"$in": hours}}
+    if created_by != "all":
+        query["created_by"] = created_by
+
+    slots = await db.emergency_slots.find(query, {"_id": 0}).to_list(500)
+    slot_hours = {(slot["day"], slot["hour"]) for slot in slots}
+    result = await db.emergency_slots.delete_many(query)
+
+    schedules = await db.schedules.find({"week_start": week_start}, {"_id": 0}).to_list(500)
+    cleaned_schedules = 0
+    removed_schedule_slots = 0
+    for schedule in schedules:
+        schedule_slots = schedule.get("slots", {})
+        changed = False
+        for day, day_slots in list(schedule_slots.items()):
+            filtered = [slot for slot in day_slots if not (slot.get("added_by") == "emergency" and (day, slot.get("start")) in slot_hours)]
+            removed_schedule_slots += len(day_slots) - len(filtered)
+            if len(filtered) != len(day_slots):
+                schedule_slots[day] = filtered
+                changed = True
+        if changed:
+            await db.schedules.update_one(
+                {"id": schedule["id"]},
+                {"$set": {"slots": schedule_slots, "total_hours": sum(len(items) for items in schedule_slots.values())}},
+            )
+            cleaned_schedules += 1
+
+    return {
+        "message": f"Ștergere urgențe completă: {result.deleted_count} sloturi eliminate",
+        "deleted_slots": result.deleted_count,
+        "cleaned_schedules": cleaned_schedules,
+        "removed_schedule_slots": removed_schedule_slots,
+    }
+
+
 @router.post("/{slot_id}/claim")
 async def claim_emergency_slot(slot_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "driver":
