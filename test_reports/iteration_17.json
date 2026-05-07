@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only retest for iteration_16 fix passed on public URL. Offline marker/legend class alignment works and all requested admin map regressions are green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/root/.emergent/automation_output/20260507_175302/console_20260507_175302.log"
+  ],
+  "action_items": [
+    "No blocking fixes required for this retest scope.",
+    "Optional maintainability: split AdminDashboard.jsx into smaller modules to reduce regression risk."
+  ],
+  "critical_code_review_comments": [
+    "AdminDashboard.jsx is still very large (>700 lines), increasing change-risk for future map/admin edits.",
+    "Admin Settings tab remains MOCKED/demo in this build."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_17.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only requested)",
+    "frontend": "100% for requested checks"
+  },
+  "seed_data_creation": "No seed data created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Validated with credentials from /app/memory/test_credentials.md on https://bacau-delivery.preview.emergentagent.com. Confirmed in map tab: driver markers=5 (active=4, busy=0, offline=1), restaurant markers=5, polygons/overlay paths=0, offline marker and legend use slate linear-gradient via delivery-map-marker-driver-offline and delivery-map-legend-driver-offline classes. New Order/New Driver/New Restaurant dialogs open correctly. 'Tur Client' remains absent. No runtime JS error reproduced in admin map flow; console only shows expected pre-auth 401 checks before login.",
+  "rca of the issue": "Previous failure root cause (iteration_16) was naming mismatch between generated marker class (offline) and CSS token (idle). After standardizing to offline in marker/legend CSS selectors, computed style now resolves to slate gradient and regression is cleared.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "Admin Settings tab remains MOCKED/demo from previous phase only"
+    ]
+  }
+}

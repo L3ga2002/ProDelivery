@@ -238,7 +238,7 @@
   background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
 }
 
-.delivery-map-marker-driver-idle {
+.delivery-map-marker-driver-offline {
   background: linear-gradient(135deg, rgb(100 116 139), rgb(51 65 85));
 }
 
@@ -269,7 +269,7 @@
   background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
 }
 
-.delivery-map-legend-driver-idle {
+.delivery-map-legend-driver-offline {
   background: linear-gradient(135deg, rgb(100 116 139), rgb(51 65 85));
 }
 

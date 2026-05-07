@@ -156,7 +156,7 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
             <span>Livrator ocupat</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-driver-idle" svg={DRIVER_SCOOTER_SVG} />
+            <MapLegendIcon className="delivery-map-legend-driver-offline" svg={DRIVER_SCOOTER_SVG} />
             <span>Livrator offline</span>
           </div>
           <div className="flex items-center gap-2">
