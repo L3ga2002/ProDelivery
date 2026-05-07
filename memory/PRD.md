@@ -61,6 +61,11 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 UX Cleanup 07 Mai 2026: butonul și modalul „Tur Client” au fost eliminate la cererea userului
 - Phase 2 Refactor 07 Mai 2026: extras harta live în `components/admin/LiveMapPanel.jsx`, iconițele/Leaflet setup în `components/admin/MapMarkerIcons.jsx` și hero/KPI/action buttons în `components/admin/AdminCommandCenter.jsx`, reducând riscul pentru modificări înainte de redeploy
 - Phase 2 Map Status Polish 07 Mai 2026: marker-ele livratorilor au status vizual disponibil/ocupat/offline cu culori și mini-badge; popup-urile de hartă au fost redesenate cu informații clare pentru livrator/restaurant
+- Code Review Fix Pass 07 Mai 2026: eliminat `dangerouslySetInnerHTML` din frontend; legenda hărții folosește SVG React safe, iar marker-ele Leaflet sanitizează id/aria înainte de HTML static intern
+- Code Review Fix Pass 07 Mai 2026: reparate hook/catch issues principale în `RestaurantApp`, `DriverApp`, `AdminDashboard`; empty catches au log/debug/toast, iar timpii magici principali au fost extrași în constante
+- Code Review Fix Pass 07 Mai 2026: extras `OrdersTab` și `RestaurantAnalyticsPanel` din `AdminDashboard`, pe lângă modulele deja extrase pentru hartă și command center
+- Code Review Fix Pass 07 Mai 2026: refactor backend pentru `emergency_slots.bulk_delete_emergency_slots` și `restaurants.get_restaurant_analytics` în helper functions; `server.py` are return type hints de bază
+- Code Review Fix Pass 07 Mai 2026: `DriverSchedule` a fost refăcut din table tags în CSS grid cu roluri ARIA, eliminând warning-urile DOM nesting/hydration din Driver App
 - Phase 2 Demo Data Cleanup 07 Mai 2026: curățat restaurant test non-demo din baza preview; demo-ul afișează 5 restaurante curate
 
 ## Key API Endpoints - Zone
@@ -92,7 +97,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Design polish propus pentru următorul pas: cards restaurante mai profesionale, skeleton-uri subtile, detalii vizuale pe hărți/analytics și ordine mai clară în tab-ul Restaurante
 - P1: Testare vizuală cu clientul pe noul contrast indigo/slate/amber și ajustări fine dacă preferă altă direcție cromatică
 - P1: Testare vizuală cu clientul pe iconițele 3D ale hărții; ajustare dacă preferă alt simbol pentru restaurante decât storefront
-- P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
+- P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`) și reducerea suplimentară a dimensiunii lui `seed.py`; `AdminDashboard` rămâne ~1450 LOC după primul split și trebuie continuat într-un pas separat
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
