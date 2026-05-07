@@ -302,89 +302,88 @@ export const DriverSchedule = ({ driverId }) => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr>
-                <th className="text-left p-1 sticky left-0 bg-card z-10 w-20">
-                  <Clock className="w-3 h-3 inline mr-1" />Ora
-                </th>
-                {DAYS.map((d) => (
-                  <th key={d.key} className="p-1 text-center min-w-[44px]">
-                    <button
-                      className={`font-semibold ${windowOpen ? "hover:text-primary" : "cursor-default text-muted-foreground"}`}
-                      onClick={() => windowOpen && selectFullDay(d.key)}
-                    >
-                      {d.label.substring(0, 3)}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ALL_HOURS.map((hour) => {
-                const isNight = isNightHour(hour);
-                return (
-                  <tr key={hour} className={isNight ? "bg-slate-50" : ""}>
-                    <td className={`p-1 font-mono sticky left-0 z-10 ${isNight ? "text-slate-400 bg-slate-50" : "text-muted-foreground bg-card"}`}>
-                      {formatInterval(hour)} {isNight && <Lock className="w-2.5 h-2.5 inline ml-0.5" />}
-                    </td>
-                    {DAYS.map((d) => {
-                      const sel = isSelected(d.key, hour);
-                      const admin = isAdminSlot(d.key, hour);
-                      const emergency = isEmergencySlot(d.key, hour);
-                      const availEmergency = getAvailableEmergency(d.key, hour);
-                      const canEdit = !isNight && !admin && !emergency && windowOpen;
+          <div className="min-w-[440px] text-xs" role="table" aria-label="Program săptămânal livrator">
+            <div className="grid grid-cols-[80px_repeat(7,minmax(44px,1fr))] items-center" role="row">
+              <div className="sticky left-0 z-10 bg-card p-1 text-left font-semibold" role="columnheader">
+                <Clock className="w-3 h-3 inline mr-1" />Ora
+              </div>
+              {DAYS.map((d) => (
+                <div key={d.key} className="p-1 text-center" role="columnheader">
+                  <button
+                    type="button"
+                    className={`font-semibold ${windowOpen ? "hover:text-primary" : "cursor-default text-muted-foreground"}`}
+                    onClick={() => windowOpen && selectFullDay(d.key)}
+                  >
+                    {d.label.substring(0, 3)}
+                  </button>
+                </div>
+              ))}
+            </div>
 
-                      let cellClass = "bg-muted/30";
-                      let cellContent = "";
+            {ALL_HOURS.map((hour) => {
+              const isNight = isNightHour(hour);
+              return (
+                <div key={hour} className={`grid grid-cols-[80px_repeat(7,minmax(44px,1fr))] items-center ${isNight ? "bg-slate-50" : ""}`} role="row">
+                  <div className={`sticky left-0 z-10 p-1 font-mono ${isNight ? "text-slate-400 bg-slate-50" : "text-muted-foreground bg-card"}`} role="rowheader">
+                    {formatInterval(hour)} {isNight && <Lock className="w-2.5 h-2.5 inline ml-0.5" />}
+                  </div>
+                  {DAYS.map((d) => {
+                    const sel = isSelected(d.key, hour);
+                    const admin = isAdminSlot(d.key, hour);
+                    const emergency = isEmergencySlot(d.key, hour);
+                    const availEmergency = getAvailableEmergency(d.key, hour);
+                    const canEdit = !isNight && !admin && !emergency && windowOpen;
 
-                      if (emergency) {
-                        cellClass = "bg-red-500";
-                      } else if (sel && admin) {
-                        cellClass = "bg-blue-500";
-                      } else if (sel) {
-                        cellClass = "bg-orange-500";
-                      } else if (availEmergency) {
-                        cellClass = "bg-red-100 border-2 border-red-400 hover:bg-red-200 cursor-pointer";
-                        cellContent = `${availEmergency.remaining_spots}`;
-                      } else if (isNight) {
-                        cellClass = "bg-slate-200";
-                      }
+                    let cellClass = "bg-muted/30";
+                    let cellContent = "";
 
-                      return (
-                        <td key={d.key} className="p-0.5 text-center">
-                          <button
-                            onClick={() => {
-                              if (availEmergency) {
-                                setClaimDialog(availEmergency);
-                              } else if (canEdit) {
-                                toggleHour(d.key, hour);
-                              }
-                            }}
-                            disabled={!canEdit && !availEmergency}
-                            className={`w-full h-7 rounded transition-all text-[10px] font-bold ${cellClass} ${
-                              canEdit || availEmergency ? "cursor-pointer" : "cursor-not-allowed opacity-70"
-                            }`}
-                            data-testid={`slot-${d.key}-${hour}`}
-                            title={
-                              availEmergency ? `${availEmergency.remaining_spots} locuri urgență - click pentru a lua`
-                              : emergency ? "Slot de urgență luat"
-                              : isNight ? "Tura de noapte - doar admin"
-                              : admin ? "Adăugat de administrator"
-                              : !windowOpen ? "Fereastra închisă"
-                              : sel ? "Deselectează" : "Selectează"
+                    if (emergency) {
+                      cellClass = "bg-red-500";
+                    } else if (sel && admin) {
+                      cellClass = "bg-blue-500";
+                    } else if (sel) {
+                      cellClass = "bg-orange-500";
+                    } else if (availEmergency) {
+                      cellClass = "bg-red-100 border-2 border-red-400 hover:bg-red-200 cursor-pointer";
+                      cellContent = `${availEmergency.remaining_spots}`;
+                    } else if (isNight) {
+                      cellClass = "bg-slate-200";
+                    }
+
+                    return (
+                      <div key={d.key} className="p-0.5 text-center" role="cell">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (availEmergency) {
+                              setClaimDialog(availEmergency);
+                            } else if (canEdit) {
+                              toggleHour(d.key, hour);
                             }
-                          >
-                            {cellContent && <span className="text-red-700">{cellContent}</span>}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                          }}
+                          disabled={!canEdit && !availEmergency}
+                          className={`w-full h-7 rounded transition-all text-[10px] font-bold ${cellClass} ${
+                            canEdit || availEmergency ? "cursor-pointer" : "cursor-not-allowed opacity-70"
+                          }`}
+                          data-testid={`slot-${d.key}-${hour}`}
+                          title={
+                            availEmergency ? `${availEmergency.remaining_spots} locuri urgență - click pentru a lua`
+                            : emergency ? "Slot de urgență luat"
+                            : isNight ? "Tura de noapte - doar admin"
+                            : admin ? "Adăugat de administrator"
+                            : !windowOpen ? "Fereastra închisă"
+                            : sel ? "Deselectează" : "Selectează"
+                          }
+                        >
+                          {cellContent && <span className="text-red-700">{cellContent}</span>}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {windowOpen ? (
