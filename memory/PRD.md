@@ -39,6 +39,11 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Security/Quality 25 Apr 2026: migrare auth frontend/backend pe cookie-uri httpOnly + refresh/logout, fallback Bearer păstrat pentru compatibilitate, demo/test credentials mutate în variabile de mediu, curățare console logs, chei React stabilizate, helper comun pentru testele backend și refactor helper în `schedules.py` + `emergency_slots.py`
 - Security/Quality 25 Apr 2026 (batch 2): refactor helper în `zones.py` + `orders.py`, `seed.py` mutat pe `secrets.SystemRandom()`, memoizare pentru calculele grele din `DeliveryZonesManager` și `DriverSchedule`, validare completă frontend/backend după batch-ul mare
 - Production hardening 25 Apr 2026: cookie-urile auth trec pe `secure + SameSite=None` pe HTTPS, iar `CORS_ORIGINS` include și `prodeliverybacau.com` / `www.prodeliverybacau.com`; preview validat fără regresii după patch
+- Phase 2 Rework P0 07 Mai 2026: restaurantele au acum locație individuală cu autocomplete/geocoding gratuit OpenStreetMap/Nominatim prin backend proxy, hartă care se centrează pe restaurant și marker automat
+- Phase 2 Rework P0 07 Mai 2026: zonele de livrare sunt gestionate individual per restaurant; zonele globale vechi Zona 1/2/3 au fost eliminate din workflow și seed-ul demo creează doar zone per restaurant
+- Phase 2 Rework P0 07 Mai 2026: tab-ul Restaurante include managerul de arii de livrare pentru restaurantul selectat, cu desenare UX nouă, auto-închidere poligon când se apasă primul punct, nume zonă, preț livrare, culoare, activ/inactiv și undo prin buton / C / Backspace
+- Phase 2 Rework P0 07 Mai 2026: harta live principală nu mai afișează poligoane de livrare; rămâne concentrată pe livratori și restaurante
+- Phase 2 Rework P0 07 Mai 2026: backend-ul detectează zona doar în contextul restaurantului selectat și expune `/api/restaurants/available` pentru filtrarea internă a restaurantelor disponibile după coordonate
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -46,19 +51,24 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `PUT /api/zones/{zone_id}` - actualizează zonă (admin only)
 - `DELETE /api/zones/{zone_id}` - șterge zonă (admin only)
 - `POST /api/zones/detect` - detectează zona pe baza coordonatelor lat/lng
+- `GET /api/geocoding/search` - autocomplete/geocoding Nominatim pentru adrese/restaurante în Bacău
+- `GET /api/zones?restaurant_id=...` - listează doar zonele unui restaurant
+- `POST /api/restaurants/available` - returnează restaurantele care acoperă coordonatele date prin zonele proprii
 
 ## DB Schema - delivery_zones
 ```
-{id, sector, zone_level, name, color, fee, polygon: [{lat, lng}], is_active, sort_order, created_at, updated_at}
+{id, restaurant_id, restaurant_name, sector, zone_level, name, color, fee, polygon: [{lat, lng}], is_active, sort_order, created_at, updated_at}
 ```
 
 ## Rămas
-- P0: Validare și rafinare manuală a celor 12 poligoane pe baza hărților reale ale clientului până coincid exact cu limitele operaționale dorite
-- P0: Continuare rafinare fină punct-cu-punct împreună cu user/client până când fiecare sector este validat vizual ca 1:1 cu harta operațională
-- P0: Verificare finală UX pentru click/selectare exactă a benzilor de zonă direct pe hartă în toate sectoarele
-- P0: verificare UX fină pentru selectarea benzilor de zonă direct din hartă și calibrare finală dacă userul mai cere ajustări
-- P1: refactor structural mare rămas pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
-- P1: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
+- P0: Validare cu clientul pe workflow-ul nou: fiecare restaurant își desenează propriile zone și nu mai există zone globale pe harta live
+- P0: Testare reală cu mai multe restaurante + zone suprapuse pentru confirmarea filtrării pe restaurant
+- P1: Timer live în Restaurant App pentru timpul de preparare, cu sunet alertă, întârziere și salvare analytics în backend
+- P1: Dashboard analytics detaliat per restaurant: timpi medii, întârzieri, comenzi pe ore/zile/săptămâni/luni/ani și istoric comandă
+- P1: Rework Program/Sloturi în jurul sloturilor normale, cu sloturile de urgență secundare
+- P1: Modal setup pentru generare automată sloturi: zile, interval orar, număr sloturi, tip, repetare, ștergere individuală/bulk/automată
+- P2: refactor structural suplimentar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
+- P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
 - Phase 4: Push Notifications (Firebase)
 - Phase 5: Integrări externe (Glovo/Wolt/Bolt API)

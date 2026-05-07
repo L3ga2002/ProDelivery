@@ -228,6 +228,7 @@ const AdminDashboard = () => {
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
   const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
+  const [isRestaurantPickerOpen, setIsRestaurantPickerOpen] = useState(false);
   
   // Hourly data for charts
   const [hourlyData, setHourlyData] = useState({ hourly_orders: [] });
@@ -1264,27 +1265,46 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Restaurant *</Label>
-                <Select value={newOrder.restaurant_id} onValueChange={(v) => {
-                  setNewOrder({
-                    ...newOrder,
-                    restaurant_id: v,
-                    delivery_zone_id: null,
-                    delivery_zone_name: "",
-                    delivery_sector: "",
-                    delivery_zone_level: null,
-                    delivery_fee: 0,
-                    total_amount: Number(newOrder.subtotal_amount || 0),
-                  });
-                }}>
-                  <SelectTrigger data-testid="new-order-restaurant-select">
-                    <SelectValue placeholder="Selectează" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {restaurants.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => setIsRestaurantPickerOpen((open) => !open)}
+                  data-testid="new-order-restaurant-select"
+                >
+                  <span className="truncate">
+                    {restaurants.find((restaurant) => restaurant.id === newOrder.restaurant_id)?.name || "Selectează"}
+                  </span>
+                  <Store className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                {isRestaurantPickerOpen && (
+                  <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-lg border bg-card p-2 shadow-sm" data-testid="new-order-restaurant-options">
+                    {restaurants.map((restaurant) => (
+                      <button
+                        key={restaurant.id}
+                        type="button"
+                        className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${newOrder.restaurant_id === restaurant.id ? "border-orange-300 bg-orange-50 dark:bg-orange-950/20" : "hover:bg-muted/60"}`}
+                        onClick={() => {
+                          setNewOrder({
+                            ...newOrder,
+                            restaurant_id: restaurant.id,
+                            delivery_zone_id: null,
+                            delivery_zone_name: "",
+                            delivery_sector: "",
+                            delivery_zone_level: null,
+                            delivery_fee: 0,
+                            total_amount: Number(newOrder.subtotal_amount || 0),
+                          });
+                          setIsRestaurantPickerOpen(false);
+                        }}
+                        data-testid={`new-order-restaurant-option-${restaurant.id}`}
+                      >
+                        <span className="block font-medium">{restaurant.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{restaurant.address}</span>
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Sursă</Label>

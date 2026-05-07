@@ -8,6 +8,14 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import "./App.css";
 
+const suppressResizeObserverOverlay = (event) => {
+  if (event.message?.includes("ResizeObserver loop completed")) {
+    event.stopImmediatePropagation();
+  }
+};
+
+window.addEventListener("error", suppressResizeObserverOverlay);
+
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
