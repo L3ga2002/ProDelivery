@@ -234,6 +234,10 @@
   background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
 }
 
+.delivery-map-marker-driver-busy {
+  background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+}
+
 .delivery-map-marker-driver-idle {
   background: linear-gradient(135deg, rgb(100 116 139), rgb(51 65 85));
 }
@@ -261,10 +265,38 @@
   background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
 }
 
+.delivery-map-legend-driver-busy {
+  background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+}
+
 .delivery-map-legend-driver-idle {
   background: linear-gradient(135deg, rgb(100 116 139), rgb(51 65 85));
 }
 
 .delivery-map-legend-restaurant {
   background: linear-gradient(135deg, rgb(249 115 22), rgb(234 88 12));
+}
+
+.delivery-map-marker-status-dot {
+  position: absolute;
+  right: -4px;
+  top: 5px;
+  z-index: 2;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  border: 2px solid white;
+  box-shadow: 0 6px 12px -8px rgb(15 23 42 / 0.9);
+}
+
+.delivery-map-marker-status-dot-active {
+  background: rgb(34 197 94);
+}
+
+.delivery-map-marker-status-dot-busy {
+  background: rgb(59 130 246);
+}
+
+.delivery-map-marker-status-dot-offline {
+  background: rgb(148 163 184);
 }

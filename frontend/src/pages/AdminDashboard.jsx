@@ -39,7 +39,6 @@ import {
 } from "../components/ui/tabs";
 import { Switch } from "../components/ui/switch";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   LogOut,
@@ -66,6 +65,9 @@ import {
   Sun,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
+import { AdminCommandCenter } from "../components/admin/AdminCommandCenter";
+import { LiveMapPanel } from "../components/admin/LiveMapPanel";
+import { restaurantIcon } from "../components/admin/MapMarkerIcons";
 import { RestaurantZonesManager } from "../components/RestaurantZonesManager";
 import { LocationAutocomplete } from "../components/LocationAutocomplete";
 import { useTheme } from "../context/ThemeContext";
@@ -80,56 +82,6 @@ import {
 } from "recharts";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
-
-const DRIVER_SCOOTER_SVG = `
-  <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-    <path d="M18 44c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8Z" fill="rgba(255,255,255,.92)"/>
-    <path d="M58 44c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8Z" fill="rgba(255,255,255,.92)"/>
-    <path d="M15 43h16c7 0 12-5 12-12h-8l-6 7H16" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M38 22h10l7 13" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M30 26h-8l-5-8h10l5 8Z" fill="rgba(255,255,255,.82)"/>
-    <path d="M40 17c0 3.2-2.5 5.7-5.7 5.7s-5.7-2.5-5.7-5.7 2.5-5.7 5.7-5.7S40 13.8 40 17Z" fill="white"/>
-  </svg>
-`;
-
-const RESTAURANT_STOREFRONT_SVG = `
-  <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-    <path d="M11 27h42v26H11V27Z" fill="rgba(255,255,255,.9)"/>
-    <path d="M16 31h32v18H16V31Z" fill="rgba(15,23,42,.18)"/>
-    <path d="M9 23 15 10h34l6 13H9Z" fill="white"/>
-    <path d="M13 23h10v8c0 2.8-2.2 5-5 5s-5-2.2-5-5v-8Zm10 0h9v8c0 2.8-2 5-4.5 5S23 33.8 23 31v-8Zm9 0h9v8c0 2.8-2 5-4.5 5S32 33.8 32 31v-8Zm9 0h10v8c0 2.8-2.2 5-5 5s-5-2.2-5-5v-8Z" fill="rgba(255,255,255,.74)"/>
-    <path d="M22 39h20M26 47h12" stroke="white" stroke-width="4" stroke-linecap="round"/>
-  </svg>
-`;
-
-// Fix Leaflet icons
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
-
-const createMapMarkerIcon = ({ kind, active = true, id = "marker" }) => {
-  const isDriver = kind === "driver";
-  const icon = isDriver ? DRIVER_SCOOTER_SVG : RESTAURANT_STOREFRONT_SVG;
-  const label = isDriver ? (active ? "Livrator activ" : "Livrator inactiv") : "Restaurant";
-  const tone = isDriver ? (active ? "driver-active" : "driver-idle") : "restaurant";
-
-  return L.divIcon({
-    className: "delivery-map-div-icon",
-    html: `
-      <div class="delivery-map-marker delivery-map-marker-${tone}" data-testid="map-${kind}-marker-${id}" aria-label="${label}">
-        <span class="delivery-map-marker-icon">${icon}</span>
-      </div>
-    `,
-    iconSize: [48, 54],
-    iconAnchor: [24, 48],
-    popupAnchor: [0, -42],
-  });
-};
-
-const restaurantIcon = createMapMarkerIcon({ kind: "restaurant", id: "preview" });
 
 const getStatusBadge = (status) => {
   const statusConfig = {
@@ -262,33 +214,6 @@ const RestaurantLocationPreview = ({ restaurant, onLocationChange }) => {
         După geocoding, poziția poate fi ajustată manual înainte de salvarea restaurantului.
       </p>
     </div>
-  );
-};
-
-const AdminStatCard = ({ icon: Icon, label, value, tone = "slate", testId }) => {
-  const toneClasses = {
-    slate: "border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-950",
-    blue: "border-blue-200 bg-blue-50/80 text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100",
-    green: "border-emerald-200 bg-emerald-50/80 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100",
-    amber: "border-amber-200 bg-amber-50/80 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-100",
-    orange: "border-orange-200 bg-orange-50/80 text-orange-900 dark:border-orange-900 dark:bg-orange-950/20 dark:text-orange-100",
-    red: "border-red-200 bg-red-50/80 text-red-900 dark:border-red-900 dark:bg-red-950/20 dark:text-red-100",
-  };
-
-  return (
-    <Card className={`overflow-hidden transition-transform hover:-translate-y-0.5 hover:shadow-md ${toneClasses[tone]}`} data-testid={testId}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">{value}</p>
-          </div>
-          <div className="rounded-lg bg-white/70 p-2 shadow-sm dark:bg-slate-900/70">
-            <Icon className="h-6 w-6 opacity-80" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 
@@ -904,67 +829,16 @@ const AdminDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="admin-command-center-hero">
-          <div className="grid gap-4 p-5 lg:grid-cols-[1.5fr_1fr] lg:p-6">
-            <div>
-              <Badge className="mb-3 border-white/20 bg-white/10 text-white hover:bg-white/10">Control Room · Bacău</Badge>
-              <h2 className="text-3xl font-bold tracking-tight">Operațiuni live, restaurante și program într-un singur panou.</h2>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300">
-                Fluxul este construit pentru dispecerat: comenzi active, timp de preparare, zone per restaurant și sloturi normale generate rapid.
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-active-orders">
-                <p className="text-2xl font-bold">{stats.active_orders || 0}</p>
-                <p className="text-xs text-slate-300">active</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-active-drivers">
-                <p className="text-2xl font-bold">{activeDrivers.length}</p>
-                <p className="text-xs text-slate-300">livratori</p>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-restaurants">
-                <p className="text-2xl font-bold">{restaurants.length}</p>
-                <p className="text-xs text-slate-300">restaurante</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-          <AdminStatCard icon={Package} label="Active" value={stats.active_orders || 0} tone="amber" testId="admin-stat-active-orders" />
-          <AdminStatCard icon={Clock} label="Total" value={stats.total_orders || 0} tone="blue" testId="admin-stat-total-orders" />
-          <AdminStatCard icon={UserCheck} label="Livratori" value={stats.active_drivers || 0} tone="green" testId="admin-stat-active-drivers" />
-          <AdminStatCard icon={Store} label="Restaurante" value={stats.total_restaurants || 0} tone="orange" testId="admin-stat-restaurants" />
-          <AdminStatCard icon={Package} label="Livrate" value={stats.delivered_orders || 0} tone="green" testId="admin-stat-delivered" />
-          <AdminStatCard icon={XCircle} label="Anulate" value={stats.cancelled_orders || 0} tone="red" testId="admin-stat-cancelled" />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <Button
-            onClick={runSimulation}
-            disabled={isSimRunning}
-            className="gap-2 shadow-lg"
-            style={{ background: 'linear-gradient(135deg, hsl(24 95% 53%), hsl(24 95% 45%))', color: 'white' }}
-            data-testid="simulate-demo-btn"
-          >
-            {isSimRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {isSimRunning ? "Simulare în curs..." : "Simulare Demo"}
-          </Button>
-          <Button onClick={() => setIsNewOrderDialogOpen(true)} data-testid="new-order-btn">
-            <Plus className="w-4 h-4 mr-2" />
-            Comandă Nouă
-          </Button>
-          <Button variant="outline" onClick={() => setIsNewDriverDialogOpen(true)} data-testid="new-driver-btn">
-            <Plus className="w-4 h-4 mr-2" />
-            Livrator Nou
-          </Button>
-          <Button variant="outline" onClick={() => setIsNewRestaurantDialogOpen(true)} data-testid="new-restaurant-btn">
-            <Plus className="w-4 h-4 mr-2" />
-            Restaurant Nou
-          </Button>
-        </div>
+        <AdminCommandCenter
+          stats={stats}
+          activeDriversCount={activeDrivers.length}
+          restaurantsCount={restaurants.length}
+          isSimRunning={isSimRunning}
+          onRunSimulation={runSimulation}
+          onNewOrder={() => setIsNewOrderDialogOpen(true)}
+          onNewDriver={() => setIsNewDriverDialogOpen(true)}
+          onNewRestaurant={() => setIsNewRestaurantDialogOpen(true)}
+        />
 
         {/* Tabs */}
         <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="space-y-4">
@@ -1178,79 +1052,7 @@ const AdminDashboard = () => {
 
           {/* Map Tab */}
           <TabsContent value="map">
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <MapPin className="w-5 h-5 text-indigo-600" />
-                      Hartă Live - Bacău
-                      <Badge variant="outline" className="ml-2 text-xs animate-pulse border-emerald-400 text-emerald-600 dark:border-emerald-700 dark:text-emerald-100">
-                        LIVE
-                      </Badge>
-                    </CardTitle>
-                    <p className="mt-1 text-sm text-muted-foreground">Livratori pe scuter + restaurante storefront, fără poligoane de livrare pe harta principală.</p>
-                  </div>
-                  <Badge variant="outline" className="border-slate-300 bg-white dark:bg-slate-950" data-testid="live-map-marker-style-badge">
-                    Iconițe operaționale
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[500px] rounded-lg overflow-hidden border shadow-sm" data-testid="admin-live-map-container">
-                  <MapContainer center={[46.567, 26.913]} zoom={14} className="h-full w-full">
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {drivers.map((driver) => {
-                      const pos = driverPositions[driver.id];
-                      return (
-                        <Marker
-                          key={driver.id}
-                          position={[pos?.lat || driver.latitude, pos?.lng || driver.longitude]}
-                          icon={createMapMarkerIcon({ kind: "driver", active: driver.is_active, id: driver.id })}
-                        >
-                          <Popup>
-                            <div className="text-sm">
-                              <p className="font-bold">{driver.name}</p>
-                              <p>{driver.phone}</p>
-                              <Badge className={driver.is_active ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-100" : "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100"}>
-                                {driver.is_active ? "Activ" : "Inactiv"}
-                              </Badge>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      );
-                    })}
-                    {restaurants.map((rest) => (
-                      <Marker key={rest.id} position={[rest.latitude, rest.longitude]} icon={createMapMarkerIcon({ kind: "restaurant", id: rest.id })}>
-                        <Popup>
-                          <div className="text-sm">
-                            <p className="font-bold">{rest.name}</p>
-                            <p className="text-muted-foreground">{rest.address}</p>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
-                  </MapContainer>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-4 text-sm" data-testid="admin-live-map-legend">
-                  <div className="flex items-center gap-2">
-                    <span className="delivery-map-legend-icon delivery-map-legend-driver-active" dangerouslySetInnerHTML={{ __html: DRIVER_SCOOTER_SVG }} />
-                    <span>Livrator activ</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="delivery-map-legend-icon delivery-map-legend-driver-idle" dangerouslySetInnerHTML={{ __html: DRIVER_SCOOTER_SVG }} />
-                    <span>Livrator inactiv</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="delivery-map-legend-icon delivery-map-legend-restaurant" dangerouslySetInnerHTML={{ __html: RESTAURANT_STOREFRONT_SVG }} />
-                    <span>Restaurant</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <LiveMapPanel drivers={drivers} restaurants={restaurants} driverPositions={driverPositions} />
           </TabsContent>
 
           {/* Drivers Tab */}

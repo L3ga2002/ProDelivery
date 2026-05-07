@@ -1,0 +1,60 @@
+{
+  "summary": "Frontend-only regression on public URL completed for AdminDashboard refactor scope. Core flows pass (command center, dialogs, tabs, map panel, marker counts, popups, no polygons, Tur Client absent), with one visual regression on offline driver marker styling.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Live map driver marker styling",
+        "issue": "Offline driver marker CSS class mismatch: marker renders with class `delivery-map-marker-driver-offline`, but stylesheet defines `delivery-map-marker-driver-idle`; offline marker background style is not applied (computed backgroundImage: none).",
+        "selector": ".delivery-map-marker-driver-offline / .delivery-map-marker-driver-idle",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Driver popup current-order indicator",
+        "issue": "No busy driver marker in current demo dataset (0 busy), so `Comandă în curs` branch could not be exercised in this run.",
+        "affected_selectors": [
+          ".delivery-map-marker-driver-busy",
+          "[data-testid^='map-driver-popup-']"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/root/.emergent/automation_output/20260507_175000/console_20260507_175000.log",
+    "/root/.emergent/automation_output/20260507_175036/console_20260507_175036.log"
+  ],
+  "action_items": [
+    "Fix offline map marker class mismatch by aligning `offline` naming between MapMarkerIcons and App.css (or update both marker + legend classes consistently).",
+    "Re-run map visual validation after class fix to confirm offline marker appears with intended slate styling.",
+    "Optionally seed at least one busy driver to validate `Comandă în curs` popup branch in automated UI tests."
+  ],
+  "critical_code_review_comments": [
+    "Status-class contract is inconsistent across map marker generator and CSS (`offline` vs `idle`), causing visual regression risk.",
+    "AdminDashboard.jsx remains very large (>1600 lines), increasing future refactor regression risk.",
+    "Admin Settings tab remains MOCKED/demo from previous phase only."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_16.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only requested)",
+    "frontend": "92%"
+  },
+  "seed_data_creation": "No seed data created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Validated with /app/memory/test_credentials.md admin account on public URL from frontend/.env. Verified: command center and extracted components render, all requested dialogs open, map markers drivers=5/restaurants=5, polygons=0, tabs switch, Tur Client absent, no blocking runtime errors besides expected pre-login auth 401 noise. Additional verification confirmed offline marker class is present in DOM but lacks style due class mismatch.",
+  "rca of the issue": "RCA: `createMapMarkerIcon` builds marker class using `driver-${status}` and `status='offline'`, producing `.delivery-map-marker-driver-offline`. In App.css, gradient style exists for `.delivery-map-marker-driver-idle` instead of `.delivery-map-marker-driver-offline`. Repro: login admin -> tab Hartă -> observe offline count badge >0 -> inspect first `.delivery-map-marker-driver-offline` computed backgroundImage is `none`. Mitigation: standardize to one token (`offline`) across marker HTML and CSS (including legend class names if needed).",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "Admin Settings tab remains MOCKED/demo from previous phase only"
+    ]
+  }
+}
