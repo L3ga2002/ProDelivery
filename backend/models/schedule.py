@@ -21,6 +21,24 @@ class ScheduleUpdate(BaseModel):
     source: str = "driver"
 
 
+class AutoGenerateScheduleRequest(BaseModel):
+    week_start: str
+    days: List[str]
+    start_hour: str
+    end_hour: str
+    total_slots: int
+    slot_type: str = "normal"
+    repeat_weeks: int = 1
+
+
+class BulkDeleteScheduleRequest(BaseModel):
+    week_start: str
+    days: List[str]
+    start_hour: str
+    end_hour: str
+    added_by: str = "auto"
+
+
 class Schedule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     driver_id: str

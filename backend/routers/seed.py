@@ -409,6 +409,19 @@ async def seed_data():
         zone_map = {"rest-001": "Zona 1", "rest-002": "Zona 2", "rest-003": "Zona 3", "rest-004": "Zona 4", "rest-005": "Zona 1"}
         zone = zone_map.get(restaurant_id, "Zona 1")
 
+        created_at = datetime.now(timezone.utc) - timedelta(hours=SYSTEM_RANDOM.randint(1, 24 * 45))
+        prep_estimated_seconds = SYSTEM_RANDOM.choice([10, 15, 20, 25, 30]) * 60
+        prep_actual_seconds = max(prep_estimated_seconds + SYSTEM_RANDOM.randint(-240, 600), 120)
+        prep_delay_seconds = max(prep_actual_seconds - prep_estimated_seconds, 0)
+        preparation_started_at = created_at + timedelta(minutes=2)
+        preparation_due_at = preparation_started_at + timedelta(seconds=prep_estimated_seconds)
+        preparation_ready_at = preparation_started_at + timedelta(seconds=prep_actual_seconds)
+
+        assigned_at = preparation_ready_at + timedelta(minutes=SYSTEM_RANDOM.randint(1, 8))
+        accepted_at = assigned_at + timedelta(minutes=SYSTEM_RANDOM.randint(1, 4))
+        picked_up_at = accepted_at + timedelta(minutes=SYSTEM_RANDOM.randint(2, 8))
+        delivered_at = picked_up_at + timedelta(minutes=SYSTEM_RANDOM.randint(12, 35))
+
         # Assign some orders to drivers for stats
         driver_id = None
         driver_name = None
@@ -436,12 +449,23 @@ async def seed_data():
             "zone": zone,
             "driver_id": driver_id,
             "driver_name": driver_name,
+            "preparation_time": prep_estimated_seconds // 60,
+            "preparation_estimated_seconds": prep_estimated_seconds,
+            "preparation_actual_seconds": prep_actual_seconds if status == "DELIVERED" else None,
+            "preparation_delay_seconds": prep_delay_seconds if status == "DELIVERED" else None,
+            "preparation_started_at": preparation_started_at.isoformat(),
+            "preparation_due_at": preparation_due_at.isoformat(),
+            "preparation_ready_at": preparation_ready_at.isoformat() if status == "DELIVERED" else None,
+            "assigned_at": assigned_at.isoformat() if status == "DELIVERED" else None,
+            "accepted_at": accepted_at.isoformat() if status == "DELIVERED" else None,
+            "picked_up_at": picked_up_at.isoformat() if status == "DELIVERED" else None,
+            "delivered_at": delivered_at.isoformat() if status == "DELIVERED" else None,
         }
 
         order = Order(**order_data)
         doc = order.model_dump()
-        doc["created_at"] = doc["created_at"].isoformat()
-        doc["updated_at"] = doc["updated_at"].isoformat()
+        doc["created_at"] = created_at.isoformat()
+        doc["updated_at"] = delivered_at.isoformat() if status == "DELIVERED" else created_at.isoformat()
         await db.orders.insert_one(doc)
 
     return {

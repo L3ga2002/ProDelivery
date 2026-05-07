@@ -33,6 +33,49 @@ import { useTheme } from "../context/ThemeContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const formatSeconds = (totalSeconds) => {
+  const absSeconds = Math.abs(totalSeconds);
+  const minutes = Math.floor(absSeconds / 60);
+  const seconds = absSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+};
+
+const getPreparationTimer = (order, now) => {
+  const dueAtRaw = order.preparation_due_at;
+  if (!dueAtRaw) return null;
+  const dueAt = new Date(dueAtRaw).getTime();
+  if (Number.isNaN(dueAt)) return null;
+  const remainingSeconds = Math.ceil((dueAt - now) / 1000);
+  return {
+    remainingSeconds,
+    isLate: remainingSeconds <= 0,
+    label: remainingSeconds > 0 ? formatSeconds(remainingSeconds) : `+${formatSeconds(remainingSeconds)}`,
+  };
+};
+
+const playLatePreparationAlert = () => {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const startedAt = audioContext.currentTime;
+    [0, 0.45, 0.9, 1.35].forEach((offset) => {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.frequency.value = 620;
+      osc.type = "square";
+      gain.gain.setValueAtTime(0.0001, startedAt + offset);
+      gain.gain.exponentialRampToValueAtTime(0.28, startedAt + offset + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + offset + 0.36);
+      osc.start(startedAt + offset);
+      osc.stop(startedAt + offset + 0.38);
+    });
+    if (navigator.vibrate) navigator.vibrate([250, 80, 250, 80, 350]);
+  } catch {
+    // Audio poate fi blocat de browser până la prima interacțiune.
+  }
+};
+
 const getStatusConfig = (status) => {
   const config = {
     NEW: { label: "Nouă", color: "bg-yellow-500", textColor: "text-yellow-800 dark:text-yellow-100", bgColor: "bg-yellow-100 dark:bg-yellow-950/40" },
@@ -57,6 +100,8 @@ const RestaurantApp = () => {
   const [confirmReadyOrder, setConfirmReadyOrder] = useState(null);
   const [cancelOrder, setCancelOrder] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const [lateAlertedOrders, setLateAlertedOrders] = useState(new Set());
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -121,6 +166,23 @@ const RestaurantApp = () => {
       }
     }
   }, [orders, seenOrderIds]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    orders
+      .filter((order) => order.status === "PREPARING")
+      .forEach((order) => {
+        const timer = getPreparationTimer(order, now);
+        if (timer?.isLate && !lateAlertedOrders.has(order.id)) {
+          playLatePreparationAlert();
+          setLateAlertedOrders((prev) => new Set(prev).add(order.id));
+        }
+      });
+  }, [lateAlertedOrders, now, orders]);
 
   const setPreparationTime = async (orderId, minutes) => {
     try {
@@ -378,12 +440,33 @@ const RestaurantApp = () => {
 
                 {order.status === 'PREPARING' && (
                   <div className="space-y-2">
-                    {order.preparation_time && (
-                      <div className="flex items-center gap-2 text-blue-600">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-sm">Timp estimat: {order.preparation_time} min</span>
-                      </div>
-                    )}
+                    {(() => {
+                      const timer = getPreparationTimer(order, now);
+                      return (
+                        <div
+                          className={`rounded-lg border p-4 ${timer?.isLate ? "border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30" : "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30"}`}
+                          data-testid={`preparation-timer-${order.id}`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <Clock className={`w-5 h-5 ${timer?.isLate ? "text-red-600" : "text-blue-600"}`} />
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Timer preparare</p>
+                                <p className="text-sm font-medium">Estimare: {order.preparation_time || "-"} min</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-mono text-3xl font-bold ${timer?.isLate ? "text-red-700 dark:text-red-100" : "text-blue-700 dark:text-blue-100"}`}>
+                                {timer?.label || "--:--"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {timer?.isLate ? "întârziere" : "rămas"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <Button 
                       className="w-full h-14 text-lg font-bold bg-green-600 hover:bg-green-700"
                       onClick={() => setConfirmReadyOrder(order)}

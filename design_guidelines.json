@@ -1,136 +1,140 @@
 {
-  "project_name": "ProDelivery_Phase1",
-  "design_philosophy": {
-    "persona": "E1 - The Performance Pro",
-    "core_concept": "Tactical Logistics Command",
-    "vibe": "High-Contrast, Industrial, Efficient, Reliable",
-    "principles": [
-      "Thumb-Zone First: Driver actions must be in the bottom 40% of the screen.",
-      "Status is King: Order status (Pending, Picked Up, Delivered) must be visible from 2 meters away.",
-      "Density vs. Clarity: Admin views are dense (data-rich); Driver views are sparse (focus-rich).",
-      "Tactical Contrast: Use high-contrast borders and shadows to separate layers, not just color."
+  "project_name": "Delivery & Ride-Sharing Dispatch Platform (Bacău)",
+  "theme_and_archetype": {
+    "theme": "Light",
+    "archetype": "Archetype 4 (Swiss & High-Contrast)",
+    "reasoning": "Logistics and dispatch command centers demand clarity, authority, and function-first design. The client reported feeling 'dizzy from too much red'. By shifting to a high-contrast Swiss archetype, we establish a premium 'control room' feel using deep slate and white as primary structural colors, while reserving the brand's red strictly for critical alerts (e.g., urgent preparation timers, delayed drivers)."
+  },
+  "colors": {
+    "background": {
+      "app": "bg-slate-50",
+      "surface": "bg-white",
+      "surface_hover": "hover:bg-slate-100",
+      "surface_active": "bg-slate-100"
+    },
+    "text": {
+      "primary": "text-slate-900",
+      "secondary": "text-slate-500",
+      "tertiary": "text-slate-400",
+      "inverse": "text-white"
+    },
+    "border": {
+      "default": "border-slate-200",
+      "focus": "focus:ring-slate-900 focus:border-slate-900",
+      "divider": "divide-slate-200"
+    },
+    "brand_and_accents": {
+      "primary": "bg-slate-900 text-white hover:bg-slate-800",
+      "secondary_action": "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50",
+      "brand_red": "bg-red-600 text-white hover:bg-red-700",
+      "brand_red_subtle": "bg-red-50 text-red-700 border border-red-200",
+      "status_success": "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      "status_warning": "bg-amber-50 text-amber-700 border border-amber-200",
+      "status_info": "bg-blue-50 text-blue-700 border border-blue-200"
+    },
+    "chart_colors": [
+      "#0f172a",
+      "#475569",
+      "#94a3b8",
+      "#cbd5e1",
+      "#dc2626"
     ]
   },
   "typography": {
-    "font_family": {
-      "headings": "Barlow Condensed, sans-serif",
-      "body": "Public Sans, sans-serif",
+    "font_families": {
+      "headings": "Cabinet Grotesk, sans-serif",
+      "body": "IBM Plex Sans, sans-serif",
       "mono": "JetBrains Mono, monospace"
     },
-    "google_fonts_import": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
-    "usage_rules": {
-      "headings": "Uppercase, tracking-tight, font-bold. Use for page titles and status states.",
-      "body": "High legibility, standard tracking. Use for addresses and customer names.",
-      "data": "Use Mono font for Order IDs, Phone Numbers, and Timestamps."
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl font-bold tracking-tight text-slate-900",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900",
+      "h3": "text-xl sm:text-2xl font-medium tracking-tight text-slate-900",
+      "h4": "text-lg sm:text-xl font-medium text-slate-900",
+      "body": "text-sm sm:text-base text-slate-600 leading-relaxed",
+      "label": "text-xs font-semibold tracking-[0.05em] uppercase text-slate-500",
+      "data_metric": "text-4xl font-bold tracking-tighter text-slate-900 font-mono"
     }
   },
-  "colors": {
-    "palette": {
-      "primary": {
-        "DEFAULT": "#2563EB",
-        "foreground": "#FFFFFF",
-        "hover": "#1D4ED8",
-        "active": "#1E40AF"
-      },
-      "secondary": {
-        "DEFAULT": "#F59E0B",
-        "foreground": "#000000",
-        "description": "Use for Pending/Warning states"
-      },
-      "success": {
-        "DEFAULT": "#10B981",
-        "foreground": "#FFFFFF",
-        "description": "Use for Delivered/Completed states"
-      },
-      "destructive": {
-        "DEFAULT": "#EF4444",
-        "foreground": "#FFFFFF"
-      },
-      "neutral": {
-        "surface": "#F8FAFC",
-        "border": "#E2E8F0",
-        "text_primary": "#0F172A",
-        "text_secondary": "#64748B"
-      },
-      "dark_mode": {
-        "background": "#020617",
-        "surface": "#0F172A",
-        "border": "#1E293B"
-      }
+  "spacing_and_layout": {
+    "grid_system": "MODE B: THE 'CONTROL ROOM' GRID. Base grid: grid-cols-1 md:grid-cols-3 lg:grid-cols-4 or 12-col data grids. Tight gaps (gap-4 or gap-6) for widget density.",
+    "containers": "Use max-w-[1600px] mx-auto for the main dashboard view, ensuring edge-to-edge data utility on large dispatch screens.",
+    "padding": {
+      "page": "p-6 lg:p-8",
+      "card_internal": "p-5 or p-6",
+      "table_cell": "px-4 py-3"
     },
-    "semantic_rules": [
-      "Never use gradients for text.",
-      "Status badges must have a 10% opacity background of the status color + solid border.",
-      "Driver App buttons must be solid colors (Primary/Success) for maximum outdoor visibility."
+    "borders_and_radius": {
+      "radius": "rounded-lg (subtle 8px radius, avoiding overly bubbly shapes)",
+      "cards": "border border-slate-200 shadow-sm bg-white",
+      "floating_panels": "border border-slate-200 shadow-xl bg-white backdrop-blur-xl"
+    }
+  },
+  "components_and_features": {
+    "admin_dispatch_dashboard": {
+      "layout": "Collapsible left sidebar (bg-slate-900 text-white) with an expansive main content area. Top-left quadrant dedicated to 'North Star' operational metrics (Active Drivers, Pending Orders, Average Prep Time).",
+      "live_map": "Desaturated, grayscale map style (to make operational data pop). Remove delivery polygons entirely to reduce clutter. Use high-contrast custom map markers (slate for idle, red for delayed/urgent, green for active delivery) for drivers and restaurants."
+    },
+    "restaurant_management_and_analytics": {
+      "layout": "Bento Grid architecture. Cards for KPIs (Total Orders, Avg Prep Time, Revenue). Use line charts (Recharts) with a monochromatic slate palette and one red highlight line for anomalies.",
+      "delivery_zones": "Dedicated configuration modal or split-screen map view for admins to draw/adjust radius/polygons per restaurant, separate from the main live dispatch map.",
+      "program_and_slots": "Tabular or calendar-like grid. Normal vs. Emergency schedules represented by subtle color coding (e.g., Red-50 bg for emergency slots, Slate-50 for normal) instead of overwhelming solid colors."
+    },
+    "preparation_timer": {
+      "visuals": "Must be highly legible and strictly color-coded based on time remaining.",
+      "states": [
+        "Normal (Plenty of time): Slate-900 text, simple countdown font-mono.",
+        "Warning (Approaching deadline): Amber-600 text.",
+        "Urgent (Late/Critical): Red-600 text with a subtle pulsing animation."
+      ],
+      "component": "Circular progress indicator or a pill-shaped badge fixed in the restaurant queue view."
+    },
+    "buttons_and_inputs": {
+      "primary_cta": "Solid Slate-900. No heavy gradients. 1px inner highlight if needed.",
+      "inputs": "Shadcn default inputs, hover:border-slate-400, focus:ring-slate-900 focus:border-slate-900. Square or slightly rounded (rounded-md)."
+    }
+  },
+  "icons_and_assets": {
+    "library": "@phosphor-icons/react",
+    "weight": "duotone for navigation, regular for dense data tables",
+    "installation": "yarn add @phosphor-icons/react"
+  },
+  "media_urls": {
+    "driver_avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1543499459-d1460946bdc6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwxfHxkZWxpdmVyeSUyMGRyaXZlciUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODE3MDI3NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Driver portrait holding packages",
+        "category": "driver_profile"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1551825687-f9de1603ed8b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwyfHxkZWxpdmVyeSUyMGRyaXZlciUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODE3MDI3NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Driver smiling by truck",
+        "category": "driver_profile"
+      }
+    ],
+    "restaurant_images": [
+      {
+        "url": "https://images.unsplash.com/photo-1651408635831-2c19e03f3116?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwyfHxyZXN0YXVyYW50JTIwbG9nbyUyMGNsZWFufGVufDB8fHx8MTc3ODE3MDI3NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Clean restaurant facade/signage",
+        "category": "restaurant_cover"
+      }
     ]
   },
-  "layout_system": {
-    "spacing": {
-      "base": "0.25rem",
-      "container_padding": "p-4 md:p-8",
-      "section_gap": "gap-6 md:gap-8"
-    },
-    "grids": {
-      "admin_dashboard": "grid grid-cols-1 md:grid-cols-12 gap-4",
-      "driver_view": "flex flex-col h-[100dvh]"
-    },
-    "z_index": {
-      "map": 0,
-      "overlays": 40,
-      "bottom_sheet": 50,
-      "toast": 100
-    }
+  "motion_and_interactions": {
+    "general": "Minimal, functional animations. The app must feel instantaneous.",
+    "hover_states": "Cards lift slightly (-translate-y-[1px]) with enhanced shadow (shadow-md).",
+    "data_updates": "Use subtle background flash (bg-slate-100 to transparent) when a row in the dispatch table updates live.",
+    "timers": "Urgent timers should have a slow, non-aggressive pulse (animate-pulse) on the red indicator."
   },
-  "components": {
-    "buttons": {
-      "driver_action": "h-16 text-xl font-bold uppercase tracking-wider w-full rounded-xl shadow-lg active:scale-95 transition-transform",
-      "admin_action": "h-10 px-4 font-medium rounded-md text-sm",
-      "icon_only": "p-3 rounded-full bg-secondary/10 hover:bg-secondary/20 text-secondary-foreground"
-    },
-    "cards": {
-      "order_card": "bg-card border border-border shadow-sm rounded-lg p-4 hover:border-primary/50 transition-colors",
-      "stat_card": "bg-card border border-border p-6 rounded-xl flex flex-col gap-2"
-    },
-    "inputs": {
-      "default": "h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 rounded-md"
-    },
-    "status_badges": {
-      "base": "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
-      "pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
-      "assigned": "bg-blue-100 text-blue-800 border-blue-200",
-      "picked_up": "bg-purple-100 text-purple-800 border-purple-200",
-      "delivered": "bg-green-100 text-green-800 border-green-200"
-    }
+  "accessibility_and_testing": {
+    "contrast": "Ensure all text against Slate-50 or White meets 4.5:1 ratio (APCA preferred).",
+    "testing_attributes": "All interactive elements MUST include data-testid. Examples: data-testid='dispatch-assign-driver-button', data-testid='timer-urgent-alert'."
   },
-  "assets": {
-    "icons": {
-      "library": "lucide-react",
-      "style": "Stroke width 2px for clarity"
-    },
-    "images": {
-      "login_bg": "https://images.unsplash.com/photo-1758384077159-29cad24750d8?crop=entropy&cs=srgb&fm=jpg&q=85",
-      "courier_hero": "https://images.unsplash.com/photo-1768121496415-397a0a5daf8d?crop=entropy&cs=srgb&fm=jpg&q=85",
-      "map_placeholder": "https://images.unsplash.com/photo-1748796011747-20f773d85947?crop=entropy&cs=srgb&fm=jpg&q=85",
-      "empty_state": "https://images.unsplash.com/photo-1733048064126-87015f0d3751?crop=entropy&cs=srgb&fm=jpg&q=85"
-    }
-  },
-  "motion": {
-    "transitions": "transition-all duration-200 ease-out",
-    "hover_effects": "hover:-translate-y-0.5 hover:shadow-md",
-    "micro_interactions": "active:scale-95"
-  },
-  "accessibility": {
-    "contrast": "Ensure 4.5:1 contrast ratio for all text.",
-    "touch_targets": "Minimum 44x44px for all mobile interactive elements.",
-    "focus_states": "Visible ring-2 ring-offset-2 ring-primary on focus."
-  },
-  "universal_guidelines": [
-    "Do not use gradients for text.",
-    "Do not center align the app container.",
-    "Use 'sonner' for toasts.",
-    "All interactive elements must have data-testid attributes.",
-    "Driver App: Prioritize one-handed usage (bottom navigation).",
-    "Admin Dashboard: Prioritize data density and scanability."
-  ],
-  "instructions_to_main_agent": "Implement the Admin Dashboard as a desktop-first dense interface. Implement the Driver App as a mobile-first PWA with large touch targets. Use the provided image URLs for login screens and placeholders. Strictly follow the color palette for status indication."
+  "instructions_to_main_agent": [
+    "CRITICAL: The overarching goal is to remove the 'too much red' feeling. Red MUST ONLY be used for destructive actions, urgent preparation timers, or delayed delivery alerts. Use Slate-900 as the primary 'brand' interaction color.",
+    "Use standard HTML/Tailwind for structural layout and deeply customize Shadcn components (tables, inputs, dialogs, dropdowns) to have a 1px border, shadow-sm, and rounded-lg styling.",
+    "The Live Map should not show delivery polygons. Keep the map UI purely for tracking Driver and Restaurant locations in real-time.",
+    "For the Schedule (Program/sloturi), implement a clean matrix/calendar using native HTML/Tailwind grids and Shadcn cards, avoiding heavy colored backgrounds.",
+    "Add Recharts for the Restaurant Analytics section. Keep the charts monochromatic (slate/grey scales) with red used ONLY to highlight negative anomalies."
+  ]
 }

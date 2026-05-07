@@ -237,6 +237,52 @@ async def auto_generate_emergency_slots(week_start: str, current_user: dict = De
     }
 
 
+@router.post("/setup-generate")
+async def setup_generate_emergency_slots(payload: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    week_start = payload.get("week_start")
+    days = payload.get("days") or []
+    start_hour = payload.get("start_hour")
+    end_hour = payload.get("end_hour")
+    total_spots = int(payload.get("total_slots") or 0)
+    if not week_start or not days or total_spots < 1:
+        raise HTTPException(status_code=400, detail="Setări invalide")
+    start = int(start_hour.split(":")[0])
+    end = int(end_hour.split(":")[0])
+    hours = []
+    current = start
+    while current != end:
+        hour = f"{current:02d}:00"
+        if hour not in _allowed_emergency_hours():
+            raise HTTPException(status_code=400, detail="Sloturile de urgență sunt doar între 10:00-22:00")
+        hours.append(hour)
+        current = (current + 1) % 24
+        if len(hours) > 24:
+            raise HTTPException(status_code=400, detail="Interval invalid")
+
+    created = 0
+    updated = 0
+    for day in days:
+        if day not in DAYS:
+            raise HTTPException(status_code=400, detail="Zi invalidă")
+        for hour in hours:
+            existing = await db.emergency_slots.find_one({"week_start": week_start, "day": day, "hour": hour})
+            if existing:
+                claimed_count = len(existing.get("claimed_by", []))
+                await db.emergency_slots.update_one(
+                    {"week_start": week_start, "day": day, "hour": hour},
+                    {"$set": {"total_spots": total_spots, "remaining_spots": max(total_spots - claimed_count, 0), "created_by": "system"}},
+                )
+                updated += 1
+                continue
+            slot = EmergencySlot(week_start=week_start, day=day, hour=hour, total_spots=total_spots, remaining_spots=total_spots, created_by="system")
+            await db.emergency_slots.insert_one(slot.model_dump())
+            created += 1
+    return {"message": f"Sloturi generate: {created} create, {updated} actualizate", "created": created, "updated": updated}
+
+
 @router.post("/{slot_id}/claim")
 async def claim_emergency_slot(slot_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "driver":

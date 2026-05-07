@@ -37,6 +37,16 @@ class Order(BaseModel):
     delivery_sector: Optional[str] = None
     delivery_zone_level: Optional[int] = None
     preparation_time: Optional[int] = None
+    preparation_started_at: Optional[str] = None
+    preparation_due_at: Optional[str] = None
+    preparation_ready_at: Optional[str] = None
+    preparation_estimated_seconds: Optional[int] = None
+    preparation_actual_seconds: Optional[int] = None
+    preparation_delay_seconds: Optional[int] = None
+    assigned_at: Optional[str] = None
+    accepted_at: Optional[str] = None
+    picked_up_at: Optional[str] = None
+    delivered_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

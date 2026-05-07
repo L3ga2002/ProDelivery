@@ -36,6 +36,56 @@ async def restaurant_covers_point(restaurant_id: str, point: Point) -> bool:
     return False
 
 
+def _parse_dt(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _avg(values: list[float]) -> float:
+    usable = [value for value in values if value is not None]
+    if not usable:
+        return 0
+    return round(sum(usable) / len(usable), 2)
+
+
+def _bucket_counts(orders: list[dict], bucket: str) -> list[dict]:
+    counts = {}
+    for order in orders:
+        created_at = _parse_dt(order.get("created_at"))
+        if not created_at:
+            continue
+        if bucket == "hour":
+            key = f"{created_at.hour:02d}:00"
+        elif bucket == "day":
+            key = created_at.strftime("%a %d.%m")
+        elif bucket == "week":
+            year, week, _ = created_at.isocalendar()
+            key = f"S{week} {year}"
+        elif bucket == "month":
+            key = created_at.strftime("%Y-%m")
+        else:
+            key = str(created_at.year)
+        counts[key] = counts.get(key, 0) + 1
+
+    if bucket == "hour":
+        return [{"label": f"{hour:02d}:00", "count": counts.get(f"{hour:02d}:00", 0)} for hour in range(24)]
+    return [{"label": key, "count": value} for key, value in counts.items()]
+
+
+def _delivery_seconds(order: dict) -> int | None:
+    start = _parse_dt(order.get("picked_up_at") or order.get("accepted_at") or order.get("assigned_at"))
+    end = _parse_dt(order.get("delivered_at"))
+    if not start or not end:
+        return None
+    return max(int((end - start).total_seconds()), 0)
+
+
 @router.post("")
 async def create_restaurant(data: RestaurantCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
@@ -96,3 +146,61 @@ async def get_available_restaurants(
         if await restaurant_covers_point(restaurant["id"], point):
             available.append(restaurant)
     return {"restaurants": available, "count": len(available)}
+
+
+@router.get("/{restaurant_id}/analytics")
+async def get_restaurant_analytics(restaurant_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    restaurant = await db.restaurants.find_one({"id": restaurant_id}, {"_id": 0})
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    orders = await db.orders.find({"restaurant_id": restaurant_id}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    delivered = [order for order in orders if order.get("status") == "DELIVERED"]
+    cancelled = [order for order in orders if order.get("status") == "CANCELLED"]
+    active = [order for order in orders if order.get("status") not in ["DELIVERED", "CANCELLED"]]
+
+    prep_estimated = [(order.get("preparation_estimated_seconds") or 0) / 60 for order in orders if order.get("preparation_estimated_seconds")]
+    prep_actual = [(order.get("preparation_actual_seconds") or 0) / 60 for order in orders if order.get("preparation_actual_seconds") is not None]
+    prep_delay = [(order.get("preparation_delay_seconds") or 0) / 60 for order in orders if order.get("preparation_delay_seconds") is not None]
+    delivery_minutes = [seconds / 60 for seconds in (_delivery_seconds(order) for order in delivered) if seconds is not None]
+
+    recent_orders = []
+    for order in orders[:80]:
+        recent_orders.append({
+            "id": order.get("id"),
+            "order_number": order.get("order_number"),
+            "status": order.get("status"),
+            "customer_address": order.get("customer_address"),
+            "total_amount": order.get("total_amount", 0),
+            "created_at": order.get("created_at"),
+            "preparation_time": order.get("preparation_time"),
+            "preparation_actual_minutes": round((order.get("preparation_actual_seconds") or 0) / 60, 2) if order.get("preparation_actual_seconds") is not None else None,
+            "preparation_delay_minutes": round((order.get("preparation_delay_seconds") or 0) / 60, 2) if order.get("preparation_delay_seconds") is not None else None,
+            "delivery_minutes": round((_delivery_seconds(order) or 0) / 60, 2) if _delivery_seconds(order) is not None else None,
+        })
+
+    return {
+        "restaurant": restaurant,
+        "program": restaurant.get("program") or "Program nesetat",
+        "summary": {
+            "total_orders": len(orders),
+            "active_orders": len(active),
+            "delivered_orders": len(delivered),
+            "cancelled_orders": len(cancelled),
+            "avg_preparation_estimated_minutes": _avg(prep_estimated),
+            "avg_preparation_actual_minutes": _avg(prep_actual),
+            "avg_preparation_delay_minutes": _avg(prep_delay),
+            "avg_delivery_minutes": _avg(delivery_minutes),
+        },
+        "charts": {
+            "by_hour": _bucket_counts(orders, "hour"),
+            "by_day": _bucket_counts(orders, "day"),
+            "by_week": _bucket_counts(orders, "week"),
+            "by_month": _bucket_counts(orders, "month"),
+            "by_year": _bucket_counts(orders, "year"),
+        },
+        "recent_orders": recent_orders,
+    }

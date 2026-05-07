@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from shapely.geometry import Point, Polygon
 from database import db
 from auth import get_current_user
@@ -47,6 +47,12 @@ def build_status_update_payload(data: UpdateOrderStatus, current_user: dict) -> 
         "status": data.status,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
+    if data.status == "ACCEPTED":
+        update_data["accepted_at"] = update_data["updated_at"]
+    if data.status == "PICKED_UP":
+        update_data["picked_up_at"] = update_data["updated_at"]
+    if data.status == "DELIVERED":
+        update_data["delivered_at"] = update_data["updated_at"]
     if data.status == "CANCELLED" and data.cancellation_reason:
         update_data["cancellation_reason"] = data.cancellation_reason
         update_data["cancelled_by"] = current_user.get("role", "unknown")
@@ -180,6 +186,7 @@ async def assign_order(order_id: str, data: AssignOrder, current_user: dict = De
             "driver_id": data.driver_id,
             "driver_name": driver["name"],
             "status": new_status,
+            "assigned_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }}
     )
@@ -194,27 +201,50 @@ async def assign_order(order_id: str, data: AssignOrder, current_user: dict = De
 
 @router.put("/{order_id}/preparing")
 async def set_preparing(order_id: str, data: PreparationTime, current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    estimated_seconds = data.preparation_time * 60
+    due_at = now + timedelta(seconds=estimated_seconds)
     await db.orders.update_one(
         {"id": order_id},
         {"$set": {
             "status": "PREPARING",
             "preparation_time": data.preparation_time,
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "preparation_estimated_seconds": estimated_seconds,
+            "preparation_started_at": now.isoformat(),
+            "preparation_due_at": due_at.isoformat(),
+            "updated_at": now.isoformat()
         }}
     )
-    return {"message": "Order preparing"}
+    return {"message": "Order preparing", "preparation_due_at": due_at.isoformat()}
 
 
 @router.put("/{order_id}/ready")
 async def set_ready(order_id: str, current_user: dict = Depends(get_current_user)):
+    order = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    now = datetime.now(timezone.utc)
+    started_at_raw = order.get("preparation_started_at")
+    estimated_seconds = order.get("preparation_estimated_seconds") or ((order.get("preparation_time") or 0) * 60)
+    actual_seconds = None
+    delay_seconds = 0
+    if started_at_raw:
+        started_at = datetime.fromisoformat(started_at_raw.replace("Z", "+00:00"))
+        actual_seconds = max(int((now - started_at).total_seconds()), 0)
+        delay_seconds = max(actual_seconds - estimated_seconds, 0)
+
     await db.orders.update_one(
         {"id": order_id},
         {"$set": {
             "status": "READY",
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "preparation_ready_at": now.isoformat(),
+            "preparation_actual_seconds": actual_seconds,
+            "preparation_delay_seconds": delay_seconds,
+            "updated_at": now.isoformat()
         }}
     )
-    return {"message": "Order ready"}
+    return {"message": "Order ready", "preparation_actual_seconds": actual_seconds, "preparation_delay_seconds": delay_seconds}
 
 
 @router.put("/{order_id}/status")

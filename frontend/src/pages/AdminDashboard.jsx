@@ -212,6 +212,126 @@ const RestaurantLocationPreview = ({ restaurant }) => {
   );
 };
 
+const MetricTile = ({ label, value, icon: Icon, tone = "blue", testId }) => {
+  const toneClasses = {
+    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/25 dark:text-blue-100",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100",
+    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-100",
+    slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100",
+  };
+
+  return (
+    <div className={`rounded-lg border p-4 ${toneClasses[tone]}`} data-testid={testId}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide opacity-75">{label}</p>
+          <p className="mt-1 text-2xl font-bold">{value}</p>
+        </div>
+        {Icon && <Icon className="h-6 w-6 opacity-80" />}
+      </div>
+    </div>
+  );
+};
+
+const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
+  if (isLoading) {
+    return <Card data-testid="restaurant-analytics-loading"><CardContent className="p-5 text-sm text-muted-foreground">Se încarcă analytics...</CardContent></Card>;
+  }
+  if (!analytics) return null;
+
+  const summary = analytics.summary || {};
+  const charts = analytics.charts || {};
+  const recentOrders = analytics.recent_orders || [];
+
+  return (
+    <div className="space-y-4" data-testid="restaurant-analytics-panel">
+      <div className="grid md:grid-cols-4 gap-3">
+        <MetricTile label="Comenzi total" value={summary.total_orders || 0} icon={Package} tone="slate" testId="restaurant-analytics-total-orders" />
+        <MetricTile label="Prep. mediu" value={`${summary.avg_preparation_actual_minutes || 0} min`} icon={Timer} tone="blue" testId="restaurant-analytics-average-prep" />
+        <MetricTile label="Întârziere medie" value={`${summary.avg_preparation_delay_minutes || 0} min`} icon={Clock} tone="amber" testId="restaurant-analytics-average-delay" />
+        <MetricTile label="Livrare medie" value={`${summary.avg_delivery_minutes || 0} min`} icon={Truck} tone="green" testId="restaurant-analytics-average-delivery" />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Comenzi pe ore
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={charts.by_hour || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
+                <Bar dataKey="count" name="Comenzi" fill="hsl(215 75% 22%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-5 w-5 text-orange-600" />
+              Comenzi pe luni
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={charts.by_month || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
+                <Bar dataKey="count" name="Comenzi" fill="hsl(24 90% 50%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Istoric comenzi restaurant</CardTitle>
+          <p className="text-sm text-muted-foreground">Timp estimat, timp real și întârziere sunt calculate automat din fluxul comenzilor.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nr.</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Prep. estimat</TableHead>
+                <TableHead>Prep. real</TableHead>
+                <TableHead>Întârziere</TableHead>
+                <TableHead>Livrare</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentOrders.slice(0, 12).map((order) => (
+                <TableRow key={order.id} data-testid={`restaurant-analytics-order-${order.id}`}>
+                  <TableCell className="font-mono text-xs">{order.order_number}</TableCell>
+                  <TableCell>{getStatusBadge(order.status)}</TableCell>
+                  <TableCell>{order.total_amount} RON</TableCell>
+                  <TableCell>{order.preparation_time ? `${order.preparation_time} min` : "-"}</TableCell>
+                  <TableCell>{order.preparation_actual_minutes != null ? `${order.preparation_actual_minutes} min` : "-"}</TableCell>
+                  <TableCell>{order.preparation_delay_minutes != null ? `${order.preparation_delay_minutes} min` : "-"}</TableCell>
+                  <TableCell>{order.delivery_minutes != null ? `${order.delivery_minutes} min` : "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -233,6 +353,8 @@ const AdminDashboard = () => {
   // Hourly data for charts
   const [hourlyData, setHourlyData] = useState({ hourly_orders: [] });
   const [analyticsData, setAnalyticsData] = useState(null);
+  const [restaurantAnalytics, setRestaurantAnalytics] = useState(null);
+  const [restaurantAnalyticsLoading, setRestaurantAnalyticsLoading] = useState(false);
   
   // Demo simulation
   const [isSimDialogOpen, setIsSimDialogOpen] = useState(false);
@@ -344,6 +466,16 @@ const AdminDashboard = () => {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  useEffect(() => {
+    const restaurantId = selectedRestaurantId || restaurants[0]?.id;
+    if (!restaurantId) return;
+    setRestaurantAnalyticsLoading(true);
+    axios.get(`${API_URL}/api/restaurants/${restaurantId}/analytics`)
+      .then((response) => setRestaurantAnalytics(response.data))
+      .catch(() => setRestaurantAnalytics(null))
+      .finally(() => setRestaurantAnalyticsLoading(false));
+  }, [restaurants, selectedRestaurantId]);
 
   const handleAssignOrder = (order) => {
     setSelectedOrder(order);
@@ -1101,6 +1233,8 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <RestaurantAnalyticsPanel analytics={restaurantAnalytics} isLoading={restaurantAnalyticsLoading} />
 
               <RestaurantZonesManager restaurant={selectedRestaurant} />
             </div>

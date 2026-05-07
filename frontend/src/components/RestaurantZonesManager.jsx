@@ -113,7 +113,7 @@ function DrawControl({ isDrawing, undoTick, onPointCountChange, onPolygonCreated
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (!isDrawing) return;
-      if (event.key === "Backspace" || event.key.toLowerCase() === "c") {
+      if (event.key === "Control") {
         event.preventDefault();
         undoLastPoint();
       }
@@ -240,7 +240,7 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
     setDialogOpen(false);
     setDraftPolygon(null);
     setIsDrawing(true);
-    toast.info("Redesenează conturul. C / Backspace șterge ultimul punct.");
+    toast.info("Redesenează conturul. Tasta Ctrl șterge ultimul punct.");
   };
 
   const saveZone = async () => {
@@ -334,7 +334,7 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
                 <>
                   <Badge variant="outline" className="gap-1 border-blue-300 text-blue-700" data-testid="drawing-status-badge">
                     <CornerDownLeft className="h-3 w-3" />
-                    {pointCount} puncte · click pe primul punct pentru finalizare
+                    {pointCount} puncte · Ctrl șterge ultimul punct
                   </Badge>
                   <Button
                     type="button"
