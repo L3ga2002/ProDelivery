@@ -2,11 +2,12 @@ import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import { MapPin, Package, Phone, Store, Truck } from "lucide-react";
+import { useMemo } from "react";
 import {
   createMapMarkerIcon,
-  DRIVER_SCOOTER_SVG,
+  DriverScooterIcon,
   getDriverMapStatus,
-  RESTAURANT_STOREFRONT_SVG,
+  RestaurantStorefrontIcon,
 } from "./MapMarkerIcons";
 
 const driverStatusMeta = {
@@ -24,8 +25,8 @@ const driverStatusMeta = {
   },
 };
 
-const MapLegendIcon = ({ className, svg }) => (
-  <span className={`delivery-map-legend-icon ${className}`} dangerouslySetInnerHTML={{ __html: svg }} />
+const MapLegendIcon = ({ className, children }) => (
+  <span className={`delivery-map-legend-icon ${className}`}>{children}</span>
 );
 
 const DriverPopup = ({ driver, position }) => {
@@ -83,9 +84,28 @@ const RestaurantPopup = ({ restaurant }) => (
 );
 
 export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
-  const activeDrivers = drivers.filter((driver) => getDriverMapStatus(driver) === "active").length;
-  const busyDrivers = drivers.filter((driver) => getDriverMapStatus(driver) === "busy").length;
-  const offlineDrivers = drivers.filter((driver) => getDriverMapStatus(driver) === "offline").length;
+  const mapCenter = useMemo(() => [46.567, 26.913], []);
+  const driverMarkers = useMemo(() => drivers.map((driver) => {
+    const pos = driverPositions[driver.id];
+    const position = [pos?.lat || driver.latitude, pos?.lng || driver.longitude];
+    const status = getDriverMapStatus(driver);
+    return {
+      driver,
+      position,
+      status,
+      icon: createMapMarkerIcon({ kind: "driver", status, id: driver.id }),
+    };
+  }), [driverPositions, drivers]);
+  const restaurantMarkers = useMemo(() => restaurants.map((restaurant) => ({
+    restaurant,
+    position: [restaurant.latitude, restaurant.longitude],
+    icon: createMapMarkerIcon({ kind: "restaurant", id: restaurant.id }),
+  })), [restaurants]);
+
+  const statusCounts = useMemo(() => driverMarkers.reduce((counts, marker) => ({
+    ...counts,
+    [marker.status]: counts[marker.status] + 1,
+  }), { active: 0, busy: 0, offline: 0 }), [driverMarkers]);
 
   return (
     <Card className="control-surface overflow-hidden" data-testid="admin-live-map-panel">
@@ -104,41 +124,32 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{activeDrivers} disponibili</Badge>
-            <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{busyDrivers} ocupați</Badge>
-            <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{offlineDrivers} offline</Badge>
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{statusCounts.active} disponibili</Badge>
+            <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{statusCounts.busy} ocupați</Badge>
+            <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{statusCounts.offline} offline</Badge>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="h-[500px] overflow-hidden rounded-lg border shadow-sm" data-testid="admin-live-map-container">
-          <MapContainer center={[46.567, 26.913]} zoom={14} className="h-full w-full">
+          <MapContainer center={mapCenter} zoom={14} className="h-full w-full">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {drivers.map((driver) => {
-              const pos = driverPositions[driver.id];
-              const position = [pos?.lat || driver.latitude, pos?.lng || driver.longitude];
-              const status = getDriverMapStatus(driver);
-              return (
-                <Marker
-                  key={driver.id}
-                  position={position}
-                  icon={createMapMarkerIcon({ kind: "driver", status, id: driver.id })}
-                >
-                  <Popup>
-                    <DriverPopup driver={driver} position={position} />
-                  </Popup>
-                </Marker>
-              );
-            })}
-            {restaurants.map((restaurant) => (
+            {driverMarkers.map(({ driver, icon, position }) => (
               <Marker
-                key={restaurant.id}
-                position={[restaurant.latitude, restaurant.longitude]}
-                icon={createMapMarkerIcon({ kind: "restaurant", id: restaurant.id })}
+                key={driver.id}
+                position={position}
+                icon={icon}
               >
+                <Popup>
+                  <DriverPopup driver={driver} position={position} />
+                </Popup>
+              </Marker>
+            ))}
+            {restaurantMarkers.map(({ restaurant, icon, position }) => (
+              <Marker key={restaurant.id} position={position} icon={icon}>
                 <Popup>
                   <RestaurantPopup restaurant={restaurant} />
                 </Popup>
@@ -148,19 +159,19 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
         </div>
         <div className="mt-3 flex flex-wrap gap-4 text-sm" data-testid="admin-live-map-legend">
           <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-driver-active" svg={DRIVER_SCOOTER_SVG} />
+            <MapLegendIcon className="delivery-map-legend-driver-active"><DriverScooterIcon /></MapLegendIcon>
             <span>Livrator disponibil</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-driver-busy" svg={DRIVER_SCOOTER_SVG} />
+            <MapLegendIcon className="delivery-map-legend-driver-busy"><DriverScooterIcon /></MapLegendIcon>
             <span>Livrator ocupat</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-driver-offline" svg={DRIVER_SCOOTER_SVG} />
+            <MapLegendIcon className="delivery-map-legend-driver-offline"><DriverScooterIcon /></MapLegendIcon>
             <span>Livrator offline</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-restaurant" svg={RESTAURANT_STOREFRONT_SVG} />
+            <MapLegendIcon className="delivery-map-legend-restaurant"><RestaurantStorefrontIcon /></MapLegendIcon>
             <span>Restaurant</span>
           </div>
         </div>

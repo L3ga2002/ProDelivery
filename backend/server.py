@@ -32,7 +32,7 @@ api_router.include_router(geocoding.router)
 
 
 @api_router.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "Delivery Platform API v2.0", "status": "running"}
 
 
@@ -56,5 +56,5 @@ logger = logging.getLogger(__name__)
 
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def shutdown_db_client() -> None:
     client.close()

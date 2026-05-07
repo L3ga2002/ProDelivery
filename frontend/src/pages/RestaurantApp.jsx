@@ -32,6 +32,10 @@ import {
 import { useTheme } from "../context/ThemeContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const ORDER_POLL_INTERVAL_MS = 5000;
+const NEW_ORDER_FLASH_MS = 4000;
+const TIMER_TICK_MS = 1000;
+const PREPARATION_OPTIONS_MINUTES = [5, 10, 15, 20, 25, 30];
 
 const formatSeconds = (totalSeconds) => {
   const absSeconds = Math.abs(totalSeconds);
@@ -71,8 +75,8 @@ const playLatePreparationAlert = () => {
       osc.stop(startedAt + offset + 0.38);
     });
     if (navigator.vibrate) navigator.vibrate([250, 80, 250, 80, 350]);
-  } catch {
-    // Audio poate fi blocat de browser până la prima interacțiune.
+  } catch (error) {
+    console.debug("Preparation alert audio unavailable", error);
   }
 };
 
@@ -124,15 +128,17 @@ const RestaurantApp = () => {
       const response = await axios.get(`${API_URL}/api/orders/restaurant/${user?.restaurant_id}`);
       setOrders(response.data);
     } catch (error) {
+      console.error("Failed to fetch restaurant orders", error);
+      toast.error("Nu am putut încărca comenzile restaurantului");
     } finally {
       setIsLoading(false);
     }
-  }, [user?.restaurant_id, setIsLoading, setOrders]);
+  }, [user?.restaurant_id]);
 
   useEffect(() => {
     if (user?.restaurant_id) {
       fetchOrders();
-      const interval = setInterval(fetchOrders, 5000);
+      const interval = setInterval(fetchOrders, ORDER_POLL_INTERVAL_MS);
       return () => clearInterval(interval);
     } else {
       setIsLoading(false);
@@ -156,7 +162,7 @@ const RestaurantApp = () => {
       
       // Flash banner
       setNewOrderFlash(true);
-      setTimeout(() => setNewOrderFlash(false), 4000);
+      setTimeout(() => setNewOrderFlash(false), NEW_ORDER_FLASH_MS);
       
       // Play notification sound — louder, triple beep
       try {
@@ -177,14 +183,14 @@ const RestaurantApp = () => {
         playBeep(1200, 0.4, 0.25);
         // Vibrate
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-      } catch (e) {
-        // audio not supported in all browsers
+      } catch (error) {
+        console.debug("New order notification audio unavailable", error);
       }
     }
   }, [orders, seenOrderIds]);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => setNow(Date.now()), TIMER_TICK_MS);
     return () => clearInterval(timer);
   }, []);
 
@@ -200,7 +206,7 @@ const RestaurantApp = () => {
       });
   }, [lateAlertedOrders, now, orders]);
 
-  const setPreparationTime = async (orderId, minutes) => {
+  const setPreparationTime = useCallback(async (orderId, minutes) => {
     try {
       await axios.put(`${API_URL}/api/orders/${orderId}/preparing`, {
         preparation_time: minutes
@@ -209,22 +215,24 @@ const RestaurantApp = () => {
       setPreparingOrder(null);
       fetchOrders();
     } catch (error) {
+      console.error("Failed to set preparation time", error);
       toast.error("Eroare la setare timp");
     }
-  };
+  }, [fetchOrders]);
 
-  const markAsReady = async (orderId) => {
+  const markAsReady = useCallback(async (orderId) => {
     try {
       await axios.put(`${API_URL}/api/orders/${orderId}/ready`);
       toast.success("Comanda este GATA pentru ridicare!");
       setConfirmReadyOrder(null);
       fetchOrders();
     } catch (error) {
+      console.error("Failed to mark order ready", error);
       toast.error("Eroare la marcare gata");
     }
-  };
+  }, [fetchOrders]);
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = useCallback(async () => {
     if (!cancelReason.trim()) {
       toast.error("Motivul anulării este obligatoriu!");
       return;
@@ -239,9 +247,10 @@ const RestaurantApp = () => {
       setCancelReason("");
       fetchOrders();
     } catch (error) {
+      console.error("Failed to cancel restaurant order", error);
       toast.error("Eroare la anulare");
     }
-  };
+  }, [cancelOrder?.id, cancelReason, fetchOrders]);
 
   const activeOrders = orders.filter(o => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
   const completedToday = orders.filter(o => o.status === 'DELIVERED').length;
@@ -397,54 +406,17 @@ const RestaurantApp = () => {
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Timp pregătire:</p>
                     <div className="grid grid-cols-3 gap-2">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setPreparationTime(order.id, 5)}
-                        className="h-12"
-                        data-testid={`prep-5-${order.id}`}
-                      >
-                        5 min
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setPreparationTime(order.id, 10)}
-                        className="h-12"
-                        data-testid={`prep-10-${order.id}`}
-                      >
-                        10 min
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => setPreparationTime(order.id, 15)}
-                        className="h-12"
-                        data-testid={`prep-15-${order.id}`}
-                      >
-                        15 min
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => setPreparationTime(order.id, 20)}
-                        className="h-12"
-                        data-testid={`prep-20-${order.id}`}
-                      >
-                        20 min
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => setPreparationTime(order.id, 25)}
-                        className="h-12"
-                        data-testid={`prep-25-${order.id}`}
-                      >
-                        25 min
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => setPreparationTime(order.id, 30)}
-                        className="h-12"
-                        data-testid={`prep-30-${order.id}`}
-                      >
-                        30 min
-                      </Button>
+                      {PREPARATION_OPTIONS_MINUTES.map((minutes) => (
+                        <Button
+                          key={minutes}
+                          variant="outline"
+                          onClick={() => setPreparationTime(order.id, minutes)}
+                          className="h-12"
+                          data-testid={`prep-${minutes}-${order.id}`}
+                        >
+                          {minutes} min
+                        </Button>
+                      ))}
                     </div>
                   </div>
                 )}

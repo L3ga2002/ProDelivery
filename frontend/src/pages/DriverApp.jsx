@@ -37,6 +37,8 @@ import { DriverSchedule } from "../components/DriverSchedule";
 import { useTheme } from "../context/ThemeContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const DRIVER_ORDER_POLL_INTERVAL_MS = 5000;
+const NEW_ORDER_FLASH_MS = 5000;
 
 // PWA Install prompt
 let deferredPrompt = null;
@@ -108,7 +110,7 @@ const DriverApp = () => {
         if (prevId !== null) {
           // Flash banner
           setNewOrderFlash(true);
-          setTimeout(() => setNewOrderFlash(false), 5000);
+          setTimeout(() => setNewOrderFlash(false), NEW_ORDER_FLASH_MS);
           try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const playBeep = (freq, startTime, duration) => {
@@ -126,24 +128,28 @@ const DriverApp = () => {
             playBeep(800, 0.2, 0.15);
             playBeep(1000, 0.4, 0.25);
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-          } catch (e) { /* audio not supported */ }
+          } catch (error) {
+            console.debug("Driver notification audio unavailable", error);
+          }
         }
       }
       
       setCurrentOrder(activeOrder || null);
     } catch (error) {
+      console.error("Failed to fetch driver order", error);
+      toast.error("Nu am putut încărca livrarea curentă");
     } finally {
       setIsLoading(false);
     }
-  }, [user?.driver_id, lastOrderIdRef, setCurrentOrder, setIsLoading, setNewOrderFlash]);
+  }, [user?.driver_id]);
 
   useEffect(() => {
     fetchOrder();
-    const interval = setInterval(fetchOrder, 5000); // Poll every 5s
+    const interval = setInterval(fetchOrder, DRIVER_ORDER_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [fetchOrder]);
 
-  const updateStatus = async (newStatus) => {
+  const updateStatus = useCallback(async (newStatus) => {
     if (!currentOrder) return;
     
     setIsUpdating(true);
@@ -167,13 +173,14 @@ const DriverApp = () => {
         fetchOrder();
       }
     } catch (error) {
+      console.error("Failed to update driver order status", error);
       toast.error("Eroare la actualizare status");
     } finally {
       setIsUpdating(false);
     }
-  };
+  }, [currentOrder, fetchOrder]);
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = useCallback(async () => {
     if (!cancelReason.trim()) {
       toast.error("Motivul anulării este obligatoriu!");
       return;
@@ -189,9 +196,10 @@ const DriverApp = () => {
       setCurrentOrder(null);
       fetchOrder();
     } catch (error) {
+      console.error("Failed to cancel driver order", error);
       toast.error("Eroare la anulare");
     }
-  };
+  }, [cancelReason, currentOrder?.id, fetchOrder]);
 
   const openNavigation = (address) => {
     const encodedAddress = encodeURIComponent(address);

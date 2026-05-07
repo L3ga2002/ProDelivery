@@ -1,0 +1,58 @@
+{
+  "summary": "Executed backend+frontend regression for refactor scope. Backend helper refactors passed; core admin/restaurant/driver flows passed; found DriverSchedule console hydration errors in driver no-order flow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Driver app no-order state",
+        "issue": "Console shows runtime hydration/DOM nesting errors (`<th>/<td>/<tr>` invalid child under wrapper `<span>`) when DriverSchedule renders.",
+        "affected_selectors": [
+          "[data-testid='driver-app']",
+          "[data-testid='no-order-state']",
+          "[data-testid='driver-schedule-card']"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Admin Dashboard code review",
+        "issues": [
+          "`/app/frontend/src/pages/AdminDashboard.jsx` is 1451 lines (>700 guideline), still needs modular split for maintainability."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration18_refactor_regression.py",
+    "/app/test_reports/pytest/iteration18_results.xml"
+  ],
+  "action_items": [
+    "Fix DriverSchedule table rendering to remove invalid DOM nesting/hydration warnings in driver no-order flow.",
+    "Continue splitting AdminDashboard into smaller modules (remaining schedule/zones/settings-heavy parts).",
+    "Retest console logs after DriverSchedule fix; only pre-login auth 401 noise should remain.",
+    "Admin Settings tab remains MOCKED/demo by design; keep explicitly labeled until real persistence is implemented."
+  ],
+  "critical_code_review_comments": [
+    "No `dangerouslySetInnerHTML` found in `/app/frontend/src`.",
+    "Map marker id/aria sanitization and extracted admin modules validated via UI flow.",
+    "Backend helper extraction in emergency slots and restaurant analytics preserved API behavior under regression tests."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration18_refactor_regression.py",
+    "/app/test_reports/iteration_18.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "92%"
+  },
+  "test_credentials": "Read from /app/memory/test_credentials.md and used provided admin/restaurant/driver credentials.",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 18 added focused regression test file for `/api/restaurants/{id}/analytics` and emergency setup/bulk-delete flow. Playwright validated all requested admin map/orders/restaurants flows plus restaurant prep/ready and driver no-order rendering. Main remaining issue is driver-side console hydration warnings from DriverSchedule markup rendering.",
+  "rca of the issue": "Repro: login as driver (driver-001), app lands in no-order state, open browser console. Observed repeated DOM nesting/hydration errors around DriverSchedule table (`th/td/tr` under span wrappers). Likely root cause is invalid wrapper elements introduced around table row/cell structures during render path (or instrumentation wrapper interaction). Mitigation: ensure mapped table children inside `thead/tbody/tr` render only `tr/th/td` elements (or React fragments), no span/div wrappers around table structural tags; retest with driver no-order state."
+}

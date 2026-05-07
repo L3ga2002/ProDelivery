@@ -39,6 +39,56 @@ def _allowed_emergency_hours() -> list[str]:
     return [f"{h:02d}:00" for h in range(10, 22)]
 
 
+def _parse_emergency_hour_range(start_hour: str, end_hour: str) -> list[str]:
+    start = int(start_hour.split(":")[0])
+    end = int(end_hour.split(":")[0])
+    hours: list[str] = []
+    current = start
+    while current != end:
+        hour = f"{current:02d}:00"
+        if hour not in _allowed_emergency_hours():
+            raise HTTPException(status_code=400, detail="Sloturile de urgență sunt doar între 10:00-22:00")
+        hours.append(hour)
+        current = (current + 1) % 24
+        if len(hours) > 24:
+            raise HTTPException(status_code=400, detail="Interval invalid")
+    return hours
+
+
+def _validate_days(days: list[str]) -> None:
+    if any(day not in DAYS for day in days):
+        raise HTTPException(status_code=400, detail="Zi invalidă")
+
+
+def _build_bulk_delete_query(week_start: str, days: list[str], hours: list[str], created_by: str) -> dict:
+    query = {"week_start": week_start, "day": {"$in": days}, "hour": {"$in": hours}}
+    if created_by != "all":
+        query["created_by"] = created_by
+    return query
+
+
+async def _cleanup_schedule_emergency_slots(week_start: str, slot_hours: set[tuple[str, str]]) -> tuple[int, int]:
+    schedules = await db.schedules.find({"week_start": week_start}, {"_id": 0}).to_list(500)
+    cleaned_schedules = 0
+    removed_schedule_slots = 0
+    for schedule in schedules:
+        schedule_slots = schedule.get("slots", {})
+        changed = False
+        for day, day_slots in list(schedule_slots.items()):
+            filtered = [slot for slot in day_slots if not (slot.get("added_by") == "emergency" and (day, slot.get("start")) in slot_hours)]
+            removed_schedule_slots += len(day_slots) - len(filtered)
+            if len(filtered) != len(day_slots):
+                schedule_slots[day] = filtered
+                changed = True
+        if changed:
+            await db.schedules.update_one(
+                {"id": schedule["id"]},
+                {"$set": {"slots": schedule_slots, "total_hours": sum(len(items) for items in schedule_slots.values())}},
+            )
+            cleaned_schedules += 1
+    return cleaned_schedules, removed_schedule_slots
+
+
 def _validate_manual_slot(data: EmergencySlotCreate) -> None:
     if data.total_spots < 1:
         raise HTTPException(status_code=400, detail="Minimum 1 loc")
@@ -249,24 +299,12 @@ async def setup_generate_emergency_slots(payload: dict, current_user: dict = Dep
     total_spots = int(payload.get("total_slots") or 0)
     if not week_start or not days or total_spots < 1:
         raise HTTPException(status_code=400, detail="Setări invalide")
-    start = int(start_hour.split(":")[0])
-    end = int(end_hour.split(":")[0])
-    hours = []
-    current = start
-    while current != end:
-        hour = f"{current:02d}:00"
-        if hour not in _allowed_emergency_hours():
-            raise HTTPException(status_code=400, detail="Sloturile de urgență sunt doar între 10:00-22:00")
-        hours.append(hour)
-        current = (current + 1) % 24
-        if len(hours) > 24:
-            raise HTTPException(status_code=400, detail="Interval invalid")
+    _validate_days(days)
+    hours = _parse_emergency_hour_range(start_hour, end_hour)
 
     created = 0
     updated = 0
     for day in days:
-        if day not in DAYS:
-            raise HTTPException(status_code=400, detail="Zi invalidă")
         for hour in hours:
             existing = await db.emergency_slots.find_one({"week_start": week_start, "day": day, "hour": hour})
             if existing:
@@ -296,45 +334,15 @@ async def bulk_delete_emergency_slots(payload: dict, current_user: dict = Depend
     if not week_start or not days or not start_hour or not end_hour:
         raise HTTPException(status_code=400, detail="Setări invalide")
 
-    start = int(start_hour.split(":")[0])
-    end = int(end_hour.split(":")[0])
-    hours = []
-    current = start
-    while current != end:
-        hour = f"{current:02d}:00"
-        if hour not in _allowed_emergency_hours():
-            raise HTTPException(status_code=400, detail="Sloturile de urgență sunt doar între 10:00-22:00")
-        hours.append(hour)
-        current = (current + 1) % 24
-        if len(hours) > 24:
-            raise HTTPException(status_code=400, detail="Interval invalid")
-
-    query = {"week_start": week_start, "day": {"$in": days}, "hour": {"$in": hours}}
-    if created_by != "all":
-        query["created_by"] = created_by
+    _validate_days(days)
+    hours = _parse_emergency_hour_range(start_hour, end_hour)
+    query = _build_bulk_delete_query(week_start, days, hours, created_by)
 
     slots = await db.emergency_slots.find(query, {"_id": 0}).to_list(500)
     slot_hours = {(slot["day"], slot["hour"]) for slot in slots}
     result = await db.emergency_slots.delete_many(query)
 
-    schedules = await db.schedules.find({"week_start": week_start}, {"_id": 0}).to_list(500)
-    cleaned_schedules = 0
-    removed_schedule_slots = 0
-    for schedule in schedules:
-        schedule_slots = schedule.get("slots", {})
-        changed = False
-        for day, day_slots in list(schedule_slots.items()):
-            filtered = [slot for slot in day_slots if not (slot.get("added_by") == "emergency" and (day, slot.get("start")) in slot_hours)]
-            removed_schedule_slots += len(day_slots) - len(filtered)
-            if len(filtered) != len(day_slots):
-                schedule_slots[day] = filtered
-                changed = True
-        if changed:
-            await db.schedules.update_one(
-                {"id": schedule["id"]},
-                {"$set": {"slots": schedule_slots, "total_hours": sum(len(items) for items in schedule_slots.values())}},
-            )
-            cleaned_schedules += 1
+    cleaned_schedules, removed_schedule_slots = await _cleanup_schedule_emergency_slots(week_start, slot_hours)
 
     return {
         "message": f"Ștergere urgențe completă: {result.deleted_count} sloturi eliminate",

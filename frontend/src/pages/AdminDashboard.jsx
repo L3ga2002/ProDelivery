@@ -43,17 +43,13 @@ import "leaflet/dist/leaflet.css";
 import {
   LogOut,
   MapPin,
-  Package,
   Users,
   RefreshCw,
   Truck,
-  UserCheck,
   Clock,
-  Plus,
   Store,
   Settings,
   Timer,
-  CalendarCheck,
   BarChart3,
   TrendingUp,
   Play,
@@ -67,7 +63,9 @@ import {
 import { AdminScheduleView } from "../components/AdminScheduleView";
 import { AdminCommandCenter } from "../components/admin/AdminCommandCenter";
 import { LiveMapPanel } from "../components/admin/LiveMapPanel";
+import { OrdersTab } from "../components/admin/OrdersTab";
 import { restaurantIcon } from "../components/admin/MapMarkerIcons";
+import { RestaurantAnalyticsPanel } from "../components/admin/RestaurantAnalyticsPanel";
 import { RestaurantZonesManager } from "../components/RestaurantZonesManager";
 import { LocationAutocomplete } from "../components/LocationAutocomplete";
 import { useTheme } from "../context/ThemeContext";
@@ -217,138 +215,6 @@ const RestaurantLocationPreview = ({ restaurant, onLocationChange }) => {
   );
 };
 
-const MetricTile = ({ label, value, icon: Icon, tone = "blue", testId }) => {
-  const toneClasses = {
-    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/25 dark:text-blue-100",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100",
-    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-100",
-    slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100",
-  };
-
-  return (
-    <div className={`rounded-lg border p-4 ${toneClasses[tone]}`} data-testid={testId}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide opacity-75">{label}</p>
-          <p className="mt-1 text-2xl font-bold">{value}</p>
-        </div>
-        {Icon && <Icon className="h-6 w-6 opacity-80" />}
-      </div>
-    </div>
-  );
-};
-
-const RestaurantChartCard = ({ title, icon: Icon, data, color = "hsl(215 75% 22%)", testId, interval }) => (
-  <Card className="border-slate-200 shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md" data-testid={testId}>
-    <CardHeader className="pb-2">
-      <CardTitle className="flex items-center gap-2 text-base">
-        {Icon && <Icon className="h-5 w-5 text-slate-700 dark:text-slate-100" />}
-        {title}
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data || []}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
-          <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={interval} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
-          <Bar dataKey="count" name="Comenzi" fill={color} radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </CardContent>
-  </Card>
-);
-
-const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
-  if (isLoading && !analytics) {
-    return (
-      <Card className="min-h-[620px] border-slate-200 shadow-sm" data-testid="restaurant-analytics-loading">
-        <CardContent className="grid min-h-[620px] place-items-center p-6">
-          <div className="space-y-3 text-center text-sm text-muted-foreground">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-600" />
-            <p>Se încarcă analytics...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-  if (!analytics) return null;
-
-  const summary = analytics.summary || {};
-  const charts = analytics.charts || {};
-  const recentOrders = analytics.recent_orders || [];
-
-  return (
-    <div className="relative space-y-4 transition-opacity duration-200" data-testid="restaurant-analytics-panel">
-      {isLoading && (
-        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full border border-slate-200 bg-white/95 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-200" data-testid="restaurant-analytics-refresh-indicator">
-          Actualizez discret...
-        </div>
-      )}
-      <div className="grid md:grid-cols-4 gap-3">
-        <MetricTile label="Comenzi total" value={summary.total_orders || 0} icon={Package} tone="slate" testId="restaurant-analytics-total-orders" />
-        <MetricTile label="Prep. mediu" value={`${summary.avg_preparation_actual_minutes || 0} min`} icon={Timer} tone="blue" testId="restaurant-analytics-average-prep" />
-        <MetricTile label="Întârziere medie" value={`${summary.avg_preparation_delay_minutes || 0} min`} icon={Clock} tone="amber" testId="restaurant-analytics-average-delay" />
-        <MetricTile label="Livrare medie" value={`${summary.avg_delivery_minutes || 0} min`} icon={Truck} tone="green" testId="restaurant-analytics-average-delivery" />
-      </div>
-
-      <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <RestaurantChartCard title="Comenzi pe ore" icon={BarChart3} data={charts.by_hour || []} testId="restaurant-chart-hour" interval={2} />
-        <RestaurantChartCard title="Comenzi pe zile" icon={CalendarCheck} data={charts.by_day || []} color="hsl(158 64% 36%)" testId="restaurant-chart-day" />
-        <RestaurantChartCard title="Comenzi pe săptămâni" icon={TrendingUp} data={charts.by_week || []} color="hsl(217 33% 35%)" testId="restaurant-chart-week" />
-        <RestaurantChartCard title="Comenzi pe luni" icon={TrendingUp} data={charts.by_month || []} color="hsl(24 90% 50%)" testId="restaurant-chart-month" />
-        <RestaurantChartCard title="Comenzi pe ani" icon={BarChart3} data={charts.by_year || []} color="hsl(220 14% 46%)" testId="restaurant-chart-year" />
-        <Card className="border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="restaurant-analytics-insight-card">
-          <CardContent className="flex h-full min-h-[220px] flex-col justify-between p-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Insight operațional</p>
-              <p className="mt-3 text-3xl font-bold">{summary.avg_preparation_delay_minutes || 0} min</p>
-              <p className="mt-1 text-sm text-slate-300">întârziere medie restaurant</p>
-            </div>
-            <p className="text-sm text-slate-300">Datele se actualizează din comenzile reale și ajută la discuții clare cu restaurantul.</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Istoric comenzi restaurant</CardTitle>
-          <p className="text-sm text-muted-foreground">Timp estimat, timp real și întârziere sunt calculate automat din fluxul comenzilor.</p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nr.</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Prep. estimat</TableHead>
-                <TableHead>Prep. real</TableHead>
-                <TableHead>Întârziere</TableHead>
-                <TableHead>Livrare</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentOrders.slice(0, 12).map((order) => (
-                <TableRow key={order.id} data-testid={`restaurant-analytics-order-${order.id}`}>
-                  <TableCell className="font-mono text-xs">{order.order_number}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell>{order.total_amount} RON</TableCell>
-                  <TableCell>{order.preparation_time ? `${order.preparation_time} min` : "-"}</TableCell>
-                  <TableCell>{order.preparation_actual_minutes != null ? `${order.preparation_actual_minutes} min` : "-"}</TableCell>
-                  <TableCell>{order.preparation_delay_minutes != null ? `${order.preparation_delay_minutes} min` : "-"}</TableCell>
-                  <TableCell>{order.delivery_minutes != null ? `${order.delivery_minutes} min` : "-"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -464,7 +330,10 @@ const AdminDashboard = () => {
         axios.get(`${API_URL}/api/restaurants`),
         axios.get(`${API_URL}/api/stats`),
         axios.get(`${API_URL}/api/stats/hourly`),
-        axios.get(`${API_URL}/api/stats/analytics`).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/api/stats/analytics`).catch((error) => {
+          console.warn("Optional analytics endpoint unavailable", error);
+          return { data: null };
+        }),
       ]);
       setOrders(ordersRes.data);
       setDrivers(driversRes.data);
@@ -473,11 +342,12 @@ const AdminDashboard = () => {
       setHourlyData(hourlyRes.data);
       if (analyticsRes.data) setAnalyticsData(analyticsRes.data);
     } catch (error) {
+      console.error("Failed to fetch admin dashboard data", error);
       toast.error("Eroare la încărcarea datelor");
     } finally {
       setIsLoading(false);
     }
-  }, [setAnalyticsData, setDrivers, setHourlyData, setIsLoading, setOrders, setRestaurants, setStats]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -495,7 +365,8 @@ const AdminDashboard = () => {
       .then((response) => {
         if (!cancelled) setRestaurantAnalytics(response.data);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Failed to fetch restaurant analytics", error);
         if (!cancelled) {
           setRestaurantAnalytics((previous) => (
             previous?.restaurant?.id === effectiveRestaurantId ? null : previous
@@ -528,6 +399,7 @@ const AdminDashboard = () => {
       setIsAssignDialogOpen(false);
       fetchData();
     } catch (error) {
+      console.error("Failed to assign order", error);
       toast.error("Eroare la alocare");
     }
   };
@@ -566,6 +438,7 @@ const AdminDashboard = () => {
       });
       fetchData();
     } catch (error) {
+      console.error("Failed to create order", error);
       toast.error("Eroare la creare comandă");
     }
   };
@@ -600,7 +473,8 @@ const AdminDashboard = () => {
       } else {
         toast.error("Adresa este în afara zonelor acestui restaurant");
       }
-    } catch {
+    } catch (error) {
+      console.error("Failed to detect delivery zone", error);
       toast.error("Nu am putut detecta zona");
     }
   }, [newOrder.restaurant_id, setNewOrder]);
@@ -627,6 +501,7 @@ const AdminDashboard = () => {
       setNewDriver({ name: "", phone: "", email: "" });
       fetchData();
     } catch (error) {
+      console.error("Failed to create driver", error);
       toast.error("Eroare la creare livrator");
     }
   };
@@ -653,6 +528,7 @@ const AdminDashboard = () => {
       setSelectedRestaurantId(res.data.restaurant_id);
       fetchData();
     } catch (error) {
+      console.error("Failed to create restaurant", error);
       toast.error("Eroare la creare restaurant");
     }
   };
@@ -854,74 +730,7 @@ const AdminDashboard = () => {
 
           {/* Orders Tab */}
           <TabsContent value="orders">
-            <Card className="control-surface overflow-hidden" data-testid="admin-orders-control-surface">
-              <CardHeader className="border-b bg-slate-50/70 pb-4 dark:bg-slate-900/50">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Package className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
-                      Comenzi active în dispecerat
-                    </CardTitle>
-                    <p className="mt-1 text-sm text-muted-foreground">Prioritizare rapidă pentru pregătire, alocare și urmărire.</p>
-                  </div>
-                  <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100" data-testid="admin-orders-active-count">
-                    {activeOrders.length} active
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="w-[100px]">Nr.</TableHead>
-                      <TableHead>Sursă</TableHead>
-                      <TableHead>Restaurant</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Sumă</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Livrator</TableHead>
-                      <TableHead className="text-right">Acțiuni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeOrders.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                          Nu există comenzi active
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      activeOrders.map((order) => (
-                        <TableRow key={order.id} className="group border-l-4 border-l-transparent transition-colors hover:border-l-indigo-500 hover:bg-slate-50/80 dark:hover:bg-slate-900/60" data-testid={`admin-order-row-${order.id}`}>
-                          <TableCell className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-100">{order.order_number}</TableCell>
-                          <TableCell>{getSourceBadge(order.source)}</TableCell>
-                          <TableCell className="font-medium">{order.restaurant_name}</TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{order.customer_name}</p>
-                              <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold">{order.total_amount} RON</span>
-                            <Badge variant="outline" className="ml-2 text-xs">{order.payment_type}</Badge>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell>{order.driver_name || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            {["NEW", "PREPARING", "READY"].includes(order.status) && (
-                              <Button size="sm" className="bg-indigo-700 hover:bg-indigo-600" onClick={() => handleAssignOrder(order)} data-testid={`admin-order-assign-button-${order.id}`}>
-                                Alocă
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <OrdersTab activeOrders={activeOrders} onAssignOrder={handleAssignOrder} />
           </TabsContent>
 
           {/* Analytics Tab */}
