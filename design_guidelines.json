@@ -1,140 +1,123 @@
 {
-  "project_name": "Delivery & Ride-Sharing Dispatch Platform (Bacău)",
-  "theme_and_archetype": {
-    "theme": "Light",
-    "archetype": "Archetype 4 (Swiss & High-Contrast)",
-    "reasoning": "Logistics and dispatch command centers demand clarity, authority, and function-first design. The client reported feeling 'dizzy from too much red'. By shifting to a high-contrast Swiss archetype, we establish a premium 'control room' feel using deep slate and white as primary structural colors, while reserving the brand's red strictly for critical alerts (e.g., urgent preparation timers, delayed drivers)."
+  "theme": "light",
+  "archetype": "4_swiss_and_high_contrast",
+  "domain_context": "Logistics & Dispatch Dashboard (Restaurant & Driver Management)",
+  "core_philosophy": {
+    "emotion": "Authority, Clarity, High-Efficiency Control Center",
+    "key_instruction": "Eliminate the 'too much red' feedback. Replace red with Deep Indigo/Slate as the primary action color. Red is strictly reserved for destructive actions or critical failures. High perceived effort achieved through dense bento grids, micro-interactions, and glassmorphic floating headers."
   },
   "colors": {
     "background": {
-      "app": "bg-slate-50",
-      "surface": "bg-white",
-      "surface_hover": "hover:bg-slate-100",
-      "surface_active": "bg-slate-100"
+      "light": "bg-slate-50",
+      "dark": "bg-slate-950"
     },
-    "text": {
-      "primary": "text-slate-900",
-      "secondary": "text-slate-500",
-      "tertiary": "text-slate-400",
-      "inverse": "text-white"
+    "surface": {
+      "light": "bg-white border-slate-200",
+      "dark": "bg-slate-900 border-slate-800"
     },
-    "border": {
-      "default": "border-slate-200",
-      "focus": "focus:ring-slate-900 focus:border-slate-900",
-      "divider": "divide-slate-200"
+    "primary": {
+      "DEFAULT": "bg-indigo-600",
+      "hover": "hover:bg-indigo-500",
+      "text": "text-indigo-600 dark:text-indigo-400"
     },
-    "brand_and_accents": {
-      "primary": "bg-slate-900 text-white hover:bg-slate-800",
-      "secondary_action": "bg-white text-slate-900 border border-slate-200 hover:bg-slate-50",
-      "brand_red": "bg-red-600 text-white hover:bg-red-700",
-      "brand_red_subtle": "bg-red-50 text-red-700 border border-red-200",
-      "status_success": "bg-emerald-50 text-emerald-700 border border-emerald-200",
-      "status_warning": "bg-amber-50 text-amber-700 border border-amber-200",
-      "status_info": "bg-blue-50 text-blue-700 border border-blue-200"
-    },
-    "chart_colors": [
-      "#0f172a",
-      "#475569",
-      "#94a3b8",
-      "#cbd5e1",
-      "#dc2626"
-    ]
+    "state_indicators": {
+      "success_completed": "bg-emerald-500 text-white",
+      "warning_pending": "bg-amber-500 text-slate-900",
+      "info_dispatching": "bg-blue-500 text-white",
+      "critical_failed": "bg-rose-600 text-white (Use sparingly)"
+    }
   },
   "typography": {
-    "font_families": {
-      "headings": "Cabinet Grotesk, sans-serif",
-      "body": "IBM Plex Sans, sans-serif",
-      "mono": "JetBrains Mono, monospace"
+    "font_pairings": {
+      "headings": {
+        "family": "Chivo, sans-serif",
+        "weight": "font-bold to font-black",
+        "tracking": "tracking-tight"
+      },
+      "body": {
+        "family": "IBM Plex Sans, sans-serif",
+        "weight": "font-normal to font-medium",
+        "tracking": "tracking-normal"
+      },
+      "data_and_timers": {
+        "family": "IBM Plex Mono, monospace",
+        "weight": "font-medium",
+        "usage": "Order IDs, Timers, Analytics Numbers"
+      }
     },
     "hierarchy": {
-      "h1": "text-3xl sm:text-4xl font-bold tracking-tight text-slate-900",
-      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900",
-      "h3": "text-xl sm:text-2xl font-medium tracking-tight text-slate-900",
-      "h4": "text-lg sm:text-xl font-medium text-slate-900",
-      "body": "text-sm sm:text-base text-slate-600 leading-relaxed",
-      "label": "text-xs font-semibold tracking-[0.05em] uppercase text-slate-500",
-      "data_metric": "text-4xl font-bold tracking-tighter text-slate-900 font-mono"
+      "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-lg sm:text-xl font-semibold",
+      "body": "text-sm md:text-base text-slate-600 dark:text-slate-400"
     }
   },
   "spacing_and_layout": {
-    "grid_system": "MODE B: THE 'CONTROL ROOM' GRID. Base grid: grid-cols-1 md:grid-cols-3 lg:grid-cols-4 or 12-col data grids. Tight gaps (gap-4 or gap-6) for widget density.",
-    "containers": "Use max-w-[1600px] mx-auto for the main dashboard view, ensuring edge-to-edge data utility on large dispatch screens.",
-    "padding": {
-      "page": "p-6 lg:p-8",
-      "card_internal": "p-5 or p-6",
-      "table_cell": "px-4 py-3"
+    "grid_system": "Mode B: 'Control Room Grid'",
+    "rules": [
+      "Use gap-4 or gap-6 for high-density dashboard layouts.",
+      "Containers with borders must use p-6 internally to prevent collision.",
+      "Employ 'Bento Box' asymmetry: mix col-span-1, col-span-2, and row-span-2 to create visual tension and hierarchy.",
+      "Grid children must stretch using h-full to eliminate jagged bottoms."
+    ]
+  },
+  "surfaces_and_effects": {
+    "cards": "Neumorphism mix: Flat white/slate backgrounds with 1px border-slate-200/800 and soft ambient shadow (shadow-sm). On hover, translate-y-[-2px] and shadow-md.",
+    "headers": "Crystal Glassmorphism: backdrop-blur-xl bg-white/80 dark:bg-slate-950/80 with border-b border-slate-200/50.",
+    "urgent_timers": "Tracing Beam effect: pulsing border using framer-motion or CSS animations for the Restaurant App active order cards."
+  },
+  "key_components_strategy": {
+    "restaurant_cards": {
+      "layout": "Grid-based cards containing core KPIs (active orders, revenue).",
+      "visuals": "Use subtle glass effects for badges. Left-align data."
     },
-    "borders_and_radius": {
-      "radius": "rounded-lg (subtle 8px radius, avoiding overly bubbly shapes)",
-      "cards": "border border-slate-200 shadow-sm bg-white",
-      "floating_panels": "border border-slate-200 shadow-xl bg-white backdrop-blur-xl"
+    "analytics_charts": {
+      "library": "Recharts or Shadcn Charts",
+      "styling": "Remove axis grid lines for a cleaner look. Use Area charts with gradient fills (Indigo to transparent). Custom tooltips with backdrop-blur."
+    },
+    "program_slots": {
+      "layout": "Horizontal scrollable timeline or Shadcn Calendar.",
+      "interaction": "Click and drag to select slots. Use indigo-100 for available, indigo-600 for selected."
+    },
+    "admin_orders_table": {
+      "layout": "Dense Shadcn Table.",
+      "visuals": "Monospace fonts for Order IDs. Use traffic-light color logic for status badges (Green=Delivered, Amber=Cooking, Blue=Dispatching)."
+    },
+    "restaurant_app_timer": {
+      "visuals": "Massive IBM Plex Mono typography. Circular pulsing progress ring.",
+      "animation": "Pulse animation (animate-pulse) when time is < 5 minutes."
     }
   },
-  "components_and_features": {
-    "admin_dispatch_dashboard": {
-      "layout": "Collapsible left sidebar (bg-slate-900 text-white) with an expansive main content area. Top-left quadrant dedicated to 'North Star' operational metrics (Active Drivers, Pending Orders, Average Prep Time).",
-      "live_map": "Desaturated, grayscale map style (to make operational data pop). Remove delivery polygons entirely to reduce clutter. Use high-contrast custom map markers (slate for idle, red for delayed/urgent, green for active delivery) for drivers and restaurants."
+  "media_and_assets": {
+    "icons": {
+      "library": "Phosphor Icons (@phosphor-icons/react) - Duotone weight for a premium tech feel."
     },
-    "restaurant_management_and_analytics": {
-      "layout": "Bento Grid architecture. Cards for KPIs (Total Orders, Avg Prep Time, Revenue). Use line charts (Recharts) with a monochromatic slate palette and one red highlight line for anomalies.",
-      "delivery_zones": "Dedicated configuration modal or split-screen map view for admins to draw/adjust radius/polygons per restaurant, separate from the main live dispatch map.",
-      "program_and_slots": "Tabular or calendar-like grid. Normal vs. Emergency schedules represented by subtle color coding (e.g., Red-50 bg for emergency slots, Slate-50 for normal) instead of overwhelming solid colors."
-    },
-    "preparation_timer": {
-      "visuals": "Must be highly legible and strictly color-coded based on time remaining.",
-      "states": [
-        "Normal (Plenty of time): Slate-900 text, simple countdown font-mono.",
-        "Warning (Approaching deadline): Amber-600 text.",
-        "Urgent (Late/Critical): Red-600 text with a subtle pulsing animation."
-      ],
-      "component": "Circular progress indicator or a pill-shaped badge fixed in the restaurant queue view."
-    },
-    "buttons_and_inputs": {
-      "primary_cta": "Solid Slate-900. No heavy gradients. 1px inner highlight if needed.",
-      "inputs": "Shadcn default inputs, hover:border-slate-400, focus:ring-slate-900 focus:border-slate-900. Square or slightly rounded (rounded-md)."
-    }
-  },
-  "icons_and_assets": {
-    "library": "@phosphor-icons/react",
-    "weight": "duotone for navigation, regular for dense data tables",
-    "installation": "yarn add @phosphor-icons/react"
-  },
-  "media_urls": {
-    "driver_avatars": [
+    "image_urls": [
       {
-        "url": "https://images.unsplash.com/photo-1543499459-d1460946bdc6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwxfHxkZWxpdmVyeSUyMGRyaXZlciUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODE3MDI3NHww&ixlib=rb-4.1.0&q=85",
-        "description": "Driver portrait holding packages",
-        "category": "driver_profile"
+        "category": "auth_login_background",
+        "description": "Abstract topographic map of a city, dark sleek logistics theme, deep blue and slate colors, glowing routing nodes",
+        "url": "https://static.prod-images.emergentagent.com/jobs/08a91b36-5c31-4b31-84af-c87acbb0ee8d/images/105b3090170be678a664a8d64a5e762a4d6cf913f99c362ed85f824833f00103.png"
       },
       {
-        "url": "https://images.unsplash.com/photo-1551825687-f9de1603ed8b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwyfHxkZWxpdmVyeSUyMGRyaXZlciUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODE3MDI3NHww&ixlib=rb-4.1.0&q=85",
-        "description": "Driver smiling by truck",
-        "category": "driver_profile"
-      }
-    ],
-    "restaurant_images": [
+        "category": "restaurant_dashboard_hero",
+        "description": "Modern sleek restaurant kitchen dashboard screen, close up on a glowing order timer",
+        "url": "https://static.prod-images.emergentagent.com/jobs/08a91b36-5c31-4b31-84af-c87acbb0ee8d/images/d7181a032dc78a41e5b78da4f481b98ada159e8e054c005cf72bea7f283437a4.png"
+      },
       {
-        "url": "https://images.unsplash.com/photo-1651408635831-2c19e03f3116?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwyfHxyZXN0YXVyYW50JTIwbG9nbyUyMGNsZWFufGVufDB8fHx8MTc3ODE3MDI3NHww&ixlib=rb-4.1.0&q=85",
-        "description": "Clean restaurant facade/signage",
-        "category": "restaurant_cover"
+        "category": "driver_avatar_placeholder",
+        "description": "Professional driver smiling",
+        "url": "https://images.pexels.com/photos/35788376/pexels-photo-35788376.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
       }
     ]
   },
-  "motion_and_interactions": {
-    "general": "Minimal, functional animations. The app must feel instantaneous.",
-    "hover_states": "Cards lift slightly (-translate-y-[1px]) with enhanced shadow (shadow-md).",
-    "data_updates": "Use subtle background flash (bg-slate-100 to transparent) when a row in the dispatch table updates live.",
-    "timers": "Urgent timers should have a slow, non-aggressive pulse (animate-pulse) on the red indicator."
-  },
-  "accessibility_and_testing": {
-    "contrast": "Ensure all text against Slate-50 or White meets 4.5:1 ratio (APCA preferred).",
-    "testing_attributes": "All interactive elements MUST include data-testid. Examples: data-testid='dispatch-assign-driver-button', data-testid='timer-urgent-alert'."
+  "testing_requirements": {
+    "data_testid": "All interactive and key informational elements MUST include a data-testid attribute formatted as kebab-case role-based (e.g., 'admin-orders-table', 'restaurant-timer-display')."
   },
   "instructions_to_main_agent": [
-    "CRITICAL: The overarching goal is to remove the 'too much red' feeling. Red MUST ONLY be used for destructive actions, urgent preparation timers, or delayed delivery alerts. Use Slate-900 as the primary 'brand' interaction color.",
-    "Use standard HTML/Tailwind for structural layout and deeply customize Shadcn components (tables, inputs, dialogs, dropdowns) to have a 1px border, shadow-sm, and rounded-lg styling.",
-    "The Live Map should not show delivery polygons. Keep the map UI purely for tracking Driver and Restaurant locations in real-time.",
-    "For the Schedule (Program/sloturi), implement a clean matrix/calendar using native HTML/Tailwind grids and Shadcn cards, avoiding heavy colored backgrounds.",
-    "Add Recharts for the Restaurant Analytics section. Keep the charts monochromatic (slate/grey scales) with red used ONLY to highlight negative anomalies."
+    "Strictly follow the color palette. Remove the overwhelming red from the previous iteration. Use Indigo/Blue as primary.",
+    "Implement the 'Control Room Grid' for the Admin Orders and Analytics. It must look dense, professional, and high-effort.",
+    "Use Phosphor icons. Install via: yarn add @phosphor-icons/react.",
+    "For the Restaurant App timer, implement a highly visible, pulsing component using IBM Plex Mono.",
+    "Use the provided image URLs for placeholders, avatars, and authentication backgrounds to establish the high-end logistics mood."
   ]
 }
