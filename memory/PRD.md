@@ -55,6 +55,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 UX/Design Polish 07 Mai 2026: Admin Dashboard are hero premium „Control Room · Bacău” și KPI cards redesenate pentru o prezentare mai solidă în fața clientului
 - Phase 2 Analytics Polish 07 Mai 2026: analytics restaurant extins în UI cu grafice vizibile pe ore, zile, săptămâni, luni, ani + card de insight operațional
 - Phase 2 Program Polish 07 Mai 2026: adăugat endpoint și UI pentru ștergere bulk sloturi de urgență generate conform setup-ului; curăță și intrările de urgență din programele livratorilor
+- Phase 2 UX Bugfix 07 Mai 2026: schimbarea între restaurante în tab-ul Restaurante nu mai demontează/înlocuiește agresiv panoul analytics; datele rămân afișate și se actualizează discret, fără refresh vizual/jump urât
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -82,6 +83,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P0: Validare cu clientul pe workflow-ul nou: fiecare restaurant își desenează propriile zone și nu mai există zone globale pe harta live
 - P0: Testare reală cu mai multe restaurante + zone suprapuse pentru confirmarea filtrării pe restaurant
 - P1: Testare UX cu clientul pe pinul ajustabil, zone per restaurant și modalul de generare sloturi pentru a regla terminologia „slot/oră” vs. „slot total”
+- P1: Design polish propus pentru următorul pas: cards restaurante mai profesionale, skeleton-uri subtile, detalii vizuale pe hărți/analytics și ordine mai clară în tab-ul Restaurante
 - P2: refactor structural prioritar pentru split complet pe fișiere/componente foarte lungi (`AdminDashboard`, `AdminScheduleView`, `DriverSchedule`) și reducerea suplimentară a dimensiunii lui `seed.py`
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope

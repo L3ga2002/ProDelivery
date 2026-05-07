@@ -321,8 +321,17 @@ const RestaurantChartCard = ({ title, icon: Icon, data, color = "hsl(215 75% 22%
 );
 
 const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
-  if (isLoading) {
-    return <Card data-testid="restaurant-analytics-loading"><CardContent className="p-5 text-sm text-muted-foreground">Se încarcă analytics...</CardContent></Card>;
+  if (isLoading && !analytics) {
+    return (
+      <Card className="min-h-[620px] border-slate-200 shadow-sm" data-testid="restaurant-analytics-loading">
+        <CardContent className="grid min-h-[620px] place-items-center p-6">
+          <div className="space-y-3 text-center text-sm text-muted-foreground">
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-600" />
+            <p>Se încarcă analytics...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
   if (!analytics) return null;
 
@@ -331,7 +340,12 @@ const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
   const recentOrders = analytics.recent_orders || [];
 
   return (
-    <div className="space-y-4" data-testid="restaurant-analytics-panel">
+    <div className="relative space-y-4 transition-opacity duration-200" data-testid="restaurant-analytics-panel">
+      {isLoading && (
+        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full border border-slate-200 bg-white/95 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-200" data-testid="restaurant-analytics-refresh-indicator">
+          Actualizez discret...
+        </div>
+      )}
       <div className="grid md:grid-cols-4 gap-3">
         <MetricTile label="Comenzi total" value={summary.total_orders || 0} icon={Package} tone="slate" testId="restaurant-analytics-total-orders" />
         <MetricTile label="Prep. mediu" value={`${summary.avg_preparation_actual_minutes || 0} min`} icon={Timer} tone="blue" testId="restaurant-analytics-average-prep" />
@@ -530,15 +544,31 @@ const AdminDashboard = () => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  const effectiveRestaurantId = selectedRestaurantId || restaurants[0]?.id;
+
   useEffect(() => {
-    const restaurantId = selectedRestaurantId || restaurants[0]?.id;
-    if (!restaurantId) return;
+    if (!effectiveRestaurantId) return;
+    let cancelled = false;
     setRestaurantAnalyticsLoading(true);
-    axios.get(`${API_URL}/api/restaurants/${restaurantId}/analytics`)
-      .then((response) => setRestaurantAnalytics(response.data))
-      .catch(() => setRestaurantAnalytics(null))
-      .finally(() => setRestaurantAnalyticsLoading(false));
-  }, [restaurants, selectedRestaurantId]);
+    axios.get(`${API_URL}/api/restaurants/${effectiveRestaurantId}/analytics`)
+      .then((response) => {
+        if (!cancelled) setRestaurantAnalytics(response.data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRestaurantAnalytics((previous) => (
+            previous?.restaurant?.id === effectiveRestaurantId ? null : previous
+          ));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRestaurantAnalyticsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveRestaurantId]);
 
   const handleAssignOrder = (order) => {
     setSelectedOrder(order);
