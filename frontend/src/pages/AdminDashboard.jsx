@@ -19,6 +19,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -1356,6 +1357,9 @@ const AdminDashboard = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Alocă Comandă</DialogTitle>
+            <DialogDescription>
+              Alege livratorul disponibil care preia comanda selectată.
+            </DialogDescription>
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4">
@@ -1394,6 +1398,9 @@ const AdminDashboard = () => {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Comandă Nouă</DialogTitle>
+            <DialogDescription>
+              Completează comanda și selectează restaurantul pentru detectarea zonei corecte.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-2 gap-4">
@@ -1544,6 +1551,9 @@ const AdminDashboard = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Livrator Nou</DialogTitle>
+            <DialogDescription>
+              Adaugă un livrator nou în platformă și generează contul lui de acces.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1572,6 +1582,9 @@ const AdminDashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Restaurant Nou</DialogTitle>
+            <DialogDescription>
+              Alege locația restaurantului, apoi vei putea desena zonele de livrare dedicate.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <div>
@@ -1654,6 +1667,9 @@ const AdminDashboard = () => {
               <Play className="w-5 h-5" style={{ color: 'hsl(24 95% 53%)' }} />
               Simulare Flux Comandă
             </DialogTitle>
+            <DialogDescription>
+              Urmărește pașii unei comenzi demo de la creare până la livrare.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2" data-testid="simulation-steps">
             {simSteps.map((step, i) => (

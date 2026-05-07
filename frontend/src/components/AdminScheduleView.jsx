@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -632,6 +633,9 @@ export const AdminScheduleView = () => {
               <Settings2 className="w-5 h-5 text-blue-700" />
               Setup generare sloturi
             </DialogTitle>
+            <DialogDescription>
+              Alege zilele, intervalul și numărul de sloturi pentru programul normal sau sloturile de urgență.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
@@ -730,10 +734,13 @@ export const AdminScheduleView = () => {
       <Dialog open={!!emergencyDialog} onOpenChange={(open) => !open && setEmergencyDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
               <Flame className="w-5 h-5" />
               Slot Urgență - {DAYS.find((d) => d.key === emergencyDialog?.day)?.label} {emergencyDialog?.hour ? formatInterval(emergencyDialog.hour) : ""}
             </DialogTitle>
+            <DialogDescription>
+              Configurează rapid locurile disponibile pentru acest slot suplimentar.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
@@ -749,7 +756,7 @@ export const AdminScheduleView = () => {
               >
                 <Minus className="w-4 h-4" />
               </Button>
-              <span className="text-4xl font-bold text-red-600 w-16 text-center" data-testid="emergency-spots-count">{emergencySpots}</span>
+              <span className="text-4xl font-bold text-amber-700 w-16 text-center" data-testid="emergency-spots-count">{emergencySpots}</span>
               <Button
                 variant="outline"
                 size="icon"
@@ -764,7 +771,7 @@ export const AdminScheduleView = () => {
             </p>
             {emergencyDialog?.existing?.claimed_names?.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-xs font-bold text-red-700 mb-1">Deja luate de:</p>
+                <p className="text-xs font-bold text-amber-800 mb-1">Deja luate de:</p>
                 {emergencyDialog.existing.claimed_names.map((name) => (
                   <Badge key={`${emergencyDialog.existing.id}-${name}`} variant="outline" className="text-xs mr-1">{name}</Badge>
                 ))}
@@ -783,7 +790,7 @@ export const AdminScheduleView = () => {
               </Button>
             )}
             <Button
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-amber-600 hover:bg-amber-700"
               onClick={saveEmergencySlot}
               data-testid="save-emergency-slot"
             >
@@ -802,6 +809,9 @@ export const AdminScheduleView = () => {
               <CalendarCheck className="w-5 h-5" />
               Program {editDriver?.driver_name} - {formatWeekRange(weekStart)}
             </DialogTitle>
+            <DialogDescription>
+              Editează manual sloturile normale, de admin sau de urgență pentru livrator.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-wrap gap-3 text-xs">

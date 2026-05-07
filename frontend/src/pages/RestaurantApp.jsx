@@ -280,15 +280,14 @@ const RestaurantApp = () => {
       {/* New Order Flash Banner */}
       {newOrderFlash && (
         <div 
-          className="mx-4 mt-3 p-4 rounded-xl text-center animate-pulse shadow-lg"
+          className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm dark:border-amber-900 dark:bg-amber-950/25"
           style={{ 
-            background: 'linear-gradient(135deg, hsl(24 95% 53%), hsl(0 85% 55%))',
-            color: 'white'
+            color: 'hsl(24 90% 28%)'
           }}
           data-testid="new-order-flash"
         >
           <p className="text-lg font-bold tracking-wide">COMANDĂ NOUĂ PRIMITĂ!</p>
-          <p className="text-sm opacity-90 mt-1">Verifică lista de comenzi</p>
+          <p className="text-sm opacity-80 mt-1">Verifică lista de comenzi</p>
         </div>
       )}
 

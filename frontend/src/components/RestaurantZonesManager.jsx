@@ -10,6 +10,7 @@ import { Switch } from "./ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -472,6 +473,9 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{selectedZone ? "Editează zona" : "Ce nume are zona?"}</DialogTitle>
+            <DialogDescription>
+              Completează numele, prețul și starea zonei pentru restaurantul selectat.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
