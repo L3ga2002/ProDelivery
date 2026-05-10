@@ -66,6 +66,11 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Code Review Fix Pass 07 Mai 2026: extras `OrdersTab` și `RestaurantAnalyticsPanel` din `AdminDashboard`, pe lângă modulele deja extrase pentru hartă și command center
 - Code Review Fix Pass 07 Mai 2026: refactor backend pentru `emergency_slots.bulk_delete_emergency_slots` și `restaurants.get_restaurant_analytics` în helper functions; `server.py` are return type hints de bază
 - Code Review Fix Pass 07 Mai 2026: `DriverSchedule` a fost refăcut din table tags în CSS grid cu roluri ARIA, eliminând warning-urile DOM nesting/hydration din Driver App
+- Code Review Fix Pass 10 Mai 2026: aplicat al doilea val de review — ThemeContext nu mai folosește `localStorage` (sessionStorage pentru preferință temă), `RestaurantApp`/`DriverApp` au catch-uri logate și constante pentru timing, iar callback-urile principale au dependențe stabilizate
+- Code Review Fix Pass 10 Mai 2026: memoizate obiecte/array-uri inline în hartă, preview restaurant, zone polygons și analytics pentru a reduce rerender-uri inutile
+- Code Review Fix Pass 10 Mai 2026: `AdminDashboard` a fost redus suplimentar prin extragerea `OrdersTab` și `RestaurantAnalyticsPanel`; `AdminCommandCenter`, `LiveMapPanel` și `MapMarkerIcons` rămân module separate
+- Code Review Fix Pass 10 Mai 2026: backend refactor suplimentar — `schedules.auto_generate_normal_slots`, `zones.build_zone_update_payload` și `seed.seed_data` au fost sparte în helper functions mai mici
+- Code Review Validation 10 Mai 2026: testing agent iteration 20 PASS 100% backend/frontend; static checks confirmă fără `dangerouslySetInnerHTML`, fără `localStorage`, fără identity comparisons evidente, fără warnings DriverSchedule DOM nesting
 - Phase 2 Demo Data Cleanup 07 Mai 2026: curățat restaurant test non-demo din baza preview; demo-ul afișează 5 restaurante curate
 
 ## Key API Endpoints - Zone
@@ -98,6 +103,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Testare vizuală cu clientul pe noul contrast indigo/slate/amber și ajustări fine dacă preferă altă direcție cromatică
 - P1: Testare vizuală cu clientul pe iconițele 3D ale hărții; ajustare dacă preferă alt simbol pentru restaurante decât storefront
 - P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`) și reducerea suplimentară a dimensiunii lui `seed.py`; `AdminDashboard` rămâne ~1450 LOC după primul split și trebuie continuat într-un pas separat
+- P2: după iteration 20, fișierele rămase mari pentru mentenanță sunt `AdminDashboard.jsx` și `DeliveryZonesManager.jsx`; nu există defect blocant, doar recomandare de maintainability
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
