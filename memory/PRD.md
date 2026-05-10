@@ -80,6 +80,9 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Operations UX Patch 10 Mai 2026: adăugarea livratorilor include vehicul scuter/mașină și integrare Resend pentru cod verificare email; în preview, senderul `onboarding@resend.dev` este limitat de Resend până la verificarea domeniului.
 - Resend Restriction Fix 10 Mai 2026: dacă Resend returnează 403 pentru `onboarding@resend.dev` către destinatari externi, aplicația nu mai eșuează flow-ul; creează livratorul, păstrează hash-ul codului în DB și afișează adminului un cod local temporar pentru verificare în preview. Emailul real rămâne activ automat după verificarea domeniului și schimbarea senderului.
 - Resend Domain Activation 10 Mai 2026: domeniul `prodeliverybacau.com` este verificat în Resend, iar aplicația folosește acum `verificare@prodeliverybacau.com` ca sender real; testul backend a returnat `email_delivery.status=sent` și `email_id` valid.
+- Admin Program Visibility Patch 10 Mai 2026: calendarul rapid afișează acum explicit sloturile standard create, împărțirea Admin/Livrator și sloturile de urgență cu ocupate/total/libere direct în celule, plus sumar săptămânal de sloturi.
+- Admin Driver Management Patch 10 Mai 2026: cardurile de livratori sunt clickabile și deschid dialog de gestiune; adminul poate seta scor manual 0-100 pentru rank, adăuga notă internă, reveni la scor automat și șterge livratorul din DB cu confirmare `STERGE`.
+- Admin Driver Management Patch 10 Mai 2026: backend-ul include `PATCH /api/drivers/{driver_id}/ranking` și `DELETE /api/drivers/{driver_id}?confirm_delete=true`; ștergerea este blocată dacă livratorul are comenzi active și curăță userul, programările și claim-urile de urgență.
 - Operations UX Patch 10 Mai 2026: Programul admin are calendar rapid permanent 10:00-02:00, sloturi standard verzi, sloturi urgență roșii, confirmare pentru intervale de noapte și flow „Refă sloturile săptămânii trecute” cu preview.
 - Operations UX Patch 10 Mai 2026: zonele de livrare create sunt blocate implicit; editarea/ștergerea cer confirmare explicită `CONFIRM`, iar backend-ul refuză modificările fără confirmare.
 - Operations UX Patch 10 Mai 2026: Driver App are notificare profesională „Urmează să primești o comandă”, card verificare email pentru livratori neverificați și dialog explicativ pentru scor/rank.
@@ -103,6 +106,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `POST /api/schedules/emergency/bulk-delete` - șterge bulk sloturi de urgență după săptămână/zile/interval și curăță programările asociate
 - `POST /api/drivers/{driver_id}/verify-email` - verifică emailul livratorului cu codul trimis prin Resend
 - `POST /api/drivers/{driver_id}/resend-verification` - retrimite codul de verificare email pentru livrator
+- `PATCH /api/drivers/{driver_id}/ranking` - setează/șterge scor manual de rank pentru livrator
+- `DELETE /api/drivers/{driver_id}?confirm_delete=true` - șterge livratorul și userul asociat, dacă nu există comenzi active
 - `POST /api/schedules/admin/clone-previous-week` - preview/confirmare pentru refacerea sloturilor după săptămâna precedentă
 
 ## DB Schema - delivery_zones
@@ -122,6 +127,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P1: monitorizare primele emailuri reale Resend pentru spam/deliverability; fallback-ul local rămâne doar backup dacă providerul returnează eroare.
 - P1: rezolvare la nivel ingress/platformă pentru preflight OPTIONS care returnează `Access-Control-Allow-Origin: *` extern, deși backend-ul returnează explicit origin intern
+- P1: CORS preflight extern necesită modificare de ingress Kubernetes; troubleshoot RCA confirmă că FastAPI răspunde corect pe localhost și OPTIONS este interceptat înainte de backend.
 - P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
