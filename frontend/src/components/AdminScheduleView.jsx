@@ -401,6 +401,39 @@ export const AdminScheduleView = () => {
     return Math.round(count / 7);
   };
 
+  const getCalendarCellMetrics = (dayKey, hour) => {
+    const standardSlots = [];
+    summary.forEach((driver) => {
+      const sched = driver.schedules?.find((s) => s.week_start === toISODate(weekStart));
+      const match = (sched?.slots?.[dayKey] || []).find((slot) => slot.start === hour && slot.added_by !== "emergency");
+      if (match) standardSlots.push({ ...match, driver_name: driver.driver_name });
+    });
+    const standardAdmin = standardSlots.filter((slot) => ["admin", "auto"].includes(slot.added_by)).length;
+    const standardDriver = standardSlots.length - standardAdmin;
+    const emergencySlot = getEmergencySlot(dayKey, hour);
+    const emergencyOccupied = emergencySlot ? Math.max((emergencySlot.total_spots || 0) - (emergencySlot.remaining_spots || 0), 0) : 0;
+    return {
+      standardTotal: standardSlots.length,
+      standardAdmin,
+      standardDriver,
+      emergencySlot,
+      emergencyOccupied,
+      emergencyRemaining: emergencySlot?.remaining_spots || 0,
+      emergencyTotal: emergencySlot?.total_spots || 0,
+      driverNames: standardSlots.map((slot) => slot.driver_name),
+    };
+  };
+
+  const weeklyCalendarTotals = DAYS.reduce((totals, day) => {
+    ALL_HOURS.forEach((hour) => {
+      const metrics = getCalendarCellMetrics(day.key, hour);
+      totals.standard += metrics.standardTotal;
+      totals.emergencyTotal += metrics.emergencyTotal;
+      totals.emergencyRemaining += metrics.emergencyRemaining;
+    });
+    return totals;
+  }, { standard: 0, emergencyTotal: 0, emergencyRemaining: 0 });
+
   const editTotalHours = Object.values(editSlots).reduce((s, ds) => s + ds.length, 0);
   const editDriverHours = Object.values(editSlots).reduce((s, ds) => s + ds.filter((sl) => sl.added_by !== "admin").length, 0);
   const editAdminHours = editTotalHours - editDriverHours;
@@ -474,6 +507,17 @@ export const AdminScheduleView = () => {
                 Calendar rapid dispecerat
               </CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">Selectează intervalele direct pe grilă: verde pentru standard, roșu pentru urgență.</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs" data-testid="schedule-calendar-week-summary">
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100">
+                  Standard create: {weeklyCalendarTotals.standard}
+                </Badge>
+                <Badge className="bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-100">
+                  Urgență ocupate: {weeklyCalendarTotals.emergencyTotal - weeklyCalendarTotals.emergencyRemaining}/{weeklyCalendarTotals.emergencyTotal}
+                </Badge>
+                <Badge variant="outline">
+                  Urgență libere: {weeklyCalendarTotals.emergencyRemaining}
+                </Badge>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -527,18 +571,41 @@ export const AdminScheduleView = () => {
                     {DAYS.map((day) => {
                       const key = getSlotKey(day.key, hour);
                       const selected = selectedCalendarSlots.includes(key);
+                      const metrics = getCalendarCellMetrics(day.key, hour);
+                      const hasStandard = metrics.standardTotal > 0;
+                      const hasEmergency = metrics.emergencyTotal > 0;
                       const colorClass = calendarMode === "emergency"
                         ? "bg-red-600 hover:bg-red-500 text-white"
                         : "bg-emerald-600 hover:bg-emerald-500 text-white";
+                      const activeClass = selected
+                        ? colorClass
+                        : hasEmergency
+                          ? "border-red-300 bg-red-50 text-red-950 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100"
+                          : hasStandard
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"
+                            : "border-slate-200 bg-card hover:bg-muted dark:border-slate-800";
                       return (
                         <div key={day.key} className="p-1" role="cell">
                           <button
                             type="button"
                             onClick={() => toggleCalendarSlot(day.key, hour)}
-                            className={`h-9 w-full rounded border text-[11px] font-semibold transition-colors ${selected ? colorClass : "border-slate-200 bg-card hover:bg-muted dark:border-slate-800"}`}
+                            title={metrics.driverNames.length ? `Programați: ${metrics.driverNames.join(", ")}` : "Fără sloturi create"}
+                            className={`min-h-[58px] w-full rounded border px-1.5 py-1 text-left text-[11px] font-semibold transition-colors ${activeClass}`}
                             data-testid={`schedule-calendar-cell-${day.key}-${hour}`}
                           >
-                            {selected ? (calendarMode === "emergency" ? "Urgent" : "Standard") : ""}
+                            <span className="block leading-tight">
+                              {selected ? (calendarMode === "emergency" ? "Selectat urgență" : "Selectat standard") : hasStandard ? `Std ${metrics.standardTotal}` : hasEmergency ? "Urgență" : ""}
+                            </span>
+                            {hasStandard && (
+                              <span className="mt-0.5 block text-[10px] font-medium opacity-85" data-testid={`schedule-standard-count-${day.key}-${hour}`}>
+                                Admin {metrics.standardAdmin} · Liv {metrics.standardDriver}
+                              </span>
+                            )}
+                            {hasEmergency && (
+                              <span className="mt-0.5 block text-[10px] font-medium opacity-90" data-testid={`schedule-emergency-count-${day.key}-${hour}`}>
+                                Ocupate {metrics.emergencyOccupied}/{metrics.emergencyTotal} · Libere {metrics.emergencyRemaining}
+                              </span>
+                            )}
                           </button>
                         </div>
                       );

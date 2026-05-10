@@ -62,6 +62,9 @@ import {
   Search,
   Car,
   Info,
+  Save,
+  Trash2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
 import { AdminCommandCenter } from "../components/admin/AdminCommandCenter";
@@ -285,6 +288,9 @@ const AdminDashboard = () => {
   // New driver form
   const [newDriver, setNewDriver] = useState({ name: "", phone: "", email: "", vehicle_type: "scooter" });
   const [scoreDialogDriver, setScoreDialogDriver] = useState(null);
+  const [driverManagement, setDriverManagement] = useState(null);
+  const [driverRankForm, setDriverRankForm] = useState({ manual_ranking_score: "", manual_rank_note: "" });
+  const [driverDeleteText, setDriverDeleteText] = useState("");
   
   // New restaurant form
   const [newRestaurant, setNewRestaurant] = useState({
@@ -549,6 +555,67 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("Failed to create driver", error);
       toast.error("Eroare la creare livrator");
+    }
+  };
+
+  const openDriverManagement = (driver) => {
+    setDriverManagement(driver);
+    setDriverRankForm({
+      manual_ranking_score: driver.manual_ranking_score ?? driver.ranking_score ?? "",
+      manual_rank_note: driver.manual_rank_note || "",
+    });
+    setDriverDeleteText("");
+  };
+
+  const saveDriverRanking = async () => {
+    if (!driverManagement?.id) return;
+    const numericScore = Number(driverRankForm.manual_ranking_score);
+    if (Number.isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
+      toast.error("Scorul trebuie să fie între 0 și 100");
+      return;
+    }
+    try {
+      const response = await axios.patch(`${API_URL}/api/drivers/${driverManagement.id}/ranking`, {
+        manual_ranking_score: numericScore,
+        manual_rank_note: driverRankForm.manual_rank_note,
+      });
+      toast.success(`Scor actualizat: ${response.data.ranking_score} · ${response.data.ranking_tier}`);
+      setDriverManagement((prev) => ({ ...prev, ...response.data }));
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut actualiza scorul");
+    }
+  };
+
+  const clearDriverManualRanking = async () => {
+    if (!driverManagement?.id) return;
+    try {
+      await axios.patch(`${API_URL}/api/drivers/${driverManagement.id}/ranking`, {
+        manual_ranking_score: null,
+        manual_rank_note: "",
+      });
+      toast.success("Scorul manual a fost eliminat");
+      setDriverManagement(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut elimina scorul manual");
+    }
+  };
+
+  const deleteDriverFromDatabase = async () => {
+    if (!driverManagement?.id) return;
+    if (driverDeleteText !== "STERGE") {
+      toast.error("Scrie STERGE pentru confirmare");
+      return;
+    }
+    try {
+      await axios.delete(`${API_URL}/api/drivers/${driverManagement.id}`, { params: { confirm_delete: true } });
+      toast.success("Livrator șters din baza de date");
+      setDriverManagement(null);
+      setDriverDeleteText("");
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut șterge livratorul");
     }
   };
 
@@ -950,7 +1017,14 @@ const AdminDashboard = () => {
                   {drivers.map((driver) => (
                     <div
                       key={driver.id}
-                      className={`p-4 rounded-lg border ${driver.is_active ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : 'bg-muted/50'}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDriverManagement(driver)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") openDriverManagement(driver);
+                      }}
+                      className={`p-4 rounded-lg border transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 ${driver.is_active ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' : 'bg-muted/50'}`}
+                      data-testid={`driver-management-card-${driver.id}`}
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${driver.is_active ? 'bg-green-500' : 'bg-gray-400'}`}>
@@ -966,7 +1040,10 @@ const AdminDashboard = () => {
                         <button
                           type="button"
                           className="font-semibold text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-200"
-                          onClick={() => setScoreDialogDriver(driver)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setScoreDialogDriver(driver);
+                          }}
                           data-testid={`driver-score-button-${driver.id}`}
                         >
                           Scor: {driver.ranking_score || 0}
@@ -993,6 +1070,20 @@ const AdminDashboard = () => {
                           Acces calendar: {driver.schedule_access.opens_at_label || driver.schedule_access.opens_at}
                         </p>
                       )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full justify-center"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDriverManagement(driver);
+                        }}
+                        data-testid={`driver-open-management-button-${driver.id}`}
+                      >
+                        <SlidersHorizontal className="mr-2 h-4 w-4" />
+                        Gestionează livrator
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -1349,6 +1440,105 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Driver Management Dialog */}
+      <Dialog open={!!driverManagement} onOpenChange={(open) => !open && setDriverManagement(null)}>
+        <DialogContent className="max-w-2xl" data-testid="driver-management-dialog">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
+              Gestionare livrator · {driverManagement?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Ajustează scorul de rank sau șterge livratorul dacă nu mai colaborați.
+            </DialogDescription>
+          </DialogHeader>
+          {driverManagement && (
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <p className="text-xs text-muted-foreground">Scor curent</p>
+                  <p className="text-2xl font-bold">{driverManagement.ranking_score || 0}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <p className="text-xs text-muted-foreground">Scor automat</p>
+                  <p className="text-2xl font-bold">{driverManagement.ranking_base_score ?? driverManagement.ranking_score ?? 0}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <p className="text-xs text-muted-foreground">Rank</p>
+                  <p className="text-2xl font-bold">{driverManagement.ranking_tier || "Start"}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
+                <div>
+                  <Label>Scor manual 0-100</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={driverRankForm.manual_ranking_score}
+                    onChange={(event) => setDriverRankForm((prev) => ({ ...prev, manual_ranking_score: event.target.value }))}
+                    data-testid="driver-manual-score-input"
+                  />
+                </div>
+                <div>
+                  <Label>Notă internă rank</Label>
+                  <Textarea
+                    value={driverRankForm.manual_rank_note}
+                    onChange={(event) => setDriverRankForm((prev) => ({ ...prev, manual_rank_note: event.target.value }))}
+                    placeholder="Ex: creștere temporară pentru punctualitate / scădere pentru reclamații"
+                    className="min-h-20"
+                    data-testid="driver-rank-note-input"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={saveDriverRanking} data-testid="driver-save-rank-button">
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvează scor rank
+                </Button>
+                <Button type="button" variant="outline" onClick={clearDriverManualRanking} data-testid="driver-clear-manual-rank-button">
+                  Revino la scor automat
+                </Button>
+              </div>
+
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/20">
+                <div className="flex items-start gap-3">
+                  <Trash2 className="mt-0.5 h-5 w-5 text-red-700 dark:text-red-200" />
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <p className="font-bold text-red-900 dark:text-red-100">Ștergere din baza de date</p>
+                      <p className="text-sm text-red-800/80 dark:text-red-100/80">
+                        Ștergerea elimină contul, profilul și programările livratorului. Dacă are comenzi active, sistemul blochează ștergerea.
+                      </p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Input
+                        value={driverDeleteText}
+                        onChange={(event) => setDriverDeleteText(event.target.value)}
+                        placeholder="Scrie STERGE pentru confirmare"
+                        data-testid="driver-delete-confirm-input"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={deleteDriverFromDatabase}
+                        disabled={driverDeleteText !== "STERGE"}
+                        data-testid="driver-delete-button"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Șterge
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Driver Score Dialog */}
       <Dialog open={!!scoreDialogDriver} onOpenChange={(open) => !open && setScoreDialogDriver(null)}>
         <DialogContent className="max-w-lg" data-testid="driver-score-dialog">
@@ -1375,7 +1565,7 @@ const AdminDashboard = () => {
               </div>
               <div className="space-y-2">
                 {Object.entries(scoreDialogDriver.ranking_breakdown || {}).map(([key, value]) => {
-                  const labels = { deliveries: "Livrări", cancellations: "Anulări", punctuality: "Punctualitate", seniority: "Vechime" };
+                  const labels = { deliveries: "Livrări", cancellations: "Anulări", punctuality: "Punctualitate", seniority: "Vechime", manual: "Ajustare manuală" };
                   return (
                     <div key={key} className="flex items-center justify-between rounded-md border p-2 text-sm">
                       <span>{labels[key] || key}</span>

@@ -210,6 +210,9 @@ async def build_driver_summary(driver: dict, week_start: str | None) -> dict:
         "schedules": schedules,
         "ranking_priority": ranking["ranking_tier"],
         "ranking_score": ranking["ranking_score"],
+        "ranking_base_score": ranking["ranking_base_score"],
+        "manual_ranking_score": ranking["manual_ranking_score"],
+        "manual_rank_note": ranking["manual_rank_note"],
         "schedule_access": ranking["schedule_access"],
     }
 

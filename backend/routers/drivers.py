@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from datetime import datetime, timedelta, timezone
 import uuid
 import secrets
 from database import db
 from auth import hash_password, verify_password, get_current_user
-from models.driver import DriverCreate, DriverEmailVerification
+from models.driver import DriverCreate, DriverEmailVerification, DriverRankingUpdate
 from utils.driver_ranking import build_driver_ranking_payload
 from utils.email_service import EmailDeliveryError, send_driver_verification_email
 from utils.driver_ranking import ROMANIA_TZ
@@ -119,6 +119,28 @@ async def get_driver(driver_id: str, current_user: dict = Depends(get_current_us
     return driver
 
 
+@router.patch("/{driver_id}/ranking")
+async def update_driver_ranking(driver_id: str, data: DriverRankingUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    update = {
+        "manual_rank_note": (data.manual_rank_note or "").strip() or None,
+        "manual_rank_updated_at": datetime.now(timezone.utc).isoformat(),
+        "manual_rank_updated_by": current_user.get("user_id"),
+    }
+    if data.manual_ranking_score is None:
+        update["manual_ranking_score"] = None
+    else:
+        update["manual_ranking_score"] = round(max(0, min(float(data.manual_ranking_score), 100)), 1)
+    await db.drivers.update_one({"id": driver_id}, {"$set": update})
+    updated_driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    ranking = await build_driver_ranking_payload(db, updated_driver)
+    return {"message": "Scor livrator actualizat", "driver_id": driver_id, **ranking}
+
+
 @router.post("")
 async def create_driver(data: DriverCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
@@ -175,6 +197,52 @@ async def create_driver(data: DriverCreate, current_user: dict = Depends(get_cur
         "driver_id": driver_id,
         "password": "driver123",
         "email_delivery": email_delivery,
+    }
+
+
+@router.delete("/{driver_id}")
+async def delete_driver(
+    driver_id: str,
+    confirm_delete: bool = Query(default=False),
+    current_user: dict = Depends(get_current_user),
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    if not confirm_delete:
+        raise HTTPException(status_code=409, detail="Confirmă explicit ștergerea livratorului")
+    driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    active_orders = await db.orders.count_documents({
+        "driver_id": driver_id,
+        "status": {"$nin": ["DELIVERED", "CANCELLED"]},
+    })
+    if active_orders > 0:
+        raise HTTPException(status_code=409, detail="Livratorul are comenzi active. Reasignează sau finalizează comenzile înainte de ștergere.")
+
+    touched_emergency_slots = await db.emergency_slots.find({"claimed_by": driver_id}, {"_id": 0}).to_list(200)
+    for slot in touched_emergency_slots:
+        claimed_by = [item for item in slot.get("claimed_by", []) if item != driver_id]
+        claimed_names = [item for item in slot.get("claimed_names", []) if item != driver.get("name")]
+        remaining = min(int(slot.get("total_spots", 0)), int(slot.get("remaining_spots", 0)) + 1)
+        await db.emergency_slots.update_one(
+            {"id": slot["id"]},
+            {"$set": {"claimed_by": claimed_by, "claimed_names": claimed_names, "remaining_spots": remaining}},
+        )
+
+    schedules_result = await db.schedules.delete_many({"driver_id": driver_id})
+    await db.orders.update_many(
+        {"driver_id": driver_id},
+        {"$set": {"driver_deleted": True, "driver_deleted_name": driver.get("name")}},
+    )
+    driver_result = await db.drivers.delete_one({"id": driver_id})
+    user_result = await db.users.delete_one({"id": driver.get("user_id")})
+    return {
+        "message": "Livrator șters din baza de date",
+        "deleted_driver": driver_result.deleted_count,
+        "deleted_user": user_result.deleted_count,
+        "deleted_schedules": schedules_result.deleted_count,
+        "released_emergency_slots": len(touched_emergency_slots),
     }
 
 

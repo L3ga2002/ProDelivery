@@ -61,6 +61,15 @@ def calculate_driver_score(driver: dict, cancelled_by_driver: int):
     }
 
 
+def _normalise_manual_score(value):
+    if value is None or value == "":
+        return None
+    try:
+        return round(max(0, min(float(value), 100)), 1)
+    except (TypeError, ValueError):
+        return None
+
+
 def get_tier_for_score(score: float):
     for tier in TIER_CONFIG:
         if score >= tier["min_score"]:
@@ -127,16 +136,24 @@ async def build_driver_ranking_payload(db, driver: dict):
         "cancelled_by": "driver",
     })
     ranking = calculate_driver_score(driver, cancelled_by_driver)
-    tier = get_tier_for_score(ranking["score"])
-    next_tier = get_next_tier_for_score(ranking["score"])
+    base_score = ranking["score"]
+    manual_score = _normalise_manual_score(driver.get("manual_ranking_score"))
+    final_score = manual_score if manual_score is not None else base_score
+    manual_delta = round(final_score - base_score, 1)
+    tier = get_tier_for_score(final_score)
+    next_tier = get_next_tier_for_score(final_score)
     access = build_tier_access_state(tier["key"])
     return {
-        "ranking_score": ranking["score"],
+        "ranking_score": final_score,
+        "ranking_base_score": base_score,
+        "manual_ranking_score": manual_score,
+        "manual_rank_note": driver.get("manual_rank_note"),
+        "manual_rank_updated_at": driver.get("manual_rank_updated_at"),
         "ranking_tier": tier["label"],
         "ranking_tier_key": tier["key"],
-        "ranking_breakdown": ranking["breakdown"],
-        "ranking_metrics": ranking["metrics"],
+        "ranking_breakdown": {**ranking["breakdown"], "manual": manual_delta},
+        "ranking_metrics": {**ranking["metrics"], "base_score": base_score, "has_manual_override": manual_score is not None},
         "next_tier": next_tier,
-        "points_to_next_tier": round(max((next_tier or {}).get("min_score", ranking["score"]) - ranking["score"], 0), 1),
+        "points_to_next_tier": round(max((next_tier or {}).get("min_score", final_score) - final_score, 0), 1),
         "schedule_access": access,
     }

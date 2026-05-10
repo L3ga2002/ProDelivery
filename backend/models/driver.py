@@ -20,6 +20,10 @@ class Driver(BaseModel):
     total_deliveries: int = 0
     total_earnings: float = 0
     punctuality_rate: float = 0.85
+    manual_ranking_score: Optional[float] = None
+    manual_rank_note: Optional[str] = None
+    manual_rank_updated_at: Optional[str] = None
+    manual_rank_updated_by: Optional[str] = None
     joined_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
@@ -32,3 +36,8 @@ class DriverCreate(BaseModel):
 
 class DriverEmailVerification(BaseModel):
     code: str
+
+
+class DriverRankingUpdate(BaseModel):
+    manual_ranking_score: Optional[float] = None
+    manual_rank_note: Optional[str] = None
