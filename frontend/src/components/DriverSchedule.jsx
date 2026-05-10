@@ -7,6 +7,7 @@ import { Badge } from "../components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -450,6 +451,9 @@ export const DriverSchedule = ({ driverId }) => {
         <DialogContent className="max-w-md" data-testid="driver-rank-dialog">
           <DialogHeader>
             <DialogTitle>Scor și rank</DialogTitle>
+            <DialogDescription>
+              Detaliu transparent pentru prioritizarea accesului la calendar.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">

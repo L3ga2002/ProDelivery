@@ -47,6 +47,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+ALLOWED_CORS_ORIGINS = set(os.environ['CORS_ORIGINS'].split(','))
+
+
+@app.middleware("http")
+async def enforce_explicit_cors_origin(request, call_next):
+    response = await call_next(request)
+    origin = request.headers.get("origin")
+    if origin in ALLOWED_CORS_ORIGINS:
+        response.headers["access-control-allow-origin"] = origin
+        response.headers["access-control-allow-credentials"] = "true"
+        existing_vary = response.headers.get("vary")
+        if existing_vary:
+            if "origin" not in existing_vary.lower():
+                response.headers["vary"] = f"{existing_vary}, Origin"
+        else:
+            response.headers["vary"] = "Origin"
+    return response
+
 # Logging
 logging.basicConfig(
     level=logging.INFO,
