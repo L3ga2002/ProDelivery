@@ -65,6 +65,121 @@ def build_restaurant_zone_polygon(lat: float, lng: float, radius: float) -> list
     ]
 
 
+async def seed_demo_orders(drivers_data: list[dict]) -> int:
+    first_names = ["Alexandru", "Maria", "Ion", "Elena", "Andrei", "Ana", "Mihai", "Cristina", "Bogdan", "Diana",
+                   "Vlad", "Ioana", "George", "Raluca", "Dan", "Adriana", "Florin", "Simona", "Radu", "Laura",
+                   "Stefan", "Gabriela", "Marius", "Alina", "Cosmin", "Monica", "Adrian", "Daniela", "Ciprian", "Roxana"]
+    last_names = ["Popescu", "Ionescu", "Popa", "Dumitrescu", "Stan", "Gheorghe", "Stoica", "Marin", "Constantin", "Dinu",
+                  "Radu", "Marinescu", "Voicu", "Matei", "Florea", "Rusu", "Munteanu", "Mihai", "Nistor", "Tudor"]
+    streets = ["Calea Mărășești", "Str. Republicii", "Str. 9 Mai", "Bd. Unirii", "Str. Mihai Eminescu",
+               "Str. Nicolae Bălcescu", "Str. Vasile Alecsandri", "Str. George Bacovia", "Calea Romanului",
+               "Str. Alexandru cel Bun", "Str. Letea", "Str. Ștefan cel Mare", "Aleea Parcului",
+               "Str. Mărășești", "Str. Pictor Aman", "Str. Costache Negri", "Str. Tecuciului"]
+    food_items = {
+        "rest-001": [{"name": "Pizza Margherita", "price": 35.0}, {"name": "Pizza Quattro Stagioni", "price": 45.0}, {"name": "Pizza Diavola", "price": 42.0}, {"name": "Paste Carbonara", "price": 38.0}, {"name": "Tiramisu", "price": 22.0}, {"name": "Bruschette", "price": 18.0}, {"name": "Cola 500ml", "price": 8.0}],
+        "rest-002": [{"name": "Ciorbă de burtă", "price": 25.0}, {"name": "Sarmale cu mămăligă", "price": 32.0}, {"name": "Mici 10 buc", "price": 35.0}, {"name": "Tochitura moldovenească", "price": 38.0}, {"name": "Papanași", "price": 22.0}, {"name": "Plăcintă cu brânză", "price": 18.0}],
+        "rest-003": [{"name": "Sushi Set 24 piese", "price": 95.0}, {"name": "Sushi Set 12 piese", "price": 55.0}, {"name": "Sashimi Salmon", "price": 45.0}, {"name": "Ramen Tonkotsu", "price": 42.0}, {"name": "Edamame", "price": 15.0}, {"name": "Gyoza 8 buc", "price": 28.0}],
+        "rest-004": [{"name": "Burger Classic", "price": 28.0}, {"name": "Burger BBQ Smoky", "price": 35.0}, {"name": "Cheeseburger Deluxe", "price": 32.0}, {"name": "Cartofi Prăjiți", "price": 14.0}, {"name": "Onion Rings", "price": 16.0}, {"name": "Milkshake Oreo", "price": 20.0}],
+        "rest-005": [{"name": "Ciorbă rădăuțeană", "price": 28.0}, {"name": "Frigărui de porc", "price": 35.0}, {"name": "Ceafă la grătar", "price": 42.0}, {"name": "Salată moldovenească", "price": 18.0}, {"name": "Cozonac de casă", "price": 15.0}, {"name": "Vin de casă 500ml", "price": 25.0}],
+    }
+    notes_options = ["", "", "", "", "Etaj 3, sună la interfon", "Să sune când ajunge jos", "Fără ardei iute", "Livrare la poartă", "Bloc nou, intrarea din spate", "Apartament la parter", "Să aducă și șervețele extra", "Fără ceapă", "Plată exact, nu am rest"]
+    sources = ["S", "G", "W", "B"]
+    source_weights = [30, 35, 25, 10]
+    restaurants_ids = ["rest-001", "rest-002", "rest-003", "rest-004", "rest-005"]
+    restaurant_names = {"rest-001": "Trattoria Da Vinci", "rest-002": "La Cuptor Bacău", "rest-003": "Sushi Room", "rest-004": "Burger Craft", "rest-005": "Casa Moldoveanu"}
+
+    for i in range(1, 101):
+        source = weighted_choice(sources, source_weights)
+        restaurant_id = SYSTEM_RANDOM.choice(restaurants_ids)
+        order_data, created_at, delivered_at = build_demo_order_payload(
+            i, source, restaurant_id, restaurant_names, food_items, first_names,
+            last_names, streets, notes_options, drivers_data,
+        )
+        order = Order(**order_data)
+        doc = order.model_dump()
+        doc["created_at"] = created_at.isoformat()
+        doc["updated_at"] = delivered_at.isoformat() if order_data["status"] == "DELIVERED" else created_at.isoformat()
+        await db.orders.insert_one(doc)
+    return 100
+
+
+def build_demo_order_payload(
+    index: int,
+    source: str,
+    restaurant_id: str,
+    restaurant_names: dict,
+    food_items: dict,
+    first_names: list[str],
+    last_names: list[str],
+    streets: list[str],
+    notes_options: list[str],
+    drivers_data: list[dict],
+) -> tuple[dict, datetime, datetime]:
+    first_name = SYSTEM_RANDOM.choice(first_names)
+    last_name = SYSTEM_RANDOM.choice(last_names)
+    customer_name = f"{first_name} {last_name}"
+    customer_phone = f"07{SYSTEM_RANDOM.randint(20, 99)}{SYSTEM_RANDOM.randint(100000, 999999)}"
+    customer_address = f"{SYSTEM_RANDOM.choice(streets)} {SYSTEM_RANDOM.randint(1, 150)}, Ap. {SYSTEM_RANDOM.randint(1, 50)}, Bacău"
+    selected_items = SYSTEM_RANDOM.sample(food_items[restaurant_id], min(SYSTEM_RANDOM.randint(1, 4), len(food_items[restaurant_id])))
+    items = []
+    total = 0
+    for item in selected_items:
+        qty = SYSTEM_RANDOM.randint(1, 3)
+        items.append({"name": item["name"], "quantity": qty, "price": item["price"]})
+        total += item["price"] * qty
+
+    created_at = datetime.now(timezone.utc) - timedelta(hours=SYSTEM_RANDOM.randint(1, 24 * 45))
+    prep_estimated_seconds = SYSTEM_RANDOM.choice([10, 15, 20, 25, 30]) * 60
+    prep_actual_seconds = max(prep_estimated_seconds + SYSTEM_RANDOM.randint(-240, 600), 120)
+    prep_delay_seconds = max(prep_actual_seconds - prep_estimated_seconds, 0)
+    preparation_started_at = created_at + timedelta(minutes=2)
+    preparation_due_at = preparation_started_at + timedelta(seconds=prep_estimated_seconds)
+    preparation_ready_at = preparation_started_at + timedelta(seconds=prep_actual_seconds)
+    assigned_at = preparation_ready_at + timedelta(minutes=SYSTEM_RANDOM.randint(1, 8))
+    accepted_at = assigned_at + timedelta(minutes=SYSTEM_RANDOM.randint(1, 4))
+    picked_up_at = accepted_at + timedelta(minutes=SYSTEM_RANDOM.randint(2, 8))
+    delivered_at = picked_up_at + timedelta(minutes=SYSTEM_RANDOM.randint(12, 35))
+
+    driver_id = None
+    driver_name = None
+    status = "NEW"
+    if index <= 40:
+        driver = drivers_data[(index - 1) % 5]
+        driver_id = driver["id"]
+        driver_name = driver["name"]
+        status = "DELIVERED"
+
+    zone_map = {"rest-001": "Zona 1", "rest-002": "Zona 2", "rest-003": "Zona 3", "rest-004": "Zona 4", "rest-005": "Zona 1"}
+    return {
+        "order_number": f"{source}.{index:04d}",
+        "source": source,
+        "restaurant_id": restaurant_id,
+        "restaurant_name": restaurant_names[restaurant_id],
+        "customer_name": customer_name,
+        "customer_phone": customer_phone,
+        "customer_address": customer_address,
+        "items": items,
+        "total_amount": total,
+        "payment_type": SYSTEM_RANDOM.choice(["CASH", "CASH", "CARD"]),
+        "notes": SYSTEM_RANDOM.choice(notes_options),
+        "status": status,
+        "zone": zone_map.get(restaurant_id, "Zona 1"),
+        "driver_id": driver_id,
+        "driver_name": driver_name,
+        "preparation_time": prep_estimated_seconds // 60,
+        "preparation_estimated_seconds": prep_estimated_seconds,
+        "preparation_actual_seconds": prep_actual_seconds if status == "DELIVERED" else None,
+        "preparation_delay_seconds": prep_delay_seconds if status == "DELIVERED" else None,
+        "preparation_started_at": preparation_started_at.isoformat(),
+        "preparation_due_at": preparation_due_at.isoformat(),
+        "preparation_ready_at": preparation_ready_at.isoformat() if status == "DELIVERED" else None,
+        "assigned_at": assigned_at.isoformat() if status == "DELIVERED" else None,
+        "accepted_at": accepted_at.isoformat() if status == "DELIVERED" else None,
+        "picked_up_at": picked_up_at.isoformat() if status == "DELIVERED" else None,
+        "delivered_at": delivered_at.isoformat() if status == "DELIVERED" else None,
+    }, created_at, delivered_at
+
+
 SECTOR_MAPS = [
     {
         "sector": "Nord",
@@ -326,147 +441,7 @@ async def seed_data():
             await db.delivery_zones.insert_one(doc)
             sort_order += 1
 
-    # Orders (100)
-    first_names = ["Alexandru", "Maria", "Ion", "Elena", "Andrei", "Ana", "Mihai", "Cristina", "Bogdan", "Diana",
-                   "Vlad", "Ioana", "George", "Raluca", "Dan", "Adriana", "Florin", "Simona", "Radu", "Laura",
-                   "Stefan", "Gabriela", "Marius", "Alina", "Cosmin", "Monica", "Adrian", "Daniela", "Ciprian", "Roxana"]
-
-    last_names = ["Popescu", "Ionescu", "Popa", "Dumitrescu", "Stan", "Gheorghe", "Stoica", "Marin", "Constantin", "Dinu",
-                  "Radu", "Marinescu", "Voicu", "Matei", "Florea", "Rusu", "Munteanu", "Mihai", "Nistor", "Tudor"]
-
-    streets = ["Calea Mărășești", "Str. Republicii", "Str. 9 Mai", "Bd. Unirii", "Str. Mihai Eminescu",
-               "Str. Nicolae Bălcescu", "Str. Vasile Alecsandri", "Str. George Bacovia", "Calea Romanului",
-               "Str. Alexandru cel Bun", "Str. Letea", "Str. Ștefan cel Mare", "Aleea Parcului",
-               "Str. Mărășești", "Str. Pictor Aman", "Str. Costache Negri", "Str. Tecuciului"]
-
-    food_items = {
-        "rest-001": [
-            {"name": "Pizza Margherita", "price": 35.0}, {"name": "Pizza Quattro Stagioni", "price": 45.0},
-            {"name": "Pizza Diavola", "price": 42.0}, {"name": "Paste Carbonara", "price": 38.0},
-            {"name": "Tiramisu", "price": 22.0}, {"name": "Bruschette", "price": 18.0}, {"name": "Cola 500ml", "price": 8.0},
-        ],
-        "rest-002": [
-            {"name": "Ciorbă de burtă", "price": 25.0}, {"name": "Sarmale cu mămăligă", "price": 32.0},
-            {"name": "Mici 10 buc", "price": 35.0}, {"name": "Tochitura moldovenească", "price": 38.0},
-            {"name": "Papanași", "price": 22.0}, {"name": "Plăcintă cu brânză", "price": 18.0},
-        ],
-        "rest-003": [
-            {"name": "Sushi Set 24 piese", "price": 95.0}, {"name": "Sushi Set 12 piese", "price": 55.0},
-            {"name": "Sashimi Salmon", "price": 45.0}, {"name": "Ramen Tonkotsu", "price": 42.0},
-            {"name": "Edamame", "price": 15.0}, {"name": "Gyoza 8 buc", "price": 28.0},
-        ],
-        "rest-004": [
-            {"name": "Burger Classic", "price": 28.0}, {"name": "Burger BBQ Smoky", "price": 35.0},
-            {"name": "Cheeseburger Deluxe", "price": 32.0}, {"name": "Cartofi Prăjiți", "price": 14.0},
-            {"name": "Onion Rings", "price": 16.0}, {"name": "Milkshake Oreo", "price": 20.0},
-        ],
-        "rest-005": [
-            {"name": "Ciorbă rădăuțeană", "price": 28.0}, {"name": "Frigărui de porc", "price": 35.0},
-            {"name": "Ceafă la grătar", "price": 42.0}, {"name": "Salată moldovenească", "price": 18.0},
-            {"name": "Cozonac de casă", "price": 15.0}, {"name": "Vin de casă 500ml", "price": 25.0},
-        ],
-    }
-
-    notes_options = [
-        "", "", "", "",
-        "Etaj 3, sună la interfon", "Să sune când ajunge jos", "Fără ardei iute",
-        "Livrare la poartă", "Bloc nou, intrarea din spate", "Apartament la parter",
-        "Să aducă și șervețele extra", "Fără ceapă", "Plată exact, nu am rest",
-    ]
-
-    sources = ["S", "G", "W", "B"]
-    source_weights = [30, 35, 25, 10]
-    restaurants_ids = ["rest-001", "rest-002", "rest-003", "rest-004", "rest-005"]
-    restaurant_names = {
-        "rest-001": "Trattoria Da Vinci", "rest-002": "La Cuptor Bacău",
-        "rest-003": "Sushi Room", "rest-004": "Burger Craft", "rest-005": "Casa Moldoveanu"
-    }
-
-    for i in range(1, 101):
-        source = weighted_choice(sources, source_weights)
-        restaurant_id = SYSTEM_RANDOM.choice(restaurants_ids)
-
-        first_name = SYSTEM_RANDOM.choice(first_names)
-        last_name = SYSTEM_RANDOM.choice(last_names)
-        customer_name = f"{first_name} {last_name}"
-        customer_phone = f"07{SYSTEM_RANDOM.randint(20, 99)}{SYSTEM_RANDOM.randint(100000, 999999)}"
-        customer_address = f"{SYSTEM_RANDOM.choice(streets)} {SYSTEM_RANDOM.randint(1, 150)}, Ap. {SYSTEM_RANDOM.randint(1, 50)}, Bacău"
-
-        available_items = food_items[restaurant_id]
-        num_items = SYSTEM_RANDOM.randint(1, 4)
-        selected_items = SYSTEM_RANDOM.sample(available_items, min(num_items, len(available_items)))
-        items = []
-        total = 0
-        for item in selected_items:
-            qty = SYSTEM_RANDOM.randint(1, 3)
-            items.append({"name": item["name"], "quantity": qty, "price": item["price"]})
-            total += item["price"] * qty
-
-        payment_type = SYSTEM_RANDOM.choice(["CASH", "CASH", "CARD"])
-        notes = SYSTEM_RANDOM.choice(notes_options)
-
-        # Assign zone based on restaurant location (temporary until Task 2.2)
-        zone_map = {"rest-001": "Zona 1", "rest-002": "Zona 2", "rest-003": "Zona 3", "rest-004": "Zona 4", "rest-005": "Zona 1"}
-        zone = zone_map.get(restaurant_id, "Zona 1")
-
-        created_at = datetime.now(timezone.utc) - timedelta(hours=SYSTEM_RANDOM.randint(1, 24 * 45))
-        prep_estimated_seconds = SYSTEM_RANDOM.choice([10, 15, 20, 25, 30]) * 60
-        prep_actual_seconds = max(prep_estimated_seconds + SYSTEM_RANDOM.randint(-240, 600), 120)
-        prep_delay_seconds = max(prep_actual_seconds - prep_estimated_seconds, 0)
-        preparation_started_at = created_at + timedelta(minutes=2)
-        preparation_due_at = preparation_started_at + timedelta(seconds=prep_estimated_seconds)
-        preparation_ready_at = preparation_started_at + timedelta(seconds=prep_actual_seconds)
-
-        assigned_at = preparation_ready_at + timedelta(minutes=SYSTEM_RANDOM.randint(1, 8))
-        accepted_at = assigned_at + timedelta(minutes=SYSTEM_RANDOM.randint(1, 4))
-        picked_up_at = accepted_at + timedelta(minutes=SYSTEM_RANDOM.randint(2, 8))
-        delivered_at = picked_up_at + timedelta(minutes=SYSTEM_RANDOM.randint(12, 35))
-
-        # Assign some orders to drivers for stats
-        driver_id = None
-        driver_name = None
-        status = "NEW"
-        if i <= 40:  # First 40 orders delivered
-            driver_idx = (i - 1) % 5
-            d = drivers_data[driver_idx]
-            driver_id = d["id"]
-            driver_name = d["name"]
-            status = "DELIVERED"
-
-        order_data = {
-            "order_number": f"{source}.{i:04d}",
-            "source": source,
-            "restaurant_id": restaurant_id,
-            "restaurant_name": restaurant_names[restaurant_id],
-            "customer_name": customer_name,
-            "customer_phone": customer_phone,
-            "customer_address": customer_address,
-            "items": items,
-            "total_amount": total,
-            "payment_type": payment_type,
-            "notes": notes,
-            "status": status,
-            "zone": zone,
-            "driver_id": driver_id,
-            "driver_name": driver_name,
-            "preparation_time": prep_estimated_seconds // 60,
-            "preparation_estimated_seconds": prep_estimated_seconds,
-            "preparation_actual_seconds": prep_actual_seconds if status == "DELIVERED" else None,
-            "preparation_delay_seconds": prep_delay_seconds if status == "DELIVERED" else None,
-            "preparation_started_at": preparation_started_at.isoformat(),
-            "preparation_due_at": preparation_due_at.isoformat(),
-            "preparation_ready_at": preparation_ready_at.isoformat() if status == "DELIVERED" else None,
-            "assigned_at": assigned_at.isoformat() if status == "DELIVERED" else None,
-            "accepted_at": accepted_at.isoformat() if status == "DELIVERED" else None,
-            "picked_up_at": picked_up_at.isoformat() if status == "DELIVERED" else None,
-            "delivered_at": delivered_at.isoformat() if status == "DELIVERED" else None,
-        }
-
-        order = Order(**order_data)
-        doc = order.model_dump()
-        doc["created_at"] = created_at.isoformat()
-        doc["updated_at"] = delivered_at.isoformat() if status == "DELIVERED" else created_at.isoformat()
-        await db.orders.insert_one(doc)
+    await seed_demo_orders(drivers_data)
 
     return {
         "message": "Demo data seeded successfully - 100 orders created",

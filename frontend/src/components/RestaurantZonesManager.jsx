@@ -149,22 +149,23 @@ function DrawControl({ isDrawing, undoTick, onPointCountChange, onPolygonCreated
   return null;
 }
 
+function ZonePolygon({ zone }) {
+  const positions = useMemo(() => zone.polygon.map((point) => [point.lat, point.lng]), [zone.polygon]);
+  const pathOptions = useMemo(() => ({
+    color: zone.color,
+    fillColor: zone.color,
+    fillOpacity: 0.16,
+    opacity: 0.9,
+    weight: 2,
+  }), [zone.color]);
+
+  return <Polygon positions={positions} pathOptions={pathOptions} />;
+}
+
 function ZonePolygons({ zones }) {
   return zones
     .filter((zone) => zone.is_active && (zone.polygon || []).length >= 3)
-    .map((zone) => (
-      <Polygon
-        key={zone.id}
-        positions={zone.polygon.map((point) => [point.lat, point.lng])}
-        pathOptions={{
-          color: zone.color,
-          fillColor: zone.color,
-          fillOpacity: 0.16,
-          opacity: 0.9,
-          weight: 2,
-        }}
-      />
-    ));
+    .map((zone) => <ZonePolygon key={zone.id} zone={zone} />);
 }
 
 export function RestaurantZonesManager({ restaurant, onZonesChange }) {

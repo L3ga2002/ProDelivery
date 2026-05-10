@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { toast } from "sonner";
@@ -145,18 +145,23 @@ const RestaurantLocationMapInteractions = ({ onLocationChange }) => {
 };
 
 const OrderLocationPicker = ({ value, onChange }) => {
+  const orderMapCenter = useMemo(() => [46.567, 26.913], []);
+  const selectedPosition = useMemo(() => {
+    if (!value.customer_latitude || !value.customer_longitude) return null;
+    return [value.customer_latitude, value.customer_longitude];
+  }, [value.customer_latitude, value.customer_longitude]);
 
   return (
     <div className="space-y-2" data-testid="order-location-picker">
       <div className="h-64 rounded-lg overflow-hidden border">
-        <MapContainer center={[46.567, 26.913]} zoom={13} className="h-full w-full">
+        <MapContainer center={orderMapCenter} zoom={13} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <OrderLocationMapEvents onChange={onChange} />
-          {value.customer_latitude && value.customer_longitude && (
-            <Marker position={[value.customer_latitude, value.customer_longitude]}>
+          {selectedPosition && (
+            <Marker position={selectedPosition}>
               <Popup>Locație livrare selectată</Popup>
             </Marker>
           )}
@@ -170,12 +175,13 @@ const OrderLocationPicker = ({ value, onChange }) => {
 };
 
 const RestaurantLocationPreview = ({ restaurant, onLocationChange }) => {
-  const position = {
+  const position = useMemo(() => ({
     lat: restaurant.latitude || 46.567,
     lng: restaurant.longitude || 26.913,
-  };
+  }), [restaurant.latitude, restaurant.longitude]);
+  const markerPosition = useMemo(() => [position.lat, position.lng], [position.lat, position.lng]);
 
-  const handleDragEnd = (event) => {
+  const handleDragEnd = useCallback((event) => {
     const marker = event.target;
     const nextPosition = marker.getLatLng();
     onLocationChange?.({
@@ -183,12 +189,12 @@ const RestaurantLocationPreview = ({ restaurant, onLocationChange }) => {
       longitude: Number(nextPosition.lng.toFixed(6)),
       location_source: "manual_adjusted",
     });
-  };
+  }, [onLocationChange]);
 
   return (
     <div className="space-y-2">
       <div className="relative h-64 overflow-hidden rounded-lg border border-slate-200 shadow-sm" data-testid="new-restaurant-location-map">
-        <MapContainer center={[position.lat, position.lng]} zoom={15} className="h-full w-full">
+        <MapContainer center={markerPosition} zoom={15} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -196,7 +202,7 @@ const RestaurantLocationPreview = ({ restaurant, onLocationChange }) => {
           <MapAutoCenter position={position} />
           <RestaurantLocationMapInteractions onLocationChange={onLocationChange} />
           <Marker
-            position={[position.lat, position.lng]}
+            position={markerPosition}
             icon={restaurantIcon}
             draggable
             eventHandlers={{ dragend: handleDragEnd }}

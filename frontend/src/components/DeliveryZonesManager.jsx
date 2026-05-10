@@ -201,23 +201,22 @@ function ZonePolygons({ zones, selectedZoneId, onZoneClick }) {
             : positions.length >= 3;
           if (!hasEnoughPoints) return null;
           const isSelected = zone.id === selectedZoneId;
-          return (
-            <Polygon
-              key={zone.id}
-              positions={positions}
-              interactive={false}
-              pathOptions={{
-                color: zone.color,
-                fillColor: zone.color,
-                fillOpacity: isSelected ? 0.28 : 0.08,
-                opacity: isSelected ? 1 : 0.72,
-                weight: isSelected ? 3 : 2,
-              }}
-            />
-          );
+          return <ZonePolygon key={zone.id} zone={zone} positions={positions} isSelected={isSelected} />;
         })}
     </>
   );
+}
+
+function ZonePolygon({ zone, positions, isSelected }) {
+  const pathOptions = useMemo(() => ({
+    color: zone.color,
+    fillColor: zone.color,
+    fillOpacity: isSelected ? 0.28 : 0.08,
+    opacity: isSelected ? 1 : 0.72,
+    weight: isSelected ? 3 : 2,
+  }), [isSelected, zone.color]);
+
+  return <Polygon positions={positions} interactive={false} pathOptions={pathOptions} />;
 }
 
 export function DeliveryZonesManager() {

@@ -23,26 +23,23 @@ def build_shapely_polygon(coords):
 
 def build_zone_update_payload(data: DeliveryZoneUpdate, existing: dict) -> dict:
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
-    if data.restaurant_id is not None:
-        update_data["restaurant_id"] = data.restaurant_id
-    if data.restaurant_name is not None:
-        update_data["restaurant_name"] = data.restaurant_name
-    if data.sector is not None:
-        update_data["sector"] = data.sector
-    if data.zone_level is not None:
-        update_data["zone_level"] = data.zone_level
-    if data.name is not None:
-        update_data["name"] = data.name
-    if data.color is not None:
-        update_data["color"] = data.color
-    if data.fee is not None:
-        update_data["fee"] = data.fee
+    scalar_fields = [
+        "restaurant_id",
+        "restaurant_name",
+        "sector",
+        "zone_level",
+        "name",
+        "color",
+        "fee",
+        "is_active",
+        "sort_order",
+    ]
+    for field_name in scalar_fields:
+        value = getattr(data, field_name)
+        if value is not None:
+            update_data[field_name] = value
     if data.polygon is not None:
         update_data["polygon"] = [{"lat": coord.lat, "lng": coord.lng} for coord in data.polygon]
-    if data.is_active is not None:
-        update_data["is_active"] = data.is_active
-    if data.sort_order is not None:
-        update_data["sort_order"] = data.sort_order
     return update_data
 
 

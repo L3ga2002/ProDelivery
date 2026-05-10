@@ -6,7 +6,7 @@ const STORAGE_KEY = "prodelivery-theme";
 const getInitialTheme = () => {
   if (typeof window === "undefined") return "light";
 
-  const savedTheme = window.localStorage.getItem(STORAGE_KEY);
+  const savedTheme = window.sessionStorage.getItem(STORAGE_KEY);
   if (savedTheme === "light" || savedTheme === "dark") {
     return savedTheme;
   }
@@ -20,7 +20,7 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     document.documentElement.style.colorScheme = theme;
-    window.localStorage.setItem(STORAGE_KEY, theme);
+    window.sessionStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
   const value = useMemo(

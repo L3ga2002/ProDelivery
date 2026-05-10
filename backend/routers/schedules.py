@@ -101,6 +101,51 @@ def _week_offset(week_start: str, offset: int) -> str:
     return (start + timedelta(days=offset * 7)).date().isoformat()
 
 
+def _validate_auto_generate_request(data: AutoGenerateScheduleRequest) -> None:
+    if data.total_slots < 1:
+        raise HTTPException(status_code=400, detail="Minimum 1 slot")
+    if not data.days or any(day not in DAYS for day in data.days):
+        raise HTTPException(status_code=400, detail="Zile invalide")
+
+
+def _selected_drivers_for_hour(drivers: list[dict], hour_index: int, total_slots: int) -> list[dict]:
+    count = min(total_slots, len(drivers))
+    return [drivers[(hour_index + idx) % len(drivers)] for idx in range(count)]
+
+
+async def _upsert_generated_slot(driver: dict, target_week: str, day: str, hour: str) -> bool:
+    schedule = await db.schedules.find_one({"driver_id": driver["id"], "week_start": target_week}, {"_id": 0})
+    slots = schedule.get("slots", {}) if schedule else {}
+    day_slots = slots.get(day, [])
+    if any(slot.get("start") == hour for slot in day_slots):
+        return False
+
+    day_slots.append({"start": hour, "end": _slot_end(hour), "added_by": "auto"})
+    slots[day] = day_slots
+    total_hours = calc_total_hours(slots)
+    if schedule:
+        await db.schedules.update_one(
+            {"driver_id": driver["id"], "week_start": target_week},
+            {"$set": {"slots": slots, "total_hours": total_hours}},
+        )
+        return True
+
+    doc = Schedule(driver_id=driver["id"], week_start=target_week, slots=slots, total_hours=total_hours).model_dump()
+    await db.schedules.insert_one(doc)
+    return True
+
+
+async def _generate_week_slots(data: AutoGenerateScheduleRequest, drivers: list[dict], hours: list[str], target_week: str) -> int:
+    created = 0
+    for day in data.days:
+        for hour_index, hour in enumerate(hours):
+            selected_drivers = _selected_drivers_for_hour(drivers, hour_index, data.total_slots)
+            for driver in selected_drivers:
+                if await _upsert_generated_slot(driver, target_week, day, hour):
+                    created += 1
+    return created
+
+
 async def upsert_schedule_record(data: ScheduleCreate, slots_dict: dict, total_hours: float) -> dict:
     existing = await db.schedules.find_one(
         {"driver_id": data.driver_id, "week_start": data.week_start}
@@ -231,10 +276,7 @@ async def get_admin_schedule_summary(week_start: str = None, current_user: dict 
 async def auto_generate_normal_slots(data: AutoGenerateScheduleRequest, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    if data.total_slots < 1:
-        raise HTTPException(status_code=400, detail="Minimum 1 slot")
-    if not data.days or any(day not in DAYS for day in data.days):
-        raise HTTPException(status_code=400, detail="Zile invalide")
+    _validate_auto_generate_request(data)
 
     hours = _hour_range(data.start_hour, data.end_hour)
     drivers = await db.drivers.find({"is_active": True}, {"_id": 0}).sort("name", 1).to_list(300)
@@ -244,27 +286,7 @@ async def auto_generate_normal_slots(data: AutoGenerateScheduleRequest, current_
     touched = 0
     for repeat_index in range(max(data.repeat_weeks, 1)):
         target_week = _week_offset(data.week_start, repeat_index)
-        for day in data.days:
-            for hour_index, hour in enumerate(hours):
-                selected_drivers = [drivers[(hour_index + idx) % len(drivers)] for idx in range(min(data.total_slots, len(drivers)))]
-                for driver in selected_drivers:
-                    schedule = await db.schedules.find_one({"driver_id": driver["id"], "week_start": target_week}, {"_id": 0})
-                    slots = schedule.get("slots", {}) if schedule else {}
-                    day_slots = slots.get(day, [])
-                    if any(slot.get("start") == hour for slot in day_slots):
-                        continue
-                    day_slots.append({"start": hour, "end": _slot_end(hour), "added_by": "auto"})
-                    slots[day] = day_slots
-                    total_hours = calc_total_hours(slots)
-                    if schedule:
-                        await db.schedules.update_one(
-                            {"driver_id": driver["id"], "week_start": target_week},
-                            {"$set": {"slots": slots, "total_hours": total_hours}},
-                        )
-                    else:
-                        doc = Schedule(driver_id=driver["id"], week_start=target_week, slots=slots, total_hours=total_hours).model_dump()
-                        await db.schedules.insert_one(doc)
-                    touched += 1
+        touched += await _generate_week_slots(data, drivers, hours, target_week)
 
     return {"message": f"Generate normală completă: {touched} sloturi adăugate", "created_slots": touched}
 
