@@ -74,6 +74,14 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Code Review Completion Pass 10 Mai 2026: după feedback user, au fost închise și resturile de maintainability: `RestaurantsTab`, `SettingsTab` și `DeliveryZoneMapParts` extrase; `DeliveryZonesManager` este mai mic și logica de hartă/desenare/poligoane este separată
 - Code Review Completion Pass 10 Mai 2026: `SettingsTab` are `data-testid` pe controls, iar iteration 21 PASS confirmă Admin/Restaurant/Driver, seed, analytics, schedules, zones update, static checks și lipsa runtime errors după login
 - Phase 2 Demo Data Cleanup 07 Mai 2026: curățat restaurant test non-demo din baza preview; demo-ul afișează 5 restaurante curate
+- Operations UX Patch 10 Mai 2026: modalul „Alocă comandă” a fost refăcut cu layering peste overlay, search live/debounce pentru livratori și selecție comandă+livrator într-un singur flow.
+- Operations UX Patch 10 Mai 2026: harta live are restaurante mai mici, statusuri livratori „Activ / În pauză / Offline / În livrare”, iconițe scuter/mașină, popup livrator fără coordonate și buton „Alocă comandă”, plus trasee dashed livrator→restaurant→client pentru comenzile active.
+- Operations UX Patch 10 Mai 2026: butonul „Adaugă livrator” a fost mutat în tabul Livratori, iar „Adaugă restaurant” în tabul Restaurante; demo-ul și „Comandă nouă” rămân active în command center.
+- Operations UX Patch 10 Mai 2026: adăugarea livratorilor include vehicul scuter/mașină și integrare Resend pentru cod verificare email; în preview, senderul `onboarding@resend.dev` este limitat de Resend până la verificarea domeniului.
+- Operations UX Patch 10 Mai 2026: Programul admin are calendar rapid permanent 10:00-02:00, sloturi standard verzi, sloturi urgență roșii, confirmare pentru intervale de noapte și flow „Refă sloturile săptămânii trecute” cu preview.
+- Operations UX Patch 10 Mai 2026: zonele de livrare create sunt blocate implicit; editarea/ștergerea cer confirmare explicită `CONFIRM`, iar backend-ul refuză modificările fără confirmare.
+- Operations UX Patch 10 Mai 2026: Driver App are notificare profesională „Urmează să primești o comandă”, card verificare email pentru livratori neverificați și dialog explicativ pentru scor/rank.
+- Security Patch 10 Mai 2026: login-ul are brute-force lockout după 5 încercări eșuate, iar backend-ul returnează CORS explicit intern; preflight-ul extern din ingress încă răspunde wildcard la OPTIONS înainte de backend.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -91,6 +99,9 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `POST /api/schedules/admin/bulk-delete` - șterge bulk sloturile automate normale
 - `POST /api/schedules/emergency/setup-generate` - generează/actualizează sloturi de urgență după setup admin
 - `POST /api/schedules/emergency/bulk-delete` - șterge bulk sloturi de urgență după săptămână/zile/interval și curăță programările asociate
+- `POST /api/drivers/{driver_id}/verify-email` - verifică emailul livratorului cu codul trimis prin Resend
+- `POST /api/drivers/{driver_id}/resend-verification` - retrimite codul de verificare email pentru livrator
+- `POST /api/schedules/admin/clone-previous-week` - preview/confirmare pentru refacerea sloturilor după săptămâna precedentă
 
 ## DB Schema - delivery_zones
 ```
@@ -107,6 +118,9 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`) și reducerea suplimentară a dimensiunii lui `seed.py`; `AdminDashboard` rămâne ~1450 LOC după primul split și trebuie continuat într-un pas separat
 - P2: după iteration 21, nu există defect blocant cunoscut; rămâne doar cleanup gradual de maintainability pentru `AdminDashboard.jsx` / `AdminScheduleView.jsx`, fără impact funcțional curent
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
+- P1: verificare domeniu Resend și schimbare `SENDER_EMAIL` de la `onboarding@resend.dev` la emailul de domeniu ProDelivery pentru trimitere reală către orice livrator
+- P1: rezolvare la nivel ingress/platformă pentru preflight OPTIONS care returnează `Access-Control-Allow-Origin: *` extern, deși backend-ul returnează explicit origin intern
+- P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
 - Phase 4: Push Notifications (Firebase)
