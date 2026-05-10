@@ -31,5 +31,5 @@
 - Admin account has full access to all endpoints
 - Driver creation now supports `vehicle_type`: `scooter` or `car`
 - New drivers start with `email_verified=false` until they confirm the Resend code
-- Resend preview sender is `onboarding@resend.dev`; it only sends to the Resend owner email until a domain is verified
-- If Resend blocks external recipients with 403, admin receives a temporary local verification code in the UI fallback dialog; this is only for preview/testing until the Resend domain is verified
+- Resend sender is now `verificare@prodeliverybacau.com` after domain verification
+- If Resend ever blocks/fails external recipients, admin receives a temporary local verification code in the UI fallback dialog as a backup

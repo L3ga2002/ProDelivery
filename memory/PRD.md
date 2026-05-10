@@ -79,6 +79,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Operations UX Patch 10 Mai 2026: butonul „Adaugă livrator” a fost mutat în tabul Livratori, iar „Adaugă restaurant” în tabul Restaurante; demo-ul și „Comandă nouă” rămân active în command center.
 - Operations UX Patch 10 Mai 2026: adăugarea livratorilor include vehicul scuter/mașină și integrare Resend pentru cod verificare email; în preview, senderul `onboarding@resend.dev` este limitat de Resend până la verificarea domeniului.
 - Resend Restriction Fix 10 Mai 2026: dacă Resend returnează 403 pentru `onboarding@resend.dev` către destinatari externi, aplicația nu mai eșuează flow-ul; creează livratorul, păstrează hash-ul codului în DB și afișează adminului un cod local temporar pentru verificare în preview. Emailul real rămâne activ automat după verificarea domeniului și schimbarea senderului.
+- Resend Domain Activation 10 Mai 2026: domeniul `prodeliverybacau.com` este verificat în Resend, iar aplicația folosește acum `verificare@prodeliverybacau.com` ca sender real; testul backend a returnat `email_delivery.status=sent` și `email_id` valid.
 - Operations UX Patch 10 Mai 2026: Programul admin are calendar rapid permanent 10:00-02:00, sloturi standard verzi, sloturi urgență roșii, confirmare pentru intervale de noapte și flow „Refă sloturile săptămânii trecute” cu preview.
 - Operations UX Patch 10 Mai 2026: zonele de livrare create sunt blocate implicit; editarea/ștergerea cer confirmare explicită `CONFIRM`, iar backend-ul refuză modificările fără confirmare.
 - Operations UX Patch 10 Mai 2026: Driver App are notificare profesională „Urmează să primești o comandă”, card verificare email pentru livratori neverificați și dialog explicativ pentru scor/rank.
@@ -119,7 +120,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`) și reducerea suplimentară a dimensiunii lui `seed.py`; `AdminDashboard` rămâne ~1450 LOC după primul split și trebuie continuat într-un pas separat
 - P2: după iteration 21, nu există defect blocant cunoscut; rămâne doar cleanup gradual de maintainability pentru `AdminDashboard.jsx` / `AdminScheduleView.jsx`, fără impact funcțional curent
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
-- P1: verificare domeniu Resend și schimbare `SENDER_EMAIL` de la `onboarding@resend.dev` la emailul de domeniu ProDelivery pentru trimitere reală către orice livrator; până atunci preview folosește fallback local pentru coduri.
+- P1: monitorizare primele emailuri reale Resend pentru spam/deliverability; fallback-ul local rămâne doar backup dacă providerul returnează eroare.
 - P1: rezolvare la nivel ingress/platformă pentru preflight OPTIONS care returnează `Access-Control-Allow-Origin: *` extern, deși backend-ul returnează explicit origin intern
 - P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
