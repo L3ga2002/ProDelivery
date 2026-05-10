@@ -39,6 +39,11 @@ class BulkDeleteScheduleRequest(BaseModel):
     added_by: str = "auto"
 
 
+class ClonePreviousWeekRequest(BaseModel):
+    week_start: str
+    preview_only: bool = True
+
+
 class Schedule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     driver_id: str

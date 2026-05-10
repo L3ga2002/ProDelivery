@@ -68,6 +68,14 @@ def get_tier_for_score(score: float):
     return TIER_CONFIG[-1]
 
 
+def get_next_tier_for_score(score: float):
+    ascending = sorted(TIER_CONFIG, key=lambda item: item["min_score"])
+    for tier in ascending:
+        if score < tier["min_score"]:
+            return tier
+    return None
+
+
 def _build_cycle_window(now_local: datetime):
     weekday = now_local.weekday()
     if (weekday == 6 and now_local.hour >= 22) or (weekday == 0 and now_local.hour < CLOSE_HOUR):
@@ -120,6 +128,7 @@ async def build_driver_ranking_payload(db, driver: dict):
     })
     ranking = calculate_driver_score(driver, cancelled_by_driver)
     tier = get_tier_for_score(ranking["score"])
+    next_tier = get_next_tier_for_score(ranking["score"])
     access = build_tier_access_state(tier["key"])
     return {
         "ranking_score": ranking["score"],
@@ -127,5 +136,7 @@ async def build_driver_ranking_payload(db, driver: dict):
         "ranking_tier_key": tier["key"],
         "ranking_breakdown": ranking["breakdown"],
         "ranking_metrics": ranking["metrics"],
+        "next_tier": next_tier,
+        "points_to_next_tier": round(max((next_tier or {}).get("min_score", ranking["score"]) - ranking["score"], 0), 1),
         "schedule_access": access,
     }

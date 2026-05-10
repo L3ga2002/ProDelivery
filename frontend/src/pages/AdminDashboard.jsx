@@ -59,6 +59,9 @@ import {
   XCircle,
   Moon,
   Sun,
+  Search,
+  Car,
+  Info,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
 import { AdminCommandCenter } from "../components/admin/AdminCommandCenter";
@@ -233,6 +236,9 @@ const AdminDashboard = () => {
   // Dialogs
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState("");
+  const [assignDriverSearch, setAssignDriverSearch] = useState("");
+  const [debouncedAssignDriverSearch, setDebouncedAssignDriverSearch] = useState("");
+  const [assignOrderSearch, setAssignOrderSearch] = useState("");
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
@@ -276,7 +282,8 @@ const AdminDashboard = () => {
   });
   
   // New driver form
-  const [newDriver, setNewDriver] = useState({ name: "", phone: "", email: "" });
+  const [newDriver, setNewDriver] = useState({ name: "", phone: "", email: "", vehicle_type: "scooter" });
+  const [scoreDialogDriver, setScoreDialogDriver] = useState(null);
   
   // New restaurant form
   const [newRestaurant, setNewRestaurant] = useState({
@@ -391,10 +398,30 @@ const AdminDashboard = () => {
   const handleAssignOrder = (order) => {
     setSelectedOrder(order);
     setSelectedDriver("");
+    setAssignDriverSearch("");
+    setAssignOrderSearch("");
     setIsAssignDialogOpen(true);
   };
 
+  const handleAssignDriverFromMap = (driver) => {
+    setSelectedOrder(null);
+    setSelectedDriver(driver.id);
+    setAssignDriverSearch(driver.name || "");
+    setAssignOrderSearch("");
+    setActiveAdminTab("map");
+    setIsAssignDialogOpen(true);
+  };
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedAssignDriverSearch(assignDriverSearch.trim().toLowerCase()), 180);
+    return () => clearTimeout(timeout);
+  }, [assignDriverSearch]);
+
   const confirmAssign = async () => {
+    if (!selectedOrder?.id) {
+      toast.error("Selectează comanda pentru alocare");
+      return;
+    }
     if (!selectedDriver) {
       toast.error("Selectează un livrator");
       return;
@@ -502,9 +529,13 @@ const AdminDashboard = () => {
     }
     try {
       const res = await axios.post(`${API_URL}/api/drivers`, newDriver);
-      toast.success(`Livrator creat! Parolă: ${res.data.password}`);
+      if (res.data.email_delivery?.status === "sent") {
+        toast.success(`Livrator creat. Codul de verificare a fost trimis pe email. Parolă: ${res.data.password}`);
+      } else {
+        toast.warning(`Livrator creat, dar emailul nu a fost trimis. Verifică senderul Resend. Parolă: ${res.data.password}`);
+      }
       setIsNewDriverDialogOpen(false);
-      setNewDriver({ name: "", phone: "", email: "" });
+      setNewDriver({ name: "", phone: "", email: "", vehicle_type: "scooter" });
       fetchData();
     } catch (error) {
       console.error("Failed to create driver", error);
@@ -656,6 +687,25 @@ const AdminDashboard = () => {
   const activeOrders = orders.filter((o) => o.status !== "DELIVERED");
   const activeDrivers = drivers.filter((d) => d.is_active);
   const availableDrivers = drivers.filter((d) => d.is_active && !d.current_order_id);
+  const assignableOrders = activeOrders.filter((order) => ["NEW", "PREPARING", "READY"].includes(order.status));
+  const filteredAvailableDrivers = availableDrivers
+    .filter((driver) => {
+      if (!debouncedAssignDriverSearch) return true;
+      const haystack = `${driver.name || ""} ${driver.phone || ""} ${driver.vehicle_type || ""}`.toLowerCase();
+      return haystack.includes(debouncedAssignDriverSearch);
+    })
+    .sort((a, b) => {
+      const term = debouncedAssignDriverSearch;
+      const aStarts = term && a.name?.toLowerCase().startsWith(term) ? 1 : 0;
+      const bStarts = term && b.name?.toLowerCase().startsWith(term) ? 1 : 0;
+      if (aStarts !== bStarts) return bStarts - aStarts;
+      return (b.ranking_score || 0) - (a.ranking_score || 0) || (a.name || "").localeCompare(b.name || "");
+    });
+  const filteredAssignableOrders = assignableOrders.filter((order) => {
+    const term = assignOrderSearch.trim().toLowerCase();
+    if (!term) return true;
+    return `${order.order_number || ""} ${order.restaurant_name || ""} ${order.customer_name || ""} ${order.customer_address || ""}`.toLowerCase().includes(term);
+  });
   const selectedRestaurant = restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) || restaurants[0] || null;
 
   if (isLoading) {
@@ -718,8 +768,6 @@ const AdminDashboard = () => {
           isSimRunning={isSimRunning}
           onRunSimulation={runSimulation}
           onNewOrder={() => setIsNewOrderDialogOpen(true)}
-          onNewDriver={() => setIsNewDriverDialogOpen(true)}
-          onNewRestaurant={() => setIsNewRestaurantDialogOpen(true)}
         />
 
         {/* Tabs */}
@@ -867,12 +915,27 @@ const AdminDashboard = () => {
 
           {/* Map Tab */}
           <TabsContent value="map">
-            <LiveMapPanel drivers={drivers} restaurants={restaurants} driverPositions={driverPositions} />
+            <LiveMapPanel drivers={drivers} restaurants={restaurants} driverPositions={driverPositions} orders={activeOrders} onAssignDriver={handleAssignDriverFromMap} />
           </TabsContent>
 
           {/* Drivers Tab */}
           <TabsContent value="drivers">
             <Card>
+              <CardHeader className="border-b bg-slate-50/70 dark:bg-slate-900/50">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Truck className="h-5 w-5 text-indigo-600" />
+                      Livratori
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">Flotă, vehicule, email verificat și scor operațional.</p>
+                  </div>
+                  <Button type="button" onClick={() => setIsNewDriverDialogOpen(true)} data-testid="drivers-add-driver-button">
+                    <Users className="mr-2 h-4 w-4" />
+                    Adaugă livrator
+                  </Button>
+                </div>
+              </CardHeader>
               <CardContent className="p-4">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {drivers.map((driver) => (
@@ -882,7 +945,7 @@ const AdminDashboard = () => {
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${driver.is_active ? 'bg-green-500' : 'bg-gray-400'}`}>
-                          <Truck className="w-6 h-6 text-white" />
+                          {driver.vehicle_type === "car" ? <Car className="w-6 h-6 text-white" /> : <Truck className="w-6 h-6 text-white" />}
                         </div>
                         <div>
                           <p className="font-bold">{driver.name}</p>
@@ -891,7 +954,14 @@ const AdminDashboard = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Livrări: {driver.total_deliveries || 0}</span>
-                        <span>Scor: {driver.ranking_score || 0}</span>
+                        <button
+                          type="button"
+                          className="font-semibold text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-200"
+                          onClick={() => setScoreDialogDriver(driver)}
+                          data-testid={`driver-score-button-${driver.id}`}
+                        >
+                          Scor: {driver.ranking_score || 0}
+                        </button>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100'}`}>
@@ -902,6 +972,12 @@ const AdminDashboard = () => {
                             {driver.ranking_tier}
                           </Badge>
                         )}
+                        <Badge variant="outline" data-testid={`driver-vehicle-${driver.id}`}>
+                          {driver.vehicle_type === "car" ? "Mașină" : "Scuter"}
+                        </Badge>
+                        <Badge className={driver.email_verified ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-100"} data-testid={`driver-email-status-${driver.id}`}>
+                          {driver.email_verified ? "Email verificat" : "Email neverificat"}
+                        </Badge>
                       </div>
                       {driver.schedule_access?.opens_at && (
                         <p className="text-xs text-muted-foreground mt-2">
@@ -925,6 +1001,7 @@ const AdminDashboard = () => {
               onSelectRestaurant={setSelectedRestaurantId}
               restaurantAnalytics={restaurantAnalytics}
               restaurantAnalyticsLoading={restaurantAnalyticsLoading}
+              onNewRestaurant={() => setIsNewRestaurantDialogOpen(true)}
             />
           </TabsContent>
 
@@ -942,41 +1019,89 @@ const AdminDashboard = () => {
 
       {/* Assign Dialog */}
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent>
+        <DialogContent className="z-[1250] max-w-3xl" data-testid="assign-order-dialog">
           <DialogHeader>
             <DialogTitle>Alocă Comandă</DialogTitle>
             <DialogDescription>
-              Alege livratorul disponibil care preia comanda selectată.
+              Alege comanda și livratorul disponibil. Căutarea filtrează instant pentru flotă mare.
             </DialogDescription>
           </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="font-mono text-sm mb-2">{selectedOrder.order_number}</p>
-                <p className="font-medium">{selectedOrder.customer_name}</p>
-                <p className="text-sm text-muted-foreground">{selectedOrder.customer_address}</p>
-                <p className="font-semibold mt-2">{selectedOrder.total_amount} RON</p>
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
+            <div className="space-y-3">
+              <Label>Comandă</Label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={assignOrderSearch}
+                  onChange={(event) => setAssignOrderSearch(event.target.value)}
+                  className="pl-9"
+                  placeholder="Caută după număr, client, restaurant"
+                  data-testid="assign-order-search-input"
+                />
               </div>
-              <div>
-                <Label>Selectează Livrator</Label>
-                <Select value={selectedDriver} onValueChange={setSelectedDriver}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Alege un livrator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableDrivers.map((driver) => (
-                      <SelectItem key={driver.id} value={driver.id}>
-                        {driver.name} - {driver.phone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border bg-muted/20 p-2" data-testid="assign-order-options">
+                {filteredAssignableOrders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    className={`w-full rounded-md border p-3 text-left transition-colors ${selectedOrder?.id === order.id ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30" : "bg-card hover:bg-muted/60"}`}
+                    onClick={() => setSelectedOrder(order)}
+                    data-testid={`assign-order-option-${order.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-bold">{order.order_number}</span>
+                      <Badge variant="outline" className="text-xs">{order.total_amount} RON</Badge>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold">{order.restaurant_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{order.customer_name} · {order.customer_address}</p>
+                  </button>
+                ))}
+                {filteredAssignableOrders.length === 0 && (
+                  <p className="p-3 text-sm text-muted-foreground" data-testid="assign-order-empty-state">Nicio comandă disponibilă.</p>
+                )}
               </div>
             </div>
-          )}
+            <div className="space-y-3">
+              <Label>Livrator</Label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={assignDriverSearch}
+                  onChange={(event) => setAssignDriverSearch(event.target.value)}
+                  autoFocus
+                  className="pl-9"
+                  placeholder="Caută livrator după nume, telefon sau vehicul"
+                  data-testid="assign-driver-search-input"
+                />
+              </div>
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border bg-muted/20 p-2" data-testid="assign-driver-options">
+                {filteredAvailableDrivers.map((driver) => (
+                  <button
+                    key={driver.id}
+                    type="button"
+                    className={`w-full rounded-md border p-3 text-left transition-colors ${selectedDriver === driver.id ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : "bg-card hover:bg-muted/60"}`}
+                    onClick={() => {
+                      setSelectedDriver(driver.id);
+                      setAssignDriverSearch(driver.name || "");
+                    }}
+                    data-testid={`assign-driver-option-${driver.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold">{driver.name}</span>
+                      <Badge variant="outline" className="text-xs">Scor {driver.ranking_score || 0}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{driver.phone} · {driver.vehicle_type === "car" ? "Mașină" : "Scuter"}</p>
+                  </button>
+                ))}
+                {filteredAvailableDrivers.length === 0 && (
+                  <p className="p-3 text-sm text-muted-foreground" data-testid="assign-driver-empty-state">Niciun livrator disponibil pentru filtrul curent.</p>
+                )}
+              </div>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>Anulează</Button>
-            <Button onClick={confirmAssign}>Alocă</Button>
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)} data-testid="assign-cancel-button">Anulează</Button>
+            <Button onClick={confirmAssign} disabled={!selectedOrder?.id || !selectedDriver} data-testid="assign-confirm-button">Alocă</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1146,22 +1271,86 @@ const AdminDashboard = () => {
           <div className="space-y-4">
             <div>
               <Label>Nume *</Label>
-              <Input value={newDriver.name} onChange={(e) => setNewDriver({...newDriver, name: e.target.value})} />
+              <Input value={newDriver.name} onChange={(e) => setNewDriver({...newDriver, name: e.target.value})} data-testid="new-driver-name-input" />
             </div>
             <div>
               <Label>Telefon *</Label>
-              <Input value={newDriver.phone} onChange={(e) => setNewDriver({...newDriver, phone: e.target.value})} />
+              <Input value={newDriver.phone} onChange={(e) => setNewDriver({...newDriver, phone: e.target.value})} data-testid="new-driver-phone-input" />
             </div>
             <div>
               <Label>Email *</Label>
-              <Input value={newDriver.email} onChange={(e) => setNewDriver({...newDriver, email: e.target.value})} />
+              <Input type="email" value={newDriver.email} onChange={(e) => setNewDriver({...newDriver, email: e.target.value})} data-testid="new-driver-email-input" />
             </div>
-            <p className="text-sm text-muted-foreground">Parola implicită: driver123</p>
+            <div>
+              <Label>Vehicul *</Label>
+              <Select value={newDriver.vehicle_type} onValueChange={(value) => setNewDriver({...newDriver, vehicle_type: value})}>
+                <SelectTrigger data-testid="new-driver-vehicle-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="scooter">Scuter</SelectItem>
+                  <SelectItem value="car">Mașină</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+              Se trimite cod de verificare pe email. Parola inițială rămâne: <strong>driver123</strong>.
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNewDriverDialogOpen(false)}>Anulează</Button>
-            <Button onClick={createDriver}>Creează Livrator</Button>
+            <Button variant="outline" onClick={() => setIsNewDriverDialogOpen(false)} data-testid="new-driver-cancel-button">Anulează</Button>
+            <Button onClick={createDriver} data-testid="new-driver-submit-button">Creează Livrator</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Driver Score Dialog */}
+      <Dialog open={!!scoreDialogDriver} onOpenChange={(open) => !open && setScoreDialogDriver(null)}>
+        <DialogContent className="max-w-lg" data-testid="driver-score-dialog">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-indigo-600" />
+              Scor livrator · {scoreDialogDriver?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Scorul stabilește prioritatea la calendar și ajută dispeceratul la alocări.
+            </DialogDescription>
+          </DialogHeader>
+          {scoreDialogDriver && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <p className="text-xs text-muted-foreground">Scor total</p>
+                  <p className="text-2xl font-bold">{scoreDialogDriver.ranking_score || 0}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <p className="text-xs text-muted-foreground">Rank</p>
+                  <p className="text-2xl font-bold">{scoreDialogDriver.ranking_tier || "Start"}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(scoreDialogDriver.ranking_breakdown || {}).map(([key, value]) => {
+                  const labels = { deliveries: "Livrări", cancellations: "Anulări", punctuality: "Punctualitate", seniority: "Vechime" };
+                  return (
+                    <div key={key} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                      <span>{labels[key] || key}</span>
+                      <strong>{value} pct</strong>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100">
+                <p><strong>Ore azi:</strong> {scoreDialogDriver.schedule_today_hours || 0}</p>
+                <p><strong>Livrări totale:</strong> {scoreDialogDriver.ranking_metrics?.total_deliveries || scoreDialogDriver.total_deliveries || 0}</p>
+                <p><strong>Punctualitate:</strong> {Math.round((scoreDialogDriver.ranking_metrics?.punctuality_rate || 0) * 100)}%</p>
+                {scoreDialogDriver.next_tier ? (
+                  <p><strong>Pentru următorul rank:</strong> încă {scoreDialogDriver.points_to_next_tier} puncte până la {scoreDialogDriver.next_tier.label}</p>
+                ) : (
+                  <p><strong>Rank maxim:</strong> livratorul este deja în top.</p>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

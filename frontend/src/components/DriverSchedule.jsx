@@ -77,6 +77,7 @@ export const DriverSchedule = ({ driverId }) => {
   const [emergencySlots, setEmergencySlots] = useState([]);
   const [claimDialog, setClaimDialog] = useState(null);
   const [claiming, setClaiming] = useState(false);
+  const [rankDialogOpen, setRankDialogOpen] = useState(false);
 
   const fetchSchedule = useCallback(async () => {
     if (!driverId) return;
@@ -268,8 +269,12 @@ export const DriverSchedule = ({ driverId }) => {
 
         {scheduleWindowInfo?.tier && (
           <div className="flex flex-wrap gap-2 mt-2 text-xs" data-testid="driver-ranking-access-info">
-            <Badge className="bg-slate-900 text-white">Tier {scheduleWindowInfo.tier}</Badge>
-            <Badge variant="outline">Scor {scheduleWindowInfo.score}</Badge>
+            <button type="button" onClick={() => setRankDialogOpen(true)} data-testid="driver-rank-info-button">
+              <Badge className="bg-slate-900 text-white">Tier {scheduleWindowInfo.tier}</Badge>
+            </button>
+            <button type="button" onClick={() => setRankDialogOpen(true)} data-testid="driver-score-info-button">
+              <Badge variant="outline">Scor {scheduleWindowInfo.score}</Badge>
+            </button>
             {!windowOpen && <Badge variant="outline">Acces de la {scheduleWindowInfo.opens_at_label || scheduleWindowInfo.opens_at}</Badge>}
           </div>
         )}
@@ -438,6 +443,47 @@ export const DriverSchedule = ({ driverId }) => {
               {claiming ? "Se procesează..." : "Ia Slotul"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rankDialogOpen} onOpenChange={setRankDialogOpen}>
+        <DialogContent className="max-w-md" data-testid="driver-rank-dialog">
+          <DialogHeader>
+            <DialogTitle>Scor și rank</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Rank curent</p>
+                <p className="text-2xl font-bold">{scheduleWindowInfo?.tier || "Start"}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Scor total</p>
+                <p className="text-2xl font-bold">{scheduleWindowInfo?.score || 0}</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              {Object.entries(scheduleWindowInfo?.breakdown || {}).map(([key, value]) => {
+                const labels = { deliveries: "Livrări", cancellations: "Anulări", punctuality: "Punctualitate", seniority: "Vechime" };
+                return (
+                  <div key={key} className="flex items-center justify-between rounded-md border p-2">
+                    <span>{labels[key] || key}</span>
+                    <strong>{value} pct</strong>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100">
+              <p><strong>Ore selectate săptămâna asta:</strong> {totalHours}h</p>
+              <p><strong>Livrări totale:</strong> {scheduleWindowInfo?.metrics?.total_deliveries || 0}</p>
+              <p><strong>Punctualitate:</strong> {Math.round((scheduleWindowInfo?.metrics?.punctuality_rate || 0) * 100)}%</p>
+              {scheduleWindowInfo?.next_tier ? (
+                <p><strong>Următorul rank:</strong> încă {scheduleWindowInfo.points_to_next_tier} puncte până la {scheduleWindowInfo.next_tier.label}</p>
+              ) : (
+                <p><strong>Următorul rank:</strong> ești deja la nivelul maxim.</p>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

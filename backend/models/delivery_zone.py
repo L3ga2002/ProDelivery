@@ -22,6 +22,7 @@ class DeliveryZone(BaseModel):
     polygon: List[ZoneCoordinate] = []
     is_active: bool = True
     sort_order: int = 0
+    is_locked: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -37,6 +38,7 @@ class DeliveryZoneCreate(BaseModel):
     polygon: List[ZoneCoordinate] = []
     is_active: bool = True
     sort_order: int = 0
+    is_locked: bool = True
 
 
 class DeliveryZoneUpdate(BaseModel):
@@ -50,6 +52,8 @@ class DeliveryZoneUpdate(BaseModel):
     polygon: Optional[List[ZoneCoordinate]] = None
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
+    is_locked: Optional[bool] = None
+    confirm_protected_action: bool = False
 
 
 class ZoneDetectRequest(BaseModel):

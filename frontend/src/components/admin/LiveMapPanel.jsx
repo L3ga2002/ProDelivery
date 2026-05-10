@@ -1,10 +1,12 @@
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
-import { MapPin, Package, Phone, Store, Truck } from "lucide-react";
+import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
+import { Car, MapPin, Package, Phone, Route, Store, Truck } from "lucide-react";
 import { useMemo } from "react";
 import {
   createMapMarkerIcon,
+  DriverCarIcon,
   DriverScooterIcon,
   getDriverMapStatus,
   RestaurantStorefrontIcon,
@@ -12,12 +14,16 @@ import {
 
 const driverStatusMeta = {
   active: {
-    label: "Disponibil",
+    label: "Activ",
     className: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-900",
   },
-  busy: {
-    label: "Ocupat",
+  delivery: {
+    label: "În livrare",
     className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-100 dark:border-blue-900",
+  },
+  break: {
+    label: "În pauză",
+    className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-100 dark:border-amber-900",
   },
   offline: {
     label: "Offline",
@@ -29,15 +35,16 @@ const MapLegendIcon = ({ className, children }) => (
   <span className={`delivery-map-legend-icon ${className}`}>{children}</span>
 );
 
-const DriverPopup = ({ driver, position }) => {
+const DriverPopup = ({ driver, onAssignDriver }) => {
   const status = getDriverMapStatus(driver);
   const meta = driverStatusMeta[status];
+  const vehicleLabel = driver.vehicle_type === "car" ? "Mașină" : "Scuter";
 
   return (
     <div className="min-w-[230px] text-sm" data-testid={`map-driver-popup-${driver.id}`}>
       <div className="mb-3 flex items-start gap-3">
         <div className="rounded-lg bg-slate-950 p-2 text-white">
-          <Truck className="h-5 w-5" />
+          {driver.vehicle_type === "car" ? <Car className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
         </div>
         <div className="min-w-0">
           <p className="truncate font-bold text-slate-950">{driver.name}</p>
@@ -50,8 +57,8 @@ const DriverPopup = ({ driver, position }) => {
           <span>{driver.phone}</span>
         </div>
         <div className="flex items-center gap-2 text-slate-700">
-          <MapPin className="h-3.5 w-3.5" />
-          <span>{position[0].toFixed(4)}, {position[1].toFixed(4)}</span>
+          {driver.vehicle_type === "car" ? <Car className="h-3.5 w-3.5" /> : <Truck className="h-3.5 w-3.5" />}
+          <span>{vehicleLabel}</span>
         </div>
         {driver.current_order_id && (
           <div className="flex items-center gap-2 text-blue-700">
@@ -60,6 +67,15 @@ const DriverPopup = ({ driver, position }) => {
           </div>
         )}
       </div>
+      <Button
+        type="button"
+        size="sm"
+        className="mt-3 w-full bg-indigo-700 hover:bg-indigo-600"
+        onClick={() => onAssignDriver?.(driver)}
+        data-testid={`map-driver-assign-button-${driver.id}`}
+      >
+        Alocă comandă
+      </Button>
     </div>
   );
 };
@@ -83,9 +99,14 @@ const RestaurantPopup = ({ restaurant }) => (
   </div>
 );
 
-export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
+export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [], onAssignDriver }) => {
   const mapCenter = useMemo(() => [46.567, 26.913], []);
-  const driverMarkers = useMemo(() => drivers.map((driver) => {
+  const relevantDrivers = useMemo(() => drivers.filter((driver) => (
+    driver.current_order_id || driver.is_scheduled_today || driver.is_active
+  )), [drivers]);
+  const ordersById = useMemo(() => Object.fromEntries(orders.map((order) => [order.id, order])), [orders]);
+  const restaurantsById = useMemo(() => Object.fromEntries(restaurants.map((restaurant) => [restaurant.id, restaurant])), [restaurants]);
+  const driverMarkers = useMemo(() => relevantDrivers.map((driver) => {
     const pos = driverPositions[driver.id];
     const position = [pos?.lat || driver.latitude, pos?.lng || driver.longitude];
     const status = getDriverMapStatus(driver);
@@ -93,19 +114,32 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
       driver,
       position,
       status,
-      icon: createMapMarkerIcon({ kind: "driver", status, id: driver.id }),
+      icon: createMapMarkerIcon({ kind: "driver", status, id: driver.id, vehicleType: driver.vehicle_type }),
     };
-  }), [driverPositions, drivers]);
+  }), [driverPositions, relevantDrivers]);
   const restaurantMarkers = useMemo(() => restaurants.map((restaurant) => ({
     restaurant,
     position: [restaurant.latitude, restaurant.longitude],
     icon: createMapMarkerIcon({ kind: "restaurant", id: restaurant.id }),
   })), [restaurants]);
 
+  const activeRoutes = useMemo(() => driverMarkers
+    .map(({ driver, position }) => {
+      const order = ordersById[driver.current_order_id];
+      const restaurant = order ? restaurantsById[order.restaurant_id] : null;
+      if (!order || !restaurant || !order.customer_latitude || !order.customer_longitude) return null;
+      return {
+        id: `${driver.id}-${order.id}`,
+        driverToRestaurant: [position, [restaurant.latitude, restaurant.longitude]],
+        restaurantToClient: [[restaurant.latitude, restaurant.longitude], [order.customer_latitude, order.customer_longitude]],
+      };
+    })
+    .filter(Boolean), [driverMarkers, ordersById, restaurantsById]);
+
   const statusCounts = useMemo(() => driverMarkers.reduce((counts, marker) => ({
     ...counts,
     [marker.status]: counts[marker.status] + 1,
-  }), { active: 0, busy: 0, offline: 0 }), [driverMarkers]);
+  }), { active: 0, delivery: 0, break: 0, offline: 0 }), [driverMarkers]);
 
   return (
     <Card className="control-surface overflow-hidden" data-testid="admin-live-map-panel">
@@ -124,8 +158,9 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{statusCounts.active} disponibili</Badge>
-            <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{statusCounts.busy} ocupați</Badge>
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{statusCounts.active} activi</Badge>
+            <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{statusCounts.delivery} în livrare</Badge>
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{statusCounts.break} în pauză</Badge>
             <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{statusCounts.offline} offline</Badge>
           </div>
         </div>
@@ -137,6 +172,20 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            {activeRoutes.map((route) => (
+              <Polyline
+                key={route.id}
+                positions={route.driverToRestaurant}
+                pathOptions={{ color: "#2563eb", weight: 3, opacity: 0.75, dashArray: "8 10", className: "delivery-route-line" }}
+              />
+            ))}
+            {activeRoutes.map((route) => (
+              <Polyline
+                key={`${route.id}-client`}
+                positions={route.restaurantToClient}
+                pathOptions={{ color: "#f97316", weight: 3, opacity: 0.72, dashArray: "4 9", className: "delivery-route-line" }}
+              />
+            ))}
             {driverMarkers.map(({ driver, icon, position }) => (
               <Marker
                 key={driver.id}
@@ -144,7 +193,7 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
                 icon={icon}
               >
                 <Popup>
-                  <DriverPopup driver={driver} position={position} />
+                  <DriverPopup driver={driver} onAssignDriver={onAssignDriver} />
                 </Popup>
               </Marker>
             ))}
@@ -160,11 +209,19 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions }) => {
         <div className="mt-3 flex flex-wrap gap-4 text-sm" data-testid="admin-live-map-legend">
           <div className="flex items-center gap-2">
             <MapLegendIcon className="delivery-map-legend-driver-active"><DriverScooterIcon /></MapLegendIcon>
-            <span>Livrator disponibil</span>
+            <span>Scuter activ</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-driver-busy"><DriverScooterIcon /></MapLegendIcon>
-            <span>Livrator ocupat</span>
+            <MapLegendIcon className="delivery-map-legend-driver-active"><DriverCarIcon /></MapLegendIcon>
+            <span>Mașină activă</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapLegendIcon className="delivery-map-legend-driver-delivery"><DriverScooterIcon /></MapLegendIcon>
+            <span>În livrare</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Route className="h-4 w-4 text-blue-700" />
+            <span>Traseu activ</span>
           </div>
           <div className="flex items-center gap-2">
             <MapLegendIcon className="delivery-map-legend-driver-offline"><DriverScooterIcon /></MapLegendIcon>

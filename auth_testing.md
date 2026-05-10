@@ -23,3 +23,10 @@
 - Login-ul din React trebuie să funcționeze fără localStorage pentru token
 - Refresh-ul paginii trebuie să păstreze sesiunea prin cookie-uri
 - Logout-ul trebuie să scoată utilizatorul din sesiune
+
+## Driver Email Verification Add-on
+- Admin creează livrator prin `POST /api/drivers` cu `name`, `email`, `phone`, `vehicle_type`
+- Backend setează `email_verified=false` în `users` și `drivers`
+- Backend trimite cod prin Resend și salvează doar hash-ul codului
+- Livratorul confirmă prin `POST /api/drivers/{driver_id}/verify-email`
+- `/api/auth/me` include `email_verified` și `vehicle_type` pentru aplicația livratorului

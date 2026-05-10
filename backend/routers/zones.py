@@ -33,6 +33,7 @@ def build_zone_update_payload(data: DeliveryZoneUpdate, existing: dict) -> dict:
         "fee",
         "is_active",
         "sort_order",
+        "is_locked",
     ]
     for field_name in scalar_fields:
         value = getattr(data, field_name)
@@ -111,6 +112,7 @@ async def create_zone(data: DeliveryZoneCreate, current_user: dict = Depends(get
         polygon=data.polygon,
         is_active=data.is_active,
         sort_order=data.sort_order,
+        is_locked=True,
     )
     doc = zone.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -128,6 +130,8 @@ async def update_zone(zone_id: str, data: DeliveryZoneUpdate, current_user: dict
     existing = await db.delivery_zones.find_one({"id": zone_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Zone not found")
+    if existing.get("is_locked", True) and not data.confirm_protected_action:
+        raise HTTPException(status_code=409, detail="Zona este blocată. Confirmă explicit modificarea pentru a continua.")
 
     update_data = build_zone_update_payload(data, existing)
 
@@ -137,8 +141,18 @@ async def update_zone(zone_id: str, data: DeliveryZoneUpdate, current_user: dict
 
 
 @router.delete("/{zone_id}")
-async def delete_zone(zone_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_zone(
+    zone_id: str,
+    confirm_protected_action: bool = Query(default=False),
+    current_user: dict = Depends(get_current_user),
+):
     ensure_admin(current_user)
+
+    existing = await db.delivery_zones.find_one({"id": zone_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    if existing.get("is_locked", True) and not confirm_protected_action:
+        raise HTTPException(status_code=409, detail="Zona este blocată. Confirmă explicit ștergerea pentru a continua.")
 
     result = await db.delivery_zones.delete_one({"id": zone_id})
     if result.deleted_count == 0:

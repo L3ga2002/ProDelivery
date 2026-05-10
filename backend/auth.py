@@ -37,6 +37,8 @@ def _build_access_payload(user_data: dict) -> dict:
         "restaurant_id": user_data.get("restaurant_id"),
         "restaurant_name": user_data.get("restaurant_name"),
         "driver_id": user_data.get("driver_id"),
+        "email_verified": user_data.get("email_verified"),
+        "vehicle_type": user_data.get("vehicle_type"),
         "type": "access",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_LIFETIME_MINUTES),
     }
@@ -106,10 +108,14 @@ async def resolve_user_context(user_id: str) -> dict:
         raise HTTPException(status_code=401, detail="User not found")
 
     driver_id = None
+    email_verified = user.get("email_verified", True)
+    vehicle_type = user.get("vehicle_type")
     if user["role"] == "driver":
         driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
         if driver:
             driver_id = driver["id"]
+            email_verified = driver.get("email_verified", user.get("email_verified", False))
+            vehicle_type = driver.get("vehicle_type", user.get("vehicle_type", "scooter"))
 
     restaurant_name = user.get("restaurant_name")
     if user["role"] == "restaurant" and user.get("restaurant_id"):
@@ -124,6 +130,8 @@ async def resolve_user_context(user_id: str) -> dict:
         "name": user["name"],
         "role": user["role"],
         "driver_id": driver_id,
+        "email_verified": email_verified,
+        "vehicle_type": vehicle_type,
         "restaurant_id": user.get("restaurant_id"),
         "restaurant_name": restaurant_name,
     }

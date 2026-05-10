@@ -35,12 +35,14 @@ const restaurantIcon = new L.Icon({
 
 function MapFocus({ restaurant }) {
   const map = useMap();
+  const lastFocusedId = useRef(null);
 
   useEffect(() => {
-    if (restaurant?.latitude && restaurant?.longitude) {
+    if (restaurant?.id && restaurant?.latitude && restaurant?.longitude && lastFocusedId.current !== restaurant.id) {
       map.setView([restaurant.latitude, restaurant.longitude], 14, { animate: true });
+      lastFocusedId.current = restaurant.id;
     }
-  }, [map, restaurant]);
+  }, [map, restaurant?.id, restaurant?.latitude, restaurant?.longitude]);
 
   return null;
 }
@@ -177,6 +179,8 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
   const [draftPolygon, setDraftPolygon] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [protectedAction, setProtectedAction] = useState(null);
+  const [protectionText, setProtectionText] = useState("");
   const [form, setForm] = useState({ name: "", fee: 10, color: ZONE_COLORS[0], is_active: true });
 
   const center = useMemo(() => [restaurant?.latitude || 46.567, restaurant?.longitude || 26.913], [restaurant]);
@@ -245,7 +249,7 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
     toast.info("Redesenează conturul. Tasta Ctrl șterge ultimul punct.");
   };
 
-  const saveZone = async () => {
+  const saveZone = async (confirmed = false) => {
     if (!form.name.trim()) {
       toast.error("Numele zonei este obligatoriu");
       return;
@@ -256,6 +260,11 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
     }
     try {
       if (selectedZone) {
+        if (selectedZone.is_locked !== false && !confirmed) {
+          setProtectedAction({ type: "save", zone: selectedZone });
+          setProtectionText("");
+          return;
+        }
         await axios.put(`${API_URL}/api/zones/${selectedZone.id}`, {
           name: form.name.trim(),
           fee: Number(form.fee),
@@ -266,6 +275,7 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
           restaurant_name: restaurant.name,
           sector: restaurant.name,
           zone_level: 1,
+          confirm_protected_action: confirmed,
         });
         toast.success("Zona a fost actualizată");
       } else {
@@ -296,9 +306,14 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
     }
   };
 
-  const deleteZone = async (zone) => {
+  const deleteZone = async (zone, confirmed = false) => {
+    if (zone.is_locked !== false && !confirmed) {
+      setProtectedAction({ type: "delete", zone });
+      setProtectionText("");
+      return;
+    }
     try {
-      await axios.delete(`${API_URL}/api/zones/${zone.id}`);
+      await axios.delete(`${API_URL}/api/zones/${zone.id}`, { params: { confirm_protected_action: confirmed } });
       toast.success("Zona a fost ștearsă");
       if (selectedZone?.id === zone.id) setSelectedZone(null);
       fetchZones();
@@ -427,6 +442,11 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
                       <Badge variant={zone.is_active ? "outline" : "secondary"}>
                         {zone.is_active ? "Activă" : "Inactivă"}
                       </Badge>
+                      {zone.is_locked !== false && (
+                        <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-900 dark:text-amber-100">
+                          Blocată
+                        </Badge>
+                      )}
                     </div>
                     <div className="mt-3 flex gap-2">
                       <Button
@@ -536,6 +556,47 @@ export function RestaurantZonesManager({ restaurant, onZonesChange }) {
             <Button type="button" onClick={saveZone} data-testid="restaurant-zone-save-button">
               <Save className="mr-1 h-4 w-4" />
               Salvează
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!protectedAction} onOpenChange={(open) => !open && setProtectedAction(null)}>
+        <DialogContent className="max-w-md" data-testid="zone-protection-dialog">
+          <DialogHeader>
+            <DialogTitle>Confirmare zonă blocată</DialogTitle>
+            <DialogDescription>
+              Zona „{protectedAction?.zone?.name}” este protejată împotriva modificărilor accidentale.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+              {protectedAction?.type === "delete"
+                ? "Ștergerea poate afecta calculul taxelor și comenzile viitoare."
+                : "Modificarea conturului/prețului poate schimba aria de acoperire a restaurantului."}
+            </div>
+            <Label>Scrie CONFIRM pentru continuare</Label>
+            <Input
+              value={protectionText}
+              onChange={(event) => setProtectionText(event.target.value)}
+              data-testid="zone-protection-confirm-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setProtectedAction(null)} data-testid="zone-protection-cancel-button">Înapoi</Button>
+            <Button
+              type="button"
+              variant={protectedAction?.type === "delete" ? "destructive" : "default"}
+              disabled={protectionText !== "CONFIRM"}
+              onClick={() => {
+                const action = protectedAction;
+                setProtectedAction(null);
+                if (action?.type === "delete") deleteZone(action.zone, true);
+                if (action?.type === "save") saveZone(true);
+              }}
+              data-testid="zone-protection-confirm-button"
+            >
+              Confirmă
             </Button>
           </DialogFooter>
         </DialogContent>

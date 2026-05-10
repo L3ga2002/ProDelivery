@@ -190,6 +190,26 @@
   transform: rotate(-45deg);
 }
 
+.delivery-map-marker-restaurant {
+  width: 34px;
+  height: 34px;
+  border-radius: 13px 13px 13px 4px;
+}
+
+.delivery-map-marker-restaurant::before {
+  left: 6px;
+  top: 5px;
+  width: 15px;
+  height: 7px;
+}
+
+.delivery-map-marker-restaurant::after {
+  right: -4px;
+  bottom: -4px;
+  width: 9px;
+  height: 9px;
+}
+
 .delivery-map-marker::before {
   content: "";
   position: absolute;
@@ -230,12 +250,21 @@
   display: block;
 }
 
+.delivery-map-marker-restaurant .delivery-map-marker-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
 .delivery-map-marker-driver-active {
   background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
 }
 
-.delivery-map-marker-driver-busy {
+.delivery-map-marker-driver-delivery {
   background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+}
+
+.delivery-map-marker-driver-break {
+  background: linear-gradient(135deg, rgb(245 158 11), rgb(217 119 6));
 }
 
 .delivery-map-marker-driver-offline {
@@ -265,8 +294,12 @@
   background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
 }
 
-.delivery-map-legend-driver-busy {
+.delivery-map-legend-driver-delivery {
   background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+}
+
+.delivery-map-legend-driver-break {
+  background: linear-gradient(135deg, rgb(245 158 11), rgb(217 119 6));
 }
 
 .delivery-map-legend-driver-offline {
@@ -293,8 +326,33 @@
   background: rgb(34 197 94);
 }
 
-.delivery-map-marker-status-dot-busy {
+.delivery-map-marker-status-dot-delivery {
   background: rgb(59 130 246);
+}
+
+.delivery-map-marker-status-dot-break {
+  background: rgb(245 158 11);
+}
+
+.delivery-route-line {
+  filter: drop-shadow(0 5px 8px rgb(15 23 42 / 0.28));
+}
+
+.dark .bg-white,
+.dark .bg-slate-50,
+.dark .bg-gray-50 {
+  color: hsl(var(--foreground));
+}
+
+.dark .leaflet-tile {
+  filter: brightness(0.68) contrast(1.15) saturate(0.82);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 .delivery-map-marker-status-dot-offline {

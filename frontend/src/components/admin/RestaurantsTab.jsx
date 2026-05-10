@@ -1,6 +1,7 @@
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Store } from "lucide-react";
+import { Plus, Store } from "lucide-react";
 import { RestaurantZonesManager } from "../RestaurantZonesManager";
 import { RestaurantAnalyticsPanel } from "./RestaurantAnalyticsPanel";
 
@@ -12,6 +13,7 @@ export const RestaurantsTab = ({
   onSelectRestaurant,
   restaurantAnalytics,
   restaurantAnalyticsLoading,
+  onNewRestaurant,
 }) => (
   <div className="space-y-4">
     <Card className="control-surface overflow-hidden">
@@ -24,9 +26,15 @@ export const RestaurantsTab = ({
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">Alege restaurantul pentru performanță, zone și coordonate.</p>
           </div>
-          <Badge variant="outline" className="border-slate-300 bg-white dark:bg-slate-950" data-testid="restaurants-panel-count">
-            {restaurants.length} restaurante
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="border-slate-300 bg-white dark:bg-slate-950" data-testid="restaurants-panel-count">
+              {restaurants.length} restaurante
+            </Badge>
+            <Button type="button" size="sm" onClick={onNewRestaurant} data-testid="restaurants-add-restaurant-button">
+              <Plus className="mr-1 h-4 w-4" />
+              Adaugă restaurant
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-4">

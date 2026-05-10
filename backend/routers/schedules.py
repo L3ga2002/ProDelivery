@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timedelta, timezone
 from database import db
 from auth import get_current_user
-from models.schedule import AutoGenerateScheduleRequest, BulkDeleteScheduleRequest, ScheduleCreate, ScheduleUpdate, Schedule
+from models.schedule import AutoGenerateScheduleRequest, BulkDeleteScheduleRequest, ClonePreviousWeekRequest, ScheduleCreate, ScheduleUpdate, Schedule
 from utils.driver_ranking import build_driver_ranking_payload, build_tier_access_state, ROMANIA_TZ
 
 router = APIRouter(prefix="/schedules", tags=["schedules"])
@@ -99,6 +99,10 @@ def _slot_end(hour: str) -> str:
 def _week_offset(week_start: str, offset: int) -> str:
     start = datetime.fromisoformat(week_start)
     return (start + timedelta(days=offset * 7)).date().isoformat()
+
+
+def _copy_slots(slots: dict) -> dict:
+    return {day: [dict(slot) for slot in day_slots] for day, day_slots in (slots or {}).items()}
 
 
 def _validate_auto_generate_request(data: AutoGenerateScheduleRequest) -> None:
@@ -316,6 +320,39 @@ async def bulk_delete_generated_slots(data: BulkDeleteScheduleRequest, current_u
     return {"message": f"Ștergere bulk completă: {removed} sloturi eliminate", "deleted_slots": removed}
 
 
+@router.post("/admin/clone-previous-week")
+async def clone_previous_week_slots(data: ClonePreviousWeekRequest, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    previous_week = _week_offset(data.week_start, -1)
+    previous_schedules = await db.schedules.find({"week_start": previous_week}, {"_id": 0}).to_list(500)
+    total_hours = sum(schedule.get("total_hours", 0) for schedule in previous_schedules)
+    preview = {
+        "previous_week_start": previous_week,
+        "target_week_start": data.week_start,
+        "drivers_count": len(previous_schedules),
+        "total_hours": total_hours,
+    }
+    if data.preview_only:
+        return {"message": "Preview generat", "preview": preview}
+
+    recreated = 0
+    for previous in previous_schedules:
+        slots = _copy_slots(previous.get("slots", {}))
+        total = calc_total_hours(slots)
+        existing = await db.schedules.find_one({"driver_id": previous["driver_id"], "week_start": data.week_start}, {"_id": 0})
+        if existing:
+            await db.schedules.update_one(
+                {"id": existing["id"]},
+                {"$set": {"slots": slots, "total_hours": total}},
+            )
+        else:
+            doc = Schedule(driver_id=previous["driver_id"], week_start=data.week_start, slots=slots, total_hours=total).model_dump()
+            await db.schedules.insert_one(doc)
+        recreated += 1
+    return {"message": f"Sloturile au fost refăcute pentru {recreated} livratori", "preview": preview, "recreated": recreated}
+
+
 @router.get("/scheduling-window")
 async def get_scheduling_window(current_user: dict = Depends(get_current_user)):
     now_local = datetime.now(ROMANIA_TZ)
@@ -332,6 +369,10 @@ async def get_scheduling_window(current_user: dict = Depends(get_current_user)):
             "tier": ranking["ranking_tier"],
             "tier_key": ranking["ranking_tier_key"],
             "score": ranking["ranking_score"],
+            "breakdown": ranking["ranking_breakdown"],
+            "metrics": ranking["ranking_metrics"],
+            "next_tier": ranking["next_tier"],
+            "points_to_next_tier": ranking["points_to_next_tier"],
             "opens_at": access["opens_at"],
             "opens_at_label": access["opens_at_label"],
             "closes_at": access["closes_at"],

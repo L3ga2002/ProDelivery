@@ -29,6 +29,7 @@ import {
   Minus,
   Settings2,
   Trash2,
+  Repeat,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -100,6 +101,10 @@ export const AdminScheduleView = () => {
   const [emergencySpots, setEmergencySpots] = useState(1);
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [setupDialogOpen, setSetupDialogOpen] = useState(false);
+  const [calendarMode, setCalendarMode] = useState("normal");
+  const [selectedCalendarSlots, setSelectedCalendarSlots] = useState([]);
+  const [calendarSlotsPerHour, setCalendarSlotsPerHour] = useState(2);
+  const [clonePreview, setClonePreview] = useState(null);
   const [setupForm, setSetupForm] = useState({
     days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
     start_hour: "10:00",
@@ -294,6 +299,91 @@ export const AdminScheduleView = () => {
     }
   };
 
+  const getSlotKey = (day, hour) => `${day}|${hour}`;
+
+  const toggleCalendarSlot = (day, hour) => {
+    if (NIGHT_HOURS.includes(hour)) {
+      const confirmed = window.confirm("Deblochezi interval de noapte?");
+      if (!confirmed) return;
+    }
+    const key = getSlotKey(day, hour);
+    setSelectedCalendarSlots((prev) => (
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    ));
+  };
+
+  const submitCalendarSlots = async () => {
+    if (selectedCalendarSlots.length === 0) {
+      toast.error("Selectează cel puțin un interval");
+      return;
+    }
+    setAutoGenerating(true);
+    try {
+      let touched = 0;
+      for (const key of selectedCalendarSlots) {
+        const [day, hour] = key.split("|");
+        if (calendarMode === "emergency" && !EMERGENCY_HOURS.includes(hour)) {
+          toast.warning("Sloturile de urgență se pot crea doar între 10:00-22:00");
+          continue;
+        }
+        const payload = {
+          week_start: toISODate(weekStart),
+          days: [day],
+          start_hour: hour,
+          end_hour: `${String((parseInt(hour, 10) + 1) % 24).padStart(2, "0")}:00`,
+          total_slots: calendarSlotsPerHour,
+          slot_type: calendarMode,
+          repeat_weeks: 1,
+        };
+        if (calendarMode === "emergency") {
+          await axios.post(`${API_URL}/api/schedules/emergency/setup-generate`, payload);
+        } else {
+          await axios.post(`${API_URL}/api/schedules/admin/auto-generate`, payload);
+        }
+        touched += 1;
+      }
+      toast.success(`${calendarMode === "emergency" ? "Sloturi de urgență" : "Intervale standard"} create: ${touched}`);
+      setSelectedCalendarSlots([]);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Eroare la crearea sloturilor");
+    } finally {
+      setAutoGenerating(false);
+    }
+  };
+
+  const openClonePreview = async () => {
+    setAutoGenerating(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/schedules/admin/clone-previous-week`, {
+        week_start: toISODate(weekStart),
+        preview_only: true,
+      });
+      setClonePreview(response.data.preview);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut genera preview-ul");
+    } finally {
+      setAutoGenerating(false);
+    }
+  };
+
+  const confirmClonePreviousWeek = async () => {
+    setAutoGenerating(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/schedules/admin/clone-previous-week`, {
+        week_start: toISODate(weekStart),
+        preview_only: false,
+      });
+      toast.success(response.data.message);
+      setClonePreview(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Eroare la refacerea sloturilor");
+    } finally {
+      setAutoGenerating(false);
+    }
+  };
+
   const getDayHoursCount = (schedules, dayKey) => {
     const sched = schedules?.find((s) => s.week_start === toISODate(weekStart));
     return (sched?.slots?.[dayKey] || []).length;
@@ -336,9 +426,9 @@ export const AdminScheduleView = () => {
             <div>
               <h3 className="font-bold flex items-center gap-2">
                 <CalendarCheck className="h-5 w-5 text-indigo-700 dark:text-indigo-100" />
-                Program normal de muncă
+                Intervale standard de muncă
               </h3>
-              <p className="text-sm text-muted-foreground">Sloturile normale sunt principale. Urgențele rămân doar suplimentare.</p>
+              <p className="text-sm text-muted-foreground">Calendarul de mai jos rămâne deschis permanent pentru dispecerat.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -353,6 +443,16 @@ export const AdminScheduleView = () => {
               <Button
                 type="button"
                 variant="outline"
+                onClick={openClonePreview}
+                disabled={autoGenerating}
+                data-testid="schedule-clone-previous-week-button"
+              >
+                <Repeat className="w-4 h-4 mr-2" />
+                Refă sloturile săptămânii trecute
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 onClick={deleteGeneratedSlots}
                 disabled={autoGenerating}
                 data-testid="schedule-bulk-delete-auto-button"
@@ -360,6 +460,92 @@ export const AdminScheduleView = () => {
                 <Trash2 className="w-4 h-4 mr-2" />
                 Șterge automate/setup
               </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="control-surface overflow-hidden" data-testid="schedule-permanent-calendar">
+        <CardHeader className="border-b bg-slate-50/70 pb-4 dark:bg-slate-900/50">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CalendarCheck className="h-5 w-5 text-emerald-600" />
+                Calendar rapid dispecerat
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">Selectează intervalele direct pe grilă: verde pentru standard, roșu pentru urgență.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={calendarMode === "normal" ? "default" : "outline"}
+                className={calendarMode === "normal" ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                onClick={() => setCalendarMode("normal")}
+                data-testid="schedule-mode-standard-button"
+              >
+                Creare sloturi standard
+              </Button>
+              <Button
+                type="button"
+                variant={calendarMode === "emergency" ? "default" : "outline"}
+                className={calendarMode === "emergency" ? "bg-red-600 hover:bg-red-700" : "border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"}
+                onClick={() => setCalendarMode("emergency")}
+                data-testid="schedule-mode-emergency-button"
+              >
+                Creare sloturi urgență
+              </Button>
+              <Input
+                type="number"
+                min="1"
+                value={calendarSlotsPerHour}
+                onChange={(event) => setCalendarSlotsPerHour(Number(event.target.value) || 1)}
+                className="w-20"
+                data-testid="schedule-calendar-slots-input"
+              />
+              <Button type="button" onClick={submitCalendarSlots} disabled={autoGenerating || selectedCalendarSlots.length === 0} data-testid="schedule-calendar-create-button">
+                Creează ({selectedCalendarSlots.length})
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="overflow-x-auto">
+            <div className="min-w-[720px] text-xs" role="table" aria-label="Calendar rapid sloturi admin">
+              <div className="grid grid-cols-[86px_repeat(7,minmax(76px,1fr))] items-center" role="row">
+                <div className="sticky left-0 z-10 bg-card p-2 font-semibold" role="columnheader">Interval</div>
+                {DAYS.map((day) => (
+                  <div key={day.key} className="p-2 text-center font-semibold" role="columnheader">{day.label}</div>
+                ))}
+              </div>
+              {ALL_HOURS.map((hour) => {
+                const isNight = NIGHT_HOURS.includes(hour);
+                return (
+                  <div key={hour} className={`grid grid-cols-[86px_repeat(7,minmax(76px,1fr))] items-center ${isNight ? "bg-indigo-50/60 dark:bg-indigo-950/20" : ""}`} role="row">
+                    <div className={`sticky left-0 z-10 p-2 font-mono ${isNight ? "bg-indigo-50/90 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-100" : "bg-card text-muted-foreground"}`} role="rowheader">
+                      {isNight && <Moon className="mr-1 inline h-3 w-3" />}{formatInterval(hour)}
+                    </div>
+                    {DAYS.map((day) => {
+                      const key = getSlotKey(day.key, hour);
+                      const selected = selectedCalendarSlots.includes(key);
+                      const colorClass = calendarMode === "emergency"
+                        ? "bg-red-600 hover:bg-red-500 text-white"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white";
+                      return (
+                        <div key={day.key} className="p-1" role="cell">
+                          <button
+                            type="button"
+                            onClick={() => toggleCalendarSlot(day.key, hour)}
+                            className={`h-9 w-full rounded border text-[11px] font-semibold transition-colors ${selected ? colorClass : "border-slate-200 bg-card hover:bg-muted dark:border-slate-800"}`}
+                            data-testid={`schedule-calendar-cell-${day.key}-${hour}`}
+                          >
+                            {selected ? (calendarMode === "emergency" ? "Urgent" : "Standard") : ""}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </CardContent>
@@ -377,7 +563,7 @@ export const AdminScheduleView = () => {
           data-testid="emergency-mode-toggle"
         >
           <Flame className="w-5 h-5 mr-2" />
-          {emergencyMode ? "MOD URGENȚĂ ACTIV - Click pe oră pentru a seta locuri" : "Setează Sloturi de Urgență"}
+          {emergencyMode ? "Sloturi de urgență active - click pe oră pentru locuri" : "Sloturi de urgență"}
         </Button>
         <Button
           variant="outline"
@@ -397,7 +583,7 @@ export const AdminScheduleView = () => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base text-amber-700 dark:text-amber-100">
               <AlertTriangle className="w-5 h-5" />
-              Sloturi de Urgență - Click pe o celulă pentru a seta locuri
+              Sloturi de urgență - click pe o celulă pentru a seta locuri
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -450,7 +636,7 @@ export const AdminScheduleView = () => {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Flame className="w-5 h-5 text-amber-600" />
-              <span className="font-bold text-sm">Sloturi Urgență Active</span>
+              <span className="font-bold text-sm">Sloturi de urgență active</span>
               <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-100">{emergencySlots.length}</Badge>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -549,7 +735,7 @@ export const AdminScheduleView = () => {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="w-5 h-5" />
-            Acoperire Medie pe Ore
+            Livratori disponibili pe intervale
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -573,7 +759,7 @@ export const AdminScheduleView = () => {
                     avg === 0 ? "text-amber-700" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-emerald-600"
                   }`}>{avg}</span>
                   {eCount > 0 && (
-                    <span className="text-[9px] text-amber-700 font-bold">+{eCount}u</span>
+                    <span className="text-[9px] text-amber-700 font-bold">+{eCount} urgență</span>
                   )}
                 </div>
               );
@@ -802,6 +988,39 @@ export const AdminScheduleView = () => {
             >
               <Flame className="w-4 h-4 mr-2" />
               Salvează
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!clonePreview} onOpenChange={(open) => !open && setClonePreview(null)}>
+        <DialogContent className="max-w-md" data-testid="schedule-clone-preview-dialog">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Repeat className="h-5 w-5 text-indigo-600" />
+              Preview refacere sloturi
+            </DialogTitle>
+            <DialogDescription>
+              Verifică structura săptămânii precedente înainte de recreare.
+            </DialogDescription>
+          </DialogHeader>
+          {clonePreview && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                <p><strong>Săptămâna sursă:</strong> {clonePreview.previous_week_start}</p>
+                <p><strong>Săptămâna țintă:</strong> {clonePreview.target_week_start}</p>
+                <p><strong>Livratori copiați:</strong> {clonePreview.drivers_count}</p>
+                <p><strong>Total ore:</strong> {clonePreview.total_hours}</p>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                Confirmarea va suprascrie programul existent al livratorilor pentru săptămâna selectată cu structura săptămânii precedente.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setClonePreview(null)} data-testid="schedule-clone-cancel-button">Anulează</Button>
+            <Button type="button" onClick={confirmClonePreviousWeek} disabled={autoGenerating} data-testid="schedule-clone-confirm-button">
+              Refă sloturile
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -37,8 +37,6 @@ export const AdminCommandCenter = ({
   isSimRunning,
   onRunSimulation,
   onNewOrder,
-  onNewDriver,
-  onNewRestaurant,
 }) => (
   <>
     <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="admin-command-center-hero">
@@ -90,14 +88,6 @@ export const AdminCommandCenter = ({
       <Button onClick={onNewOrder} data-testid="new-order-btn">
         <Plus className="w-4 h-4 mr-2" />
         Comandă Nouă
-      </Button>
-      <Button variant="outline" onClick={onNewDriver} data-testid="new-driver-btn">
-        <Plus className="w-4 h-4 mr-2" />
-        Livrator Nou
-      </Button>
-      <Button variant="outline" onClick={onNewRestaurant} data-testid="new-restaurant-btn">
-        <Plus className="w-4 h-4 mr-2" />
-        Restaurant Nou
       </Button>
     </div>
   </>

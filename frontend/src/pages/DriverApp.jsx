@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
 import {
   LogOut,
   Package,
@@ -65,7 +66,10 @@ const DriverApp = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const lastOrderIdRef = useRef(null);
+  const hasLoadedOrdersRef = useRef(false);
   const [newOrderFlash, setNewOrderFlash] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [emailVerified, setEmailVerified] = useState(user?.email_verified !== false);
   const [confirmAction, setConfirmAction] = useState(null); // {status, label}
   const [cancelDialog, setCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -107,7 +111,7 @@ const DriverApp = () => {
       if (activeOrder && activeOrder.id !== lastOrderIdRef.current) {
         const prevId = lastOrderIdRef.current;
         lastOrderIdRef.current = activeOrder.id;
-        if (prevId !== null) {
+        if (prevId !== null || hasLoadedOrdersRef.current) {
           // Flash banner
           setNewOrderFlash(true);
           setTimeout(() => setNewOrderFlash(false), NEW_ORDER_FLASH_MS);
@@ -140,8 +144,28 @@ const DriverApp = () => {
       toast.error("Nu am putut încărca livrarea curentă");
     } finally {
       setIsLoading(false);
+      hasLoadedOrdersRef.current = true;
     }
   }, [user?.driver_id]);
+
+  useEffect(() => {
+    setEmailVerified(user?.email_verified !== false);
+  }, [user?.email_verified]);
+
+  const verifyEmailCode = async () => {
+    if (!emailCode.trim()) {
+      toast.error("Introdu codul primit pe email");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/api/drivers/${user.driver_id}/verify-email`, { code: emailCode.trim() });
+      setEmailVerified(true);
+      setEmailCode("");
+      toast.success("Email verificat cu succes");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Cod invalid sau expirat");
+    }
+  };
 
   useEffect(() => {
     fetchOrder();
@@ -275,9 +299,31 @@ const DriverApp = () => {
             }}
             data-testid="driver-new-order-flash"
           >
-            <p className="text-lg font-bold tracking-wide">COMANDĂ NOUĂ PRIMITĂ!</p>
-            <p className="text-sm opacity-90 mt-1">Verifică detaliile comenzii</p>
+            <p className="text-lg font-bold tracking-wide">URMEAZĂ SĂ PRIMEȘTI O COMANDĂ</p>
+            <p className="text-sm opacity-90 mt-1">Verifică detaliile și confirmă preluarea rapid.</p>
           </div>
+        )}
+        {user?.role === "driver" && !emailVerified && (
+          <Card className="mb-4 border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30" data-testid="driver-email-verification-card">
+            <CardContent className="space-y-3 p-4">
+              <div>
+                <p className="font-bold text-amber-900 dark:text-amber-100">Confirmă emailul pentru documente și rapoarte</p>
+                <p className="text-sm text-amber-800/80 dark:text-amber-100/80">Introdu codul primit pe email. Codul expiră în 30 de minute.</p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={emailCode}
+                  onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Cod 6 cifre"
+                  inputMode="numeric"
+                  data-testid="driver-email-code-input"
+                />
+                <Button type="button" onClick={verifyEmailCode} data-testid="driver-email-verify-button">
+                  Verifică
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
         {!currentOrder ? (
           // No Order State
@@ -324,6 +370,13 @@ const DriverApp = () => {
                   </Badge>
                 </div>
               </CardHeader>
+              {currentOrder.status === "ASSIGNED" && (
+                <CardContent className="pt-0">
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100" data-testid="driver-upcoming-order-notice">
+                    Urmează să primești această comandă. Confirmă acceptarea ca dispeceratul să vadă că ai preluat-o.
+                  </div>
+                </CardContent>
+              )}
             </Card>
 
             {/* Customer Info */}

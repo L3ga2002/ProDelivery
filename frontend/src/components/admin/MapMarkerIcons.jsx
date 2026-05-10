@@ -11,6 +11,16 @@ export const DRIVER_SCOOTER_SVG = `
   </svg>
 `;
 
+export const DRIVER_CAR_SVG = `
+  <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <path d="M12 35 18 22c1-2 3-4 6-4h16c3 0 5 2 6 4l6 13" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 35h44v11H10V35Z" fill="rgba(255,255,255,.9)"/>
+    <path d="M20 46c0 3.5-2.8 6.3-6.3 6.3S7.4 49.5 7.4 46s2.8-6.3 6.3-6.3S20 42.5 20 46Z" fill="white"/>
+    <path d="M56.6 46c0 3.5-2.8 6.3-6.3 6.3S44 49.5 44 46s2.8-6.3 6.3-6.3 6.3 2.8 6.3 6.3Z" fill="white"/>
+    <path d="M23 23h18l4 9H19l4-9Z" fill="rgba(15,23,42,.18)"/>
+  </svg>
+`;
+
 export const DriverScooterIcon = () => (
   <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
     <path d="M18 44c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8Z" fill="rgba(255,255,255,.92)" />
@@ -19,6 +29,16 @@ export const DriverScooterIcon = () => (
     <path d="M38 22h10l7 13" fill="none" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M30 26h-8l-5-8h10l5 8Z" fill="rgba(255,255,255,.82)" />
     <path d="M40 17c0 3.2-2.5 5.7-5.7 5.7s-5.7-2.5-5.7-5.7 2.5-5.7 5.7-5.7S40 13.8 40 17Z" fill="white" />
+  </svg>
+);
+
+export const DriverCarIcon = () => (
+  <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <path d="M12 35 18 22c1-2 3-4 6-4h16c3 0 5 2 6 4l6 13" fill="none" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M10 35h44v11H10V35Z" fill="rgba(255,255,255,.9)" />
+    <path d="M20 46c0 3.5-2.8 6.3-6.3 6.3S7.4 49.5 7.4 46s2.8-6.3 6.3-6.3S20 42.5 20 46Z" fill="white" />
+    <path d="M56.6 46c0 3.5-2.8 6.3-6.3 6.3S44 49.5 44 46s2.8-6.3 6.3-6.3 6.3 2.8 6.3 6.3Z" fill="white" />
+    <path d="M23 23h18l4 9H19l4-9Z" fill="rgba(15,23,42,.18)" />
   </svg>
 );
 
@@ -60,17 +80,19 @@ L.Icon.Default.mergeOptions({
 });
 
 export const getDriverMapStatus = (driver) => {
+  if (driver.current_order_id) return "delivery";
   if (!driver?.is_active) return "offline";
-  if (driver.current_order_id) return "busy";
+  if (driver.is_scheduled_today && !driver.is_on_shift_now) return "break";
   return "active";
 };
 
-export const createMapMarkerIcon = ({ kind, status = "active", id = "marker" }) => {
+export const createMapMarkerIcon = ({ kind, status = "active", id = "marker", vehicleType = "scooter" }) => {
   const isDriver = kind === "driver";
-  const icon = isDriver ? DRIVER_SCOOTER_SVG : RESTAURANT_STOREFRONT_SVG;
+  const icon = isDriver && vehicleType === "car" ? DRIVER_CAR_SVG : isDriver ? DRIVER_SCOOTER_SVG : RESTAURANT_STOREFRONT_SVG;
   const statusLabel = {
     active: "Livrator activ",
-    busy: "Livrator ocupat",
+    delivery: "Livrator în livrare",
+    break: "Livrator în pauză",
     offline: "Livrator offline",
   }[status] || "Livrator";
   const label = isDriver ? statusLabel : "Restaurant";
@@ -86,9 +108,9 @@ export const createMapMarkerIcon = ({ kind, status = "active", id = "marker" }) 
         ${badge}
       </div>
     `,
-    iconSize: [48, 54],
-    iconAnchor: [24, 48],
-    popupAnchor: [0, -42],
+    iconSize: isDriver ? [48, 54] : [34, 38],
+    iconAnchor: isDriver ? [24, 48] : [17, 34],
+    popupAnchor: [0, isDriver ? -42 : -30],
   });
 };
 
