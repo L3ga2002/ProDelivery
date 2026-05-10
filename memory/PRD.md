@@ -71,6 +71,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Code Review Fix Pass 10 Mai 2026: `AdminDashboard` a fost redus suplimentar prin extragerea `OrdersTab` și `RestaurantAnalyticsPanel`; `AdminCommandCenter`, `LiveMapPanel` și `MapMarkerIcons` rămân module separate
 - Code Review Fix Pass 10 Mai 2026: backend refactor suplimentar — `schedules.auto_generate_normal_slots`, `zones.build_zone_update_payload` și `seed.seed_data` au fost sparte în helper functions mai mici
 - Code Review Validation 10 Mai 2026: testing agent iteration 20 PASS 100% backend/frontend; static checks confirmă fără `dangerouslySetInnerHTML`, fără `localStorage`, fără identity comparisons evidente, fără warnings DriverSchedule DOM nesting
+- Code Review Completion Pass 10 Mai 2026: după feedback user, au fost închise și resturile de maintainability: `RestaurantsTab`, `SettingsTab` și `DeliveryZoneMapParts` extrase; `DeliveryZonesManager` este mai mic și logica de hartă/desenare/poligoane este separată
+- Code Review Completion Pass 10 Mai 2026: `SettingsTab` are `data-testid` pe controls, iar iteration 21 PASS confirmă Admin/Restaurant/Driver, seed, analytics, schedules, zones update, static checks și lipsa runtime errors după login
 - Phase 2 Demo Data Cleanup 07 Mai 2026: curățat restaurant test non-demo din baza preview; demo-ul afișează 5 restaurante curate
 
 ## Key API Endpoints - Zone
@@ -103,7 +105,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Testare vizuală cu clientul pe noul contrast indigo/slate/amber și ajustări fine dacă preferă altă direcție cromatică
 - P1: Testare vizuală cu clientul pe iconițele 3D ale hărții; ajustare dacă preferă alt simbol pentru restaurante decât storefront
 - P2: refactor structural suplimentar pentru split complet pe fișiere/componente încă lungi (`AdminDashboard`, `AdminScheduleView`, `DeliveryZonesManager`) și reducerea suplimentară a dimensiunii lui `seed.py`; `AdminDashboard` rămâne ~1450 LOC după primul split și trebuie continuat într-un pas separat
-- P2: după iteration 20, fișierele rămase mari pentru mentenanță sunt `AdminDashboard.jsx` și `DeliveryZonesManager.jsx`; nu există defect blocant, doar recomandare de maintainability
+- P2: după iteration 21, nu există defect blocant cunoscut; rămâne doar cleanup gradual de maintainability pentru `AdminDashboard.jsx` / `AdminScheduleView.jsx`, fără impact funcțional curent
 - P2: reglaj fin al algoritmului automat de urgență pe baza datelor reale de volum/comenzi ale clientului
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi

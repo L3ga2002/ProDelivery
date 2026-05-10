@@ -22,7 +22,7 @@ export const SettingsTab = ({ settings, onSettingsChange }) => (
         </div>
         <div className="flex items-center gap-3">
           <span className={settings.autoAssign ? "text-green-600" : "text-muted-foreground"}>{settings.autoAssign ? "ACTIV" : "INACTIV"}</span>
-          <Switch checked={settings.autoAssign} onCheckedChange={(checked) => onSettingsChange({ ...settings, autoAssign: checked })} />
+          <Switch checked={settings.autoAssign} onCheckedChange={(checked) => onSettingsChange({ ...settings, autoAssign: checked })} data-testid="settings-auto-assign-switch" />
         </div>
       </div>
 
@@ -35,7 +35,7 @@ export const SettingsTab = ({ settings, onSettingsChange }) => (
           <Badge variant="outline" className="text-lg">{settings.timeout} secunde</Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Input type="number" value={settings.timeout} onChange={(event) => onSettingsChange({ ...settings, timeout: parseInt(event.target.value, 10) || 60 })} className="w-24" disabled={!settings.autoAssign} />
+          <Input type="number" value={settings.timeout} onChange={(event) => onSettingsChange({ ...settings, timeout: parseInt(event.target.value, 10) || 60 })} className="w-24" disabled={!settings.autoAssign} data-testid="settings-timeout-input" />
           <span className="text-muted-foreground">secunde</span>
           {!settings.autoAssign && <span className="ml-4 text-sm text-orange-600">(Activează alocarea automată pentru a folosi timeout)</span>}
         </div>
@@ -50,12 +50,12 @@ export const SettingsTab = ({ settings, onSettingsChange }) => (
           <Badge variant="outline" className="text-lg">{settings.maxRadius} km</Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Input type="number" value={settings.maxRadius} onChange={(event) => onSettingsChange({ ...settings, maxRadius: parseFloat(event.target.value) || 5 })} className="w-24" />
+          <Input type="number" value={settings.maxRadius} onChange={(event) => onSettingsChange({ ...settings, maxRadius: parseFloat(event.target.value) || 5 })} className="w-24" data-testid="settings-max-radius-input" />
           <span className="text-muted-foreground">kilometri</span>
         </div>
       </div>
 
-      <Button className="w-full" onClick={() => toast.success("Setări salvate (demo)")}>Salvează Setările</Button>
+      <Button className="w-full" onClick={() => toast.success("Setări salvate (demo)")} data-testid="settings-save-button">Salvează Setările</Button>
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950/30">
         <p className="text-sm text-yellow-800 dark:text-yellow-100"><strong>⚠️ Mod Demo:</strong> Setările sunt afișate pentru demonstrație. Funcționalitatea completă va fi activată în fazele următoare.</p>
       </div>
