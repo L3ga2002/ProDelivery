@@ -103,6 +103,88 @@ async def seed_demo_orders(drivers_data: list[dict]) -> int:
     return 100
 
 
+async def seed_demo_map_routes() -> int:
+    route_orders = [
+        {
+            "id": "demo-route-001",
+            "order_number": "LIVE.101",
+            "restaurant_id": "rest-001",
+            "restaurant_name": "Trattoria Da Vinci",
+            "driver_id": "driver-001",
+            "driver_name": "Ion Popescu",
+            "customer_name": "Client Centru Nord",
+            "customer_phone": "0711111101",
+            "customer_address": "Str. Ștefan cel Mare 18, Bacău",
+            "customer_latitude": 46.5758,
+            "customer_longitude": 26.9268,
+            "status": "PICKED_UP",
+            "total_amount": 86.0,
+            "payment_type": "CARD",
+            "source": "S",
+        },
+        {
+            "id": "demo-route-002",
+            "order_number": "LIVE.102",
+            "restaurant_id": "rest-004",
+            "restaurant_name": "Burger Craft",
+            "driver_id": "driver-002",
+            "driver_name": "Maria Ionescu",
+            "customer_name": "Client Șerbănești",
+            "customer_phone": "0711111102",
+            "customer_address": "Str. Milcov 42, Bacău",
+            "customer_latitude": 46.5872,
+            "customer_longitude": 26.9344,
+            "status": "ACCEPTED",
+            "total_amount": 72.0,
+            "payment_type": "CASH",
+            "source": "G",
+        },
+        {
+            "id": "demo-route-003",
+            "order_number": "LIVE.103",
+            "restaurant_id": "rest-003",
+            "restaurant_name": "Sushi Room",
+            "driver_id": "driver-005",
+            "driver_name": "Bogdan Stanescu",
+            "customer_name": "Client Letea",
+            "customer_phone": "0711111103",
+            "customer_address": "Str. Letea 61, Bacău",
+            "customer_latitude": 46.5488,
+            "customer_longitude": 26.9352,
+            "status": "ASSIGNED",
+            "total_amount": 118.0,
+            "payment_type": "CARD",
+            "source": "W",
+        },
+    ]
+    now = datetime.now(timezone.utc).isoformat()
+    await db.orders.delete_many({"id": {"$in": [order["id"] for order in route_orders]}})
+    for order in route_orders:
+        await db.orders.insert_one({
+            **order,
+            "items": [{"name": "Demo traseu client", "quantity": 1, "price": order["total_amount"]}],
+            "subtotal_amount": order["total_amount"] - 10,
+            "delivery_fee": 10,
+            "notes": "Comandă demo pentru prezentare hartă live",
+            "zone": "Demo Live",
+            "delivery_zone_name": "Demo Live",
+            "assigned_at": now,
+            "accepted_at": now if order["status"] in ["ACCEPTED", "PICKED_UP"] else None,
+            "picked_up_at": now if order["status"] == "PICKED_UP" else None,
+            "created_at": now,
+            "updated_at": now,
+        })
+
+    await db.drivers.update_many(
+        {"id": {"$in": ["driver-001", "driver-002", "driver-005"]}},
+        {"$set": {"is_active": True}},
+    )
+    await db.drivers.update_one({"id": "driver-001"}, {"$set": {"current_order_id": "demo-route-001", "vehicle_type": "scooter", "latitude": 46.5634, "longitude": 26.9105}})
+    await db.drivers.update_one({"id": "driver-002"}, {"$set": {"current_order_id": "demo-route-002", "vehicle_type": "car", "latitude": 46.5692, "longitude": 26.9132}})
+    await db.drivers.update_one({"id": "driver-005"}, {"$set": {"current_order_id": "demo-route-003", "vehicle_type": "car", "latitude": 46.5568, "longitude": 26.9188}})
+    return len(route_orders)
+
+
 def build_demo_order_payload(
     index: int,
     source: str,
@@ -365,11 +447,11 @@ async def seed_data():
 
     # Drivers
     drivers_data = [
-        {"id": "driver-001", "name": "Ion Popescu", "phone": "0722111222", "lat": 46.5690, "lng": 26.9100, "active": True, "deliveries": 142, "punctuality": 0.97, "joined_days_ago": 720},
-        {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 46.5640, "lng": 26.9180, "active": True, "deliveries": 108, "punctuality": 0.93, "joined_days_ago": 510},
+        {"id": "driver-001", "name": "Ion Popescu", "phone": "0722111222", "lat": 46.5690, "lng": 26.9100, "active": True, "deliveries": 142, "punctuality": 0.97, "joined_days_ago": 720, "vehicle_type": "scooter"},
+        {"id": "driver-002", "name": "Maria Ionescu", "phone": "0722333444", "lat": 46.5640, "lng": 26.9180, "active": True, "deliveries": 108, "punctuality": 0.93, "joined_days_ago": 510, "vehicle_type": "car"},
         {"id": "driver-003", "name": "Andrei Popa", "phone": "0722555666", "lat": 46.5730, "lng": 26.9050, "active": False, "deliveries": 68, "punctuality": 0.89, "joined_days_ago": 300},
         {"id": "driver-004", "name": "Elena Dumitrescu", "phone": "0722777888", "lat": 46.5580, "lng": 26.9220, "active": True, "deliveries": 36, "punctuality": 0.84, "joined_days_ago": 150},
-        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 46.5710, "lng": 26.9150, "active": True, "deliveries": 12, "punctuality": 0.78, "joined_days_ago": 45},
+        {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 46.5710, "lng": 26.9150, "active": True, "deliveries": 12, "punctuality": 0.78, "joined_days_ago": 45, "vehicle_type": "car"},
     ]
 
     for d in drivers_data:
@@ -386,6 +468,7 @@ async def seed_data():
         driver = Driver(
             id=d["id"], user_id=user.id, name=d["name"],
             phone=d["phone"], is_active=d["active"],
+            vehicle_type=d.get("vehicle_type", "scooter"),
             latitude=d["lat"], longitude=d["lng"],
             total_deliveries=d["deliveries"],
             punctuality_rate=d["punctuality"],
@@ -442,6 +525,7 @@ async def seed_data():
             sort_order += 1
 
     await seed_demo_orders(drivers_data)
+    demo_routes = await seed_demo_map_routes()
 
     return {
         "message": "Demo data seeded successfully - 100 orders created",
@@ -450,5 +534,5 @@ async def seed_data():
             "drivers": {"email": demo_credentials["driver_1"]["email"], "password": demo_credentials["driver_1"]["password"]},
             "restaurants": {"email": demo_credentials["restaurant_1"]["email"], "password": demo_credentials["restaurant_1"]["password"]}
         },
-        "data": {"orders": 100, "drivers": 5, "restaurants": 5}
+        "data": {"orders": 100 + demo_routes, "drivers": 5, "restaurants": 5, "demo_routes": demo_routes}
     }
