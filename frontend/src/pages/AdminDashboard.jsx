@@ -64,9 +64,9 @@ import { AdminScheduleView } from "../components/AdminScheduleView";
 import { AdminCommandCenter } from "../components/admin/AdminCommandCenter";
 import { LiveMapPanel } from "../components/admin/LiveMapPanel";
 import { OrdersTab } from "../components/admin/OrdersTab";
+import { RestaurantsTab } from "../components/admin/RestaurantsTab";
+import { SettingsTab } from "../components/admin/SettingsTab";
 import { restaurantIcon } from "../components/admin/MapMarkerIcons";
-import { RestaurantAnalyticsPanel } from "../components/admin/RestaurantAnalyticsPanel";
-import { RestaurantZonesManager } from "../components/RestaurantZonesManager";
 import { LocationAutocomplete } from "../components/LocationAutocomplete";
 import { useTheme } from "../context/ThemeContext";
 import {
@@ -917,65 +917,15 @@ const AdminDashboard = () => {
 
           {/* Restaurants Tab */}
           <TabsContent value="restaurants">
-            <div className="space-y-4">
-              <Card className="control-surface overflow-hidden">
-                <CardHeader className="border-b bg-slate-50/70 dark:bg-slate-900/50">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Store className="h-5 w-5 text-orange-600" />
-                        Restaurante operaționale
-                      </CardTitle>
-                      <p className="mt-1 text-sm text-muted-foreground">Alege restaurantul pentru performanță, zone și coordonate.</p>
-                    </div>
-                    <Badge variant="outline" className="border-slate-300 bg-white dark:bg-slate-950" data-testid="restaurants-panel-count">
-                      {restaurants.length} restaurante
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {restaurants.map((rest) => {
-                      const isSelected = selectedRestaurant?.id === rest.id;
-                      const activeForRestaurant = activeOrders.filter((order) => order.restaurant_id === rest.id).length;
-                      const totalForRestaurant = orders.filter((order) => order.restaurant_id === rest.id).length;
-                      return (
-                        <button
-                          key={rest.id}
-                          type="button"
-                          onClick={() => setSelectedRestaurantId(rest.id)}
-                          className={`premium-card relative overflow-hidden rounded-lg border p-4 text-left ${isSelected ? "border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/20 dark:ring-indigo-950" : "bg-card hover:border-slate-300 hover:bg-slate-50/70 dark:hover:bg-slate-900/60"}`}
-                          data-testid={`restaurant-card-${rest.id}`}
-                        >
-                          <div className="absolute right-3 top-3 rounded-full border bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-950/80">
-                            {isSelected ? "activ" : "profil"}
-                          </div>
-                          <div className="flex items-center gap-3 mb-3 pr-14">
-                            <div className="rounded-lg bg-orange-50 p-2 text-orange-600 dark:bg-orange-950/30">
-                              <Store className="w-6 h-6" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-bold">{rest.name}</p>
-                              <p className="text-xs text-muted-foreground">{activeForRestaurant} active · {totalForRestaurant} total</p>
-                            </div>
-                          </div>
-                          <p className="line-clamp-2 text-sm text-muted-foreground">{rest.address}</p>
-                          <p className="text-sm font-mono mt-2 font-medium">{rest.phone}</p>
-                          {rest.email && <p className="text-xs text-muted-foreground mt-1">{rest.email}</p>}
-                          <Badge className={`mt-3 ${isSelected ? "bg-indigo-700 text-white" : ""}`} variant={isSelected ? "default" : "outline"}>
-                            {isSelected ? "Selectat" : "Alege pentru zone"}
-                          </Badge>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <RestaurantAnalyticsPanel analytics={restaurantAnalytics} isLoading={restaurantAnalyticsLoading} />
-
-              <RestaurantZonesManager restaurant={selectedRestaurant} />
-            </div>
+            <RestaurantsTab
+              restaurants={restaurants}
+              selectedRestaurant={selectedRestaurant}
+              activeOrders={activeOrders}
+              orders={orders}
+              onSelectRestaurant={setSelectedRestaurantId}
+              restaurantAnalytics={restaurantAnalytics}
+              restaurantAnalyticsLoading={restaurantAnalyticsLoading}
+            />
           </TabsContent>
 
           {/* Program Tab */}
@@ -985,106 +935,7 @@ const AdminDashboard = () => {
 
           {/* Settings Tab */}
           <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Setări Sistem
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Auto Assign */}
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h4 className="font-bold">Alocare Automată</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Sistemul alocă automat comenzile către cel mai apropiat livrator
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={settings.autoAssign ? 'text-green-600' : 'text-muted-foreground'}>
-                      {settings.autoAssign ? 'ACTIV' : 'INACTIV'}
-                    </span>
-                    <Switch 
-                      checked={settings.autoAssign}
-                      onCheckedChange={(checked) => setSettings({...settings, autoAssign: checked})}
-                    />
-                  </div>
-                </div>
-
-                {/* Timeout */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h4 className="font-bold flex items-center gap-2">
-                        <Timer className="w-4 h-4" />
-                        Timeout Acceptare
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Timp de așteptare până la reatribuire automată
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-lg">
-                      {settings.timeout} secunde
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <Input 
-                      type="number" 
-                      value={settings.timeout}
-                      onChange={(e) => setSettings({...settings, timeout: parseInt(e.target.value) || 60})}
-                      className="w-24"
-                      disabled={!settings.autoAssign}
-                    />
-                    <span className="text-muted-foreground">secunde</span>
-                    {!settings.autoAssign && (
-                      <span className="text-sm text-orange-600 ml-4">
-                        (Activează alocarea automată pentru a folosi timeout)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Max Radius */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h4 className="font-bold flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        Rază Maximă Alocare
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Distanța maximă între livrator și restaurant
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-lg">
-                      {settings.maxRadius} km
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <Input 
-                      type="number" 
-                      value={settings.maxRadius}
-                      onChange={(e) => setSettings({...settings, maxRadius: parseFloat(e.target.value) || 5})}
-                      className="w-24"
-                    />
-                    <span className="text-muted-foreground">kilometri</span>
-                  </div>
-                </div>
-
-                {/* Save Button */}
-                <Button className="w-full" onClick={() => toast.success('Setări salvate (demo)')}>
-                  Salvează Setările
-                </Button>
-
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-950/30 dark:border-yellow-900">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-100">
-                    <strong>⚠️ Mod Demo:</strong> Setările sunt afișate pentru demonstrație. 
-                    Funcționalitatea completă va fi activată în fazele următoare.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <SettingsTab settings={settings} onSettingsChange={setSettings} />
           </TabsContent>
         </Tabs>
       </main>

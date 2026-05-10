@@ -1,0 +1,50 @@
+{
+  "summary": "Executed backend + frontend regression for post-iteration_20 refactors. Backend endpoints passed; admin tabs/dialogs and restaurant/driver smoke flows worked. No blocking runtime errors found after login.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Legacy DeliveryZonesManager direct route validation",
+        "issue": "`/zones` route is not exposed in router, so legacy component runtime could not be fully validated via direct navigation.",
+        "affected_selectors": [
+          "[data-testid='delivery-zones-manager']"
+        ]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration21_refactor_regression.py",
+    "/app/test_reports/pytest/iteration21_results.xml"
+  ],
+  "action_items": [
+    "If legacy DeliveryZonesManager must remain supported, expose a dedicated route/page for explicit runtime verification.",
+    "Add `data-testid` attributes for interactive controls in SettingsTab (switch/inputs/save button) to meet testability guideline.",
+    "Keep Admin Settings behavior explicitly marked as MOCKED/demo until backend persistence is implemented."
+  ],
+  "critical_code_review_comments": [
+    "Static scan passed: no `dangerouslySetInnerHTML` in `/app/frontend/src`.",
+    "Static scan passed: no `localStorage` in `/app/frontend/src` (ThemeContext uses sessionStorage).",
+    "Static scan passed: no obvious identity literal comparisons (`is 0/is 1/is True/is False`) in app source.",
+    "`/app/frontend/src/pages/AdminDashboard.jsx` remains oversized (~1300 LOC), still above 700-line maintainability guideline.",
+    "Admin Settings tab remains MOCKED by design (toast-only save)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration21_refactor_regression.py",
+    "/app/test_reports/iteration_21.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "95%"
+  },
+  "test_credentials": "Read from /app/memory/test_credentials.md and used admin@delivery.ro/admin123, rest-001@delivery.ro/restaurant123, driver-001@delivery.ro/driver123.",
+  "seed_data_creation": "Triggered via POST /api/seed in pytest; verified 100 orders and orders list length 100.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin tabs (orders/map/program/restaurants/settings) and new dialogs opened successfully. Restaurant card switching preserved analytics + zones rendering. Restaurant and Driver app smoke login/load passed. Ignore pre-login auth 401 noise; no non-auth runtime console errors seen post-login.",
+  "rca of the issue": "Only unresolved gap is legacy DeliveryZonesManager runtime verification: component exists but no direct route in App.js, so full direct-access validation is blocked. Mitigation: expose temporary route for regression smoke or validate through a page that mounts this component."
+}
