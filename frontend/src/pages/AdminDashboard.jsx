@@ -243,6 +243,7 @@ const AdminDashboard = () => {
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
   const [isNewRestaurantDialogOpen, setIsNewRestaurantDialogOpen] = useState(false);
+  const [driverVerificationFallback, setDriverVerificationFallback] = useState(null);
   const [isRestaurantPickerOpen, setIsRestaurantPickerOpen] = useState(false);
   const [activeAdminTab, setActiveAdminTab] = useState("orders");
   
@@ -531,6 +532,14 @@ const AdminDashboard = () => {
       const res = await axios.post(`${API_URL}/api/drivers`, newDriver);
       if (res.data.email_delivery?.status === "sent") {
         toast.success(`Livrator creat. Codul de verificare a fost trimis pe email. Parolă: ${res.data.password}`);
+      } else if (res.data.email_delivery?.status === "test_domain_restricted") {
+        setDriverVerificationFallback({
+          email: newDriver.email,
+          code: res.data.email_delivery.verification_code,
+          expiresAt: res.data.email_delivery.expires_at,
+          password: res.data.password,
+        });
+        toast.warning("Resend blochează domeniul de test; am generat codul local pentru verificare.");
       } else {
         toast.warning(`Livrator creat, dar emailul nu a fost trimis. Verifică senderul Resend. Parolă: ${res.data.password}`);
       }
@@ -1301,6 +1310,42 @@ const AdminDashboard = () => {
             <Button variant="outline" onClick={() => setIsNewDriverDialogOpen(false)} data-testid="new-driver-cancel-button">Anulează</Button>
             <Button onClick={createDriver} data-testid="new-driver-submit-button">Creează Livrator</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!driverVerificationFallback} onOpenChange={(open) => !open && setDriverVerificationFallback(null)}>
+        <DialogContent className="max-w-md" data-testid="driver-verification-fallback-dialog">
+          <DialogHeader>
+            <DialogTitle>Cod verificare generat local</DialogTitle>
+            <DialogDescription>
+              Resend blochează `onboarding@resend.dev` pentru destinatari externi. Folosește codul de mai jos în preview, apoi verifică domeniul Resend pentru email real.
+            </DialogDescription>
+          </DialogHeader>
+          {driverVerificationFallback && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                Email: <strong>{driverVerificationFallback.email}</strong><br />
+                Parolă inițială: <strong>{driverVerificationFallback.password}</strong>
+              </div>
+              <div className="rounded-lg bg-slate-950 p-5 text-center text-white">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Cod verificare</p>
+                <p className="mt-2 text-4xl font-black tracking-[0.2em]" data-testid="driver-verification-fallback-code">
+                  {driverVerificationFallback.code}
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => {
+                  navigator.clipboard?.writeText(driverVerificationFallback.code);
+                  toast.success("Cod copiat");
+                }}
+                data-testid="driver-verification-copy-code-button"
+              >
+                Copiază codul
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

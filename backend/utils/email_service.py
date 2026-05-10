@@ -7,6 +7,12 @@ import resend
 logger = logging.getLogger(__name__)
 
 
+class EmailDeliveryError(RuntimeError):
+    def __init__(self, message: str, reason: str = "send_failed"):
+        super().__init__(message)
+        self.reason = reason
+
+
 def build_driver_verification_html(driver_name: str, code: str) -> str:
     return f"""
     <div style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px;color:#0f172a">
@@ -32,5 +38,17 @@ async def send_driver_verification_email(recipient_email: str, driver_name: str,
     try:
         return await asyncio.to_thread(resend.Emails.send, params)
     except Exception as exc:
+        error_text = str(exc)
+        normalized_error = error_text.lower()
         logger.exception("Failed to send driver verification email")
-        raise RuntimeError("Emailul de verificare nu a putut fi trimis") from exc
+        if (
+            "testing domain restriction" in normalized_error
+            or "only send testing emails to your own email address" in normalized_error
+            or "verify a domain at resend.com/domains" in normalized_error
+            or "resend.dev" in normalized_error
+        ):
+            raise EmailDeliveryError(
+                "Senderul de test Resend poate trimite doar către emailul owner până la verificarea domeniului.",
+                reason="test_domain_restricted",
+            ) from exc
+        raise EmailDeliveryError("Emailul de verificare nu a putut fi trimis", reason="send_failed") from exc

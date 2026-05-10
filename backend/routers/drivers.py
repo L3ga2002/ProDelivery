@@ -6,7 +6,7 @@ from database import db
 from auth import hash_password, verify_password, get_current_user
 from models.driver import DriverCreate, DriverEmailVerification
 from utils.driver_ranking import build_driver_ranking_payload
-from utils.email_service import send_driver_verification_email
+from utils.email_service import EmailDeliveryError, send_driver_verification_email
 from utils.driver_ranking import ROMANIA_TZ
 
 router = APIRouter(prefix="/drivers", tags=["drivers"])
@@ -57,8 +57,21 @@ async def _create_and_send_verification(driver_id: str, user_id: str, email: str
     }
     await db.users.update_one({"id": user_id}, {"$set": payload})
     await db.drivers.update_one({"id": driver_id}, {"$set": payload})
-    email_response = await send_driver_verification_email(email, name, code)
-    return {"status": "sent", "email_id": email_response.get("id") if isinstance(email_response, dict) else None}
+    try:
+        email_response = await send_driver_verification_email(email, name, code)
+        delivery = {"status": "sent", "email_id": email_response.get("id") if isinstance(email_response, dict) else None}
+    except EmailDeliveryError as exc:
+        if exc.reason != "test_domain_restricted":
+            raise
+        delivery = {
+            "status": "test_domain_restricted",
+            "message": str(exc),
+            "verification_code": code,
+            "expires_at": expires_at.isoformat(),
+        }
+    await db.users.update_one({"id": user_id}, {"$set": {"email_verification_delivery_status": delivery["status"]}})
+    await db.drivers.update_one({"id": driver_id}, {"$set": {"email_verification_delivery_status": delivery["status"]}})
+    return delivery
 
 
 @router.get("")
@@ -154,7 +167,7 @@ async def create_driver(data: DriverCreate, current_user: dict = Depends(get_cur
     email_delivery = {"status": "not_sent"}
     try:
         email_delivery = await _create_and_send_verification(driver_id, user_id, normalized_email, data.name)
-    except RuntimeError as exc:
+    except EmailDeliveryError as exc:
         email_delivery = {"status": "failed", "message": str(exc)}
 
     return {
@@ -208,7 +221,7 @@ async def resend_driver_verification(driver_id: str, current_user: dict = Depend
         return {"message": "Emailul este deja verificat", "email_verified": True}
     try:
         email_delivery = await _create_and_send_verification(driver_id, driver["user_id"], driver["email"], driver["name"])
-    except RuntimeError as exc:
+    except EmailDeliveryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"message": "Cod retrimis", "email_delivery": email_delivery}
 
