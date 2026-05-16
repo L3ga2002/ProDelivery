@@ -108,6 +108,11 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Auth/Profile 16 Mai 2026: login-ul acceptă email sau telefon; telefonul are validare de format (`07xxxxxxxx` sau `+407xxxxxxxx`) și rămâne neverificat până la integrarea SMS reală. Emailul păstrează flow-ul existent cu Resend/cod.
 - SMS Decision 16 Mai 2026: clientul a ales să amâne codurile SMS reale deoarece furnizorii tip Twilio sunt plătiți; nu există SMS MOCKED, UI-ul explică explicit că SMS se conectează ulterior.
 - Validation 16 Mai 2026 Driver App Redesign: self-test curl PASS pentru login email, login telefon, dashboard, PATCH profil cu CNP/telefon/email; Playwright smoke PASS pentru login, Driver App, Profil/Calendar/Livrare tabs. Testing Agent iteration 25: frontend requested flows PASS, backend 10/11 PASS; singurul fail rămas este preflight CORS extern la ingress.
+- Admin Responsive Pass 16 Mai 2026: dashboard-ul admin a fost optimizat laptop-first și mobile-safe: container max-width mare pentru laptop, header flexibil, tabs scrollabile pe mobil, tabele protejate de overflow și carduri mobile pentru comenzi active.
+- Restaurant App Redesign 16 Mai 2026: aplicația restaurant a fost refăcută ca interfață dark/orange tip `Kitchen Queue`/KDS, cu hero operațional, status restaurant online/pauză, statistici vizuale, carduri comenzi în grid responsive, timer mare și acțiuni clare pentru preparare/gata/anulare.
+- Restaurant Status 16 Mai 2026: statusul restaurantului este persistat în backend prin `PATCH /api/restaurants/{restaurant_id}/status`; restaurantele puse pe pauză sunt excluse din disponibilitatea pentru comenzi noi.
+- Seed Safety 16 Mai 2026: seed-ul demo păstrează/administrează adminul idempotent prin update/upsert și nu mai șterge userii admin la resetarea demo.
+- Validation 16 Mai 2026 Admin/Restaurant: self-test Playwright PASS pe Admin laptop 1920 și mobil 390 fără overflow, Restaurant desktop/mobil fără overflow; curl PASS pentru login restaurant, GET/PATCH status restaurant. Testing Agent iteration 26: toate flow-urile Admin/Restaurant/Driver cerute PASS; singurul fail rămas este CORS preflight extern la ingress.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -139,6 +144,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `POST /api/schedules/admin/quick-adjust` - adaugă/scade rapid sloturi pe o celulă exactă din calendarul de Program (`day`, `hour`, `delta`, `slot_type`)
 - `PATCH /api/drivers/{driver_id}/self-profile` - actualizează profilul personal al livratorului: nume, prenume, CNP, data nașterii, sex, telefon, email
 - `POST /api/auth/login` - acceptă identificator email sau telefon pentru autentificare
+- `GET /api/restaurants/{restaurant_id}` - returnează profilul restaurantului curent/admin, inclusiv statusul operațional
+- `PATCH /api/restaurants/{restaurant_id}/status` - restaurantul/adminul setează dacă acceptă comenzi; folosit de Restaurant App
 
 ## DB Schema - delivery_zones
 ```
@@ -162,6 +169,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Dacă se dorește stocare persistentă multi-deploy pentru avataruri, migrare din filesystem server-side către object storage dedicat; endpoint-urile actuale ascund detaliul de storage în spatele backend-ului.
 - P1: Integrare SMS reală pentru validarea telefonului când clientul aprobă costurile/alege furnizorul (ex. Twilio Verify); în prezent SMS este deferred, nu mocked.
 - P1: Refactorizare UI Calendar livrator pentru a înlocui complet componenta veche `DriverSchedule` cu o experiență dark/orange nativă, dacă utilizatorul cere polish total.
+- P1: Refactor AdminDashboard în componente mai mici; fișierul rămâne mare, deși UI-ul responsive a fost îmbunătățit.
+- P1: Conectare reală Admin Settings, care rămâne MOCKED/demo.
 - P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi

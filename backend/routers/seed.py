@@ -430,7 +430,7 @@ async def seed_data():
         "rest-001": demo_credentials["restaurant_1"]["email"],
     }
 
-    await db.users.delete_many({})
+    await db.users.delete_many({"role": {"$ne": "admin"}})
     await db.drivers.delete_many({})
     await db.restaurants.delete_many({})
     await db.orders.delete_many({})
@@ -443,7 +443,11 @@ async def seed_data():
     admin_doc = admin.model_dump()
     admin_doc["password_hash"] = hash_password(demo_credentials["admin"]["password"])
     admin_doc["created_at"] = admin_doc["created_at"].isoformat()
-    await db.users.insert_one(admin_doc)
+    await db.users.update_one(
+        {"id": "admin-001"},
+        {"$set": admin_doc},
+        upsert=True,
+    )
 
     # Drivers
     drivers_data = [
