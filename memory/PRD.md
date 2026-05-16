@@ -113,6 +113,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Restaurant Status 16 Mai 2026: statusul restaurantului este persistat în backend prin `PATCH /api/restaurants/{restaurant_id}/status`; restaurantele puse pe pauză sunt excluse din disponibilitatea pentru comenzi noi.
 - Seed Safety 16 Mai 2026: seed-ul demo păstrează/administrează adminul idempotent prin update/upsert și nu mai șterge userii admin la resetarea demo.
 - Validation 16 Mai 2026 Admin/Restaurant: self-test Playwright PASS pe Admin laptop 1920 și mobil 390 fără overflow, Restaurant desktop/mobil fără overflow; curl PASS pentru login restaurant, GET/PATCH status restaurant. Testing Agent iteration 26: toate flow-urile Admin/Restaurant/Driver cerute PASS; singurul fail rămas este CORS preflight extern la ingress.
+- Driver Individual Calendar Cleanup 16 Mai 2026: eliminate controalele rapide `-5…+5` din calendarul individual al livratorului din dashboard admin; rămâne doar click direct pe celulele orare pentru adăugare/scoatere și un text scurt explicativ.
+- Validation 16 Mai 2026 Driver Calendar Cleanup: lint frontend PASS; Playwright smoke PASS în Admin > Livratori > Dashboard livrator > Calendar, cu `driver-quick-slot-*` count 0 și celule calendar vizibile.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele

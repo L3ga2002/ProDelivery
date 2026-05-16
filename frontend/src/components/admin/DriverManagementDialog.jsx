@@ -248,25 +248,6 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
     });
   };
 
-  const quickAdjustDay = (dayKey, amount) => {
-    setEditSlots((prev) => {
-      const daySlots = [...(prev[dayKey] || [])];
-      if (amount < 0) {
-        return { ...prev, [dayKey]: daySlots.slice(0, Math.max(daySlots.length + amount, 0)) };
-      }
-      const existing = new Set(daySlots.map((slot) => slot.start));
-      const additions = [];
-      for (const hour of ALL_HOURS) {
-        if (additions.length >= amount) break;
-        if (!existing.has(hour)) {
-          const forced = countSlots(prev) + additions.length >= RECOMMENDED_WEEKLY_HOURS || daySlots.length + additions.length >= RECOMMENDED_DAILY_HOURS;
-          additions.push(buildSlot(hour, forced));
-        }
-      }
-      return { ...prev, [dayKey]: [...daySlots, ...additions] };
-    });
-  };
-
   const saveSchedule = async () => {
     setSavingSchedule(true);
     try {
@@ -422,13 +403,8 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
                         <div className="grid grid-cols-[90px_repeat(7,minmax(80px,1fr))]" role="row">
                           <div className="p-2 font-bold" role="columnheader">Interval</div>
                           {DAYS.map((day) => (
-                            <div key={day.key} className="space-y-2 p-2 text-center font-bold" role="columnheader">
-                              <div>{day.label}</div>
-                              <div className="grid grid-cols-5 gap-1">
-                                {[-5, -4, -3, -2, -1, 1, 2, 3, 4, 5].map((amount) => (
-                                  <button key={amount} type="button" onClick={() => quickAdjustDay(day.key, amount)} className={`rounded px-1 py-0.5 text-[10px] ${amount > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700"}`} data-testid={`driver-quick-slot-${day.key}-${amount}`}>{amount > 0 ? `+${amount}` : amount}</button>
-                                ))}
-                              </div>
+                            <div key={day.key} className="p-2 text-center font-bold" role="columnheader">
+                              {day.label}
                             </div>
                           ))}
                         </div>
@@ -449,7 +425,7 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
                         ))}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-sm text-muted-foreground">Total selectat: <strong>{profileWarnings.total}h</strong></div><Button onClick={saveSchedule} disabled={savingSchedule} className="bg-orange-600 hover:bg-orange-700" data-testid="driver-save-forced-schedule-button"><Save className="mr-2 h-4 w-4" /> {savingSchedule ? "Se salvează..." : "Salvează program"}</Button></div>
+                    <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-sm text-muted-foreground">Click pe o celulă pentru a adăuga sau scoate ora. Total selectat: <strong>{profileWarnings.total}h</strong></div><Button onClick={saveSchedule} disabled={savingSchedule} className="bg-orange-600 hover:bg-orange-700" data-testid="driver-save-forced-schedule-button"><Save className="mr-2 h-4 w-4" /> {savingSchedule ? "Se salvează..." : "Salvează program"}</Button></div>
                   </CardContent>
                 </Card>
               </TabsContent>
