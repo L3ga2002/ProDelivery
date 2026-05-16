@@ -1,93 +1,158 @@
 {
-  "theme": "dark_and_light_mixed",
-  "archetype": "Archetype 2: The Performance Pro (Adapted for Logistics)",
-  "colors": {
-    "primary": "#F97316",
-    "primary_hover": "#EA580C",
-    "dark_background": "#0A0A0A",
-    "dark_surface": "#171717",
-    "dark_border": "#262626",
-    "light_background": "#FFFFFF",
-    "light_surface": "#F9FAFB",
-    "light_border": "#E5E7EB",
-    "success": "#22C55E",
-    "error": "#EF4444",
-    "text_dark_mode": "#F8FAFC",
-    "text_dark_muted": "#94A3B8",
-    "text_light_mode": "#0F172A",
-    "text_light_muted": "#64748B"
+  "project_context": {
+    "theme": "dark",
+    "archetype": "Performance Pro (Archetype 2) / Industrial Tech Dashboard",
+    "domain": "SaaS / Food Delivery / Admin & Restaurant Dashboard",
+    "target_audience": "Admins, Kitchen Staff, Delivery Fleet Managers",
+    "tone": "Premium, efficient, operational, high-contrast, ProDelivery vibe"
+  },
+  "color_palette": {
+    "background": {
+      "primary": "bg-zinc-950",
+      "secondary": "bg-zinc-900",
+      "glass": "bg-zinc-950/80 backdrop-blur-xl"
+    },
+    "surface": {
+      "primary": "bg-zinc-900",
+      "secondary": "bg-zinc-800",
+      "accent_glow": "bg-orange-500/10"
+    },
+    "brand": {
+      "primary": "bg-orange-500",
+      "hover": "hover:bg-orange-400",
+      "active": "active:bg-orange-600",
+      "muted": "bg-orange-500/20 text-orange-400"
+    },
+    "text": {
+      "primary": "text-zinc-50",
+      "secondary": "text-zinc-400",
+      "accent": "text-orange-500",
+      "inverse": "text-zinc-950"
+    },
+    "status": {
+      "success": "bg-emerald-500 text-emerald-950",
+      "warning": "bg-orange-500 text-orange-950",
+      "danger": "bg-red-500 text-red-950",
+      "info": "bg-blue-500 text-blue-950",
+      "ready": "bg-emerald-500/20 text-emerald-400 border-emerald-500/50"
+    },
+    "borders": {
+      "default": "border-zinc-800",
+      "focus": "focus:ring-2 focus:ring-orange-500 focus:outline-none",
+      "accent": "border-orange-500/30"
+    }
   },
   "typography": {
-    "heading_font": "Outfit",
-    "body_font": "Manrope",
-    "strategies": {
-      "h1": "text-3xl sm:text-4xl font-bold tracking-tight",
-      "h2": "text-xl sm:text-2xl font-semibold tracking-tight",
-      "body": "text-base leading-relaxed",
-      "labels": "text-xs font-bold uppercase tracking-[0.1em]"
+    "font_families": {
+      "headings": "Manrope, sans-serif",
+      "body": "IBM Plex Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scales": {
+      "h1": "text-3xl md:text-4xl tracking-tighter font-black",
+      "h2": "text-2xl md:text-3xl tracking-tight font-bold",
+      "h3": "text-xl md:text-2xl tracking-tight font-semibold",
+      "h4": "text-lg font-semibold",
+      "body": "text-base leading-relaxed text-zinc-300",
+      "small": "text-sm text-zinc-400",
+      "tiny": "text-xs uppercase tracking-[0.15em] text-zinc-500 font-bold"
     }
   },
-  "layout_and_spacing": {
-    "strategy": "Mobile-First 'Thumb-Zone' Design",
-    "container": "w-full max-w-md mx-auto min-h-screen shadow-2xl relative flex flex-col bg-dark_background overflow-x-hidden",
-    "spacing_scale": "p-4, p-5, p-6. High density for driver info, generous touch targets (min 48px height for inputs/buttons)",
-    "bottom_nav": "Fixed bottom, w-full max-w-md mx-auto z-50 pb-safe h-20 flex items-center justify-around bg-dark_surface border-t border-dark_border rounded-t-2xl"
+  "layout_spacing": {
+    "grid_modes": {
+      "admin_dashboard": "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
+      "restaurant_kds": "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+    },
+    "containers": {
+      "page_padding": "p-4 md:p-6 lg:p-8",
+      "card_padding": "p-5 md:p-6"
+    },
+    "radius": {
+      "card": "rounded-xl",
+      "button": "rounded-lg",
+      "pill": "rounded-full"
+    }
   },
   "components": {
-    "buttons": "Large tap targets (h-14). Primary: bg-orange-500 text-white rounded-2xl font-bold text-lg w-full transition-transform active:scale-95.",
-    "inputs": "h-14 rounded-2xl px-4 text-base. Light mode (Login): bg-gray-50 border border-gray-200. Focus: ring-2 ring-orange-500. Dark mode (Profile): bg-neutral-900 border border-neutral-800 text-white.",
-    "cards": "Rounded-[24px]. Dark mode: bg-neutral-900 border border-neutral-800 p-5 shadow-sm.",
-    "badges": "Rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider."
-  },
-  "specific_views": {
-    "login_screen": {
-      "theme": "Light",
-      "visuals": "Top and bottom orange wave vectors (use SVG background). Centered Scooter logo (logo_light). Large welcome text ('Salut, Livrator!'). Rounded input fields for Email and Password. Full-width orange login button."
+    "cards": {
+      "style": "bg-zinc-900 border border-zinc-800 shadow-md flex flex-col",
+      "hover": "hover:border-zinc-700 hover:shadow-lg transition-all duration-200"
     },
-    "home_screen": {
-      "theme": "Dark",
-      "visuals": "Orange wave at top (SVG). Centered logo (logo_dark). Greeting ('Salut, [Name]'). Order volume stats card. Current active order card showing pickup to delivery route overview. Summary today (earnings/deliveries)."
+    "buttons": {
+      "primary": "bg-orange-500 text-zinc-950 hover:bg-orange-400 font-bold shadow-[0_0_15px_rgba(249,115,22,0.15)] flex items-center justify-center gap-2",
+      "secondary": "bg-zinc-800 text-zinc-50 border border-zinc-700 hover:bg-zinc-700 hover:text-white flex items-center justify-center gap-2",
+      "ghost": "hover:bg-zinc-800 text-zinc-400 hover:text-zinc-50 flex items-center justify-center gap-2",
+      "danger": "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
     },
-    "delivery_screen": {
-      "theme": "Dark",
-      "visuals": "State 1: 'Offline' (Shows large 'Intră în program' toggle/button). State 2: 'Active' (Shows map interface, step-by-step delivery checklist, customer contact buttons, swipe-to-complete delivery slider)."
+    "tabs": {
+      "list": "flex space-x-2 bg-zinc-900 p-1.5 rounded-lg overflow-x-auto w-full no-scrollbar border border-zinc-800",
+      "trigger": "px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap data-[state=active]:bg-zinc-800 data-[state=active]:text-orange-500 data-[state=active]:shadow-sm transition-all text-zinc-400 hover:text-zinc-200"
     },
-    "calendar_screen": {
-      "theme": "Dark",
-      "visuals": "Shadcn Calendar customized for dark mode. Shows shifts/schedule. List below calendar showing upcoming shift times."
+    "kds_order_card": {
+      "wrapper": "flex flex-col gap-3 bg-zinc-900 border border-zinc-800 rounded-xl p-5 relative overflow-hidden h-full",
+      "header": "flex justify-between items-start border-b border-zinc-800 pb-3",
+      "timer_urgent": "text-red-400 font-mono font-bold animate-pulse flex items-center gap-1",
+      "timer_normal": "text-orange-400 font-mono font-bold flex items-center gap-1",
+      "items_list": "flex flex-col gap-3 py-2 flex-grow",
+      "item_row": "flex justify-between items-start text-sm border-b border-zinc-800/50 pb-2 last:border-0",
+      "actions": "flex gap-2 mt-auto pt-3 border-t border-zinc-800 w-full"
     },
-    "profile_screen": {
-      "theme": "Dark",
-      "visuals": "Avatar upload UI at top. Form fields: Name, DOB (Datepicker), Gender (Radio or Select: Masculin/Feminin), Email (with 'Validare' CTA next to it & verified badge), Phone (with format validation UI & 'Validare' CTA). Toggle for shift status."
+    "modals": {
+      "overlay": "bg-zinc-950/80 backdrop-blur-sm",
+      "content": "bg-zinc-900 border border-zinc-800 shadow-2xl sm:rounded-xl w-full max-w-lg p-0 overflow-hidden"
     }
+  },
+  "motion_interactions": {
+    "hover": "transition-all duration-200 ease-out",
+    "press": "active:scale-[0.98]",
+    "entrance": "animate-in fade-in slide-in-from-bottom-4 duration-500"
+  },
+  "icons": {
+    "library": "lucide-react",
+    "style": "stroke-[2px] w-5 h-5"
   },
   "media": {
     "images": [
       {
-        "category": "logo_light",
-        "url": "https://static.prod-images.emergentagent.com/jobs/9b6cf4c3-386b-4135-8933-61580d3b559e/images/33b66f7b6c6f41e8d0e0ac7295550bfc51292e5b34a7790c91d9522eaf757982.png",
-        "description": "ProDelivery scooter logo for Light mode (Login)"
+        "url": "https://static.prod-images.emergentagent.com/jobs/9b6cf4c3-386b-4135-8933-61580d3b559e/images/39f43c058bbed2f97c4eb40a3bb021dc6ab724edc6baa3a0750d6df176b968e4.png",
+        "category": "background",
+        "description": "Admin login/hero abstract dark tech background with orange accents"
       },
       {
-        "category": "logo_dark",
-        "url": "https://static.prod-images.emergentagent.com/jobs/9b6cf4c3-386b-4135-8933-61580d3b559e/images/f60b4d7f723e491ca185f2ad654e9d8f095c801cd7e3c0fd0c2de03e96251592.png",
-        "description": "ProDelivery scooter logo for Dark mode (Dashboard/Home)"
+        "url": "https://static.prod-images.emergentagent.com/jobs/9b6cf4c3-386b-4135-8933-61580d3b559e/images/4af9a3a8023fccd9d9b3c9c39ce9337dd6554ea9320644129ec28ad583f446fd.png",
+        "category": "background",
+        "description": "Restaurant Kitchen display hero/login background"
       },
       {
-        "category": "avatar_placeholder",
-        "url": "https://images.unsplash.com/photo-1551825687-f9de1603ed8b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMG1hbiUyMGRlbGl2ZXJ5JTIwZHJpdmVyJTIwc21pbGluZ3xlbnwwfHx8fDE3Nzg5NjA1ODd8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Smiling delivery driver avatar placeholder"
+        "url": "https://images.unsplash.com/photo-1575395311793-ad870d50fbd1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxyZXN0YXVyYW50JTIwbG9nb3xlbnwwfHx8fDE3Nzg5NjE5MzN8MA&ixlib=rb-4.1.0&q=85",
+        "category": "logo",
+        "description": "Restaurant placeholder logo 1"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1563002536-440db6fcc743?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwyfHxyZXN0YXVyYW50JTIwbG9nb3xlbnwwfHx8fDE3Nzg5NjE5MzN8MA&ixlib=rb-4.1.0&q=85",
+        "category": "logo",
+        "description": "Restaurant placeholder logo 2"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1603614550145-c7bb90bbfddf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwzfHxmYXN0JTIwZm9vZCUyMGJ1cmdlciUyMHBpenphfGVufDB8fHx8MTc3ODk2MTkzNHww&ixlib=rb-4.1.0&q=85",
+        "category": "product",
+        "description": "Burger and fries fast food"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1547754070-c73f90c116b5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwyfHxmYXN0JTIwZm9vZCUyMGJ1cmdlciUyMHBpenphfGVufDB8fHx8MTc3ODk2MTkzNHww&ixlib=rb-4.1.0&q=85",
+        "category": "product",
+        "description": "Burger sandwich"
       }
     ]
   },
   "instructions_to_main_agent": [
-    "CRITICAL: The entire app must be wrapped in a mobile simulator container: `<div className=\"w-full max-w-md mx-auto min-h-screen relative shadow-2xl bg-black overflow-hidden\">` to satisfy the 'optimizezi cum se vede pe telefon' requirement on desktop.",
-    "The app has two distinct themes as requested: Login is strictly LIGHT MODE (bg-white with orange waves), and post-login is strictly DARK MODE (bg-[#0A0A0A] with orange accents).",
-    "Implement the Orange Waves using inline SVG paths or custom CSS shapes positioned absolutely at the top (and bottom for login).",
-    "Use 'lucide-react' for all iconography (Home, Map/Delivery, Calendar, User).",
-    "Profile inputs (Email, Phone) MUST have a distinct 'Validare' (Validate) state and button. Use Shadcn Dialog to simulate entering an OTP code.",
-    "Navigation tabs: Acasă, Livrare, Calendar, Profil. Hide bottom nav on Login screen.",
-    "Add 'data-testid' to EVERY interactive element (inputs, buttons, tabs, toggles).",
-    "Ensure large tap targets (minimum h-12 to h-14) for all buttons and inputs to adhere to 2026 driver app UX standards."
+    "Strictly follow the Dark Theme for both Admin and Restaurant apps. Use zinc-950 as the main background and zinc-900 for surfaces. Accent color MUST be orange-500 (ProDelivery brand color).",
+    "Admin Dashboard: Build a responsive interface. Laptop/Desktop layout is paramount, but it MUST be usable on mobile. Use an auto-collapsing sidebar or horizontal tabs for (Comenzi, Program, Livratori, Restaurante). Ensure data tables have horizontal scrolling wrappers (`overflow-x-auto`) to prevent viewport breaking.",
+    "Modals & Drawers: For mobile screens, complex forms (like assigning a driver) should open in a bottom sheet/drawer instead of a cramped center modal. On laptop, center modals are fine but must have max-height and internal scrolling.",
+    "Restaurant App (KDS): Implement a Kanban/bento grid for the kitchen queue (`kds_order_card`). Display real-time preparation timers using JetBrains Mono. Emphasize visual states: 'New' (Orange accent), 'Preparing' (Blue accent), 'Ready' (Emerald accent), 'Late/Urgent' (Red pulse).",
+    "Include a prominent 'Operational Status' toggle in the Restaurant App header (e.g., Accepting Orders vs Paused) with clear visual feedback.",
+    "Typography: Use Manrope for headings and IBM Plex Sans for body text to maintain an industrial/tech precision vibe.",
+    "Testing: Add `data-testid` to EVERY interactive element (tabs, buttons, order cards, toggles).",
+    "Components: Use lucide-react icons. Avoid vanilla HTML inputs, heavily customize shadcn components (dark background, orange focus rings) so they do not look generic."
   ]
 }
