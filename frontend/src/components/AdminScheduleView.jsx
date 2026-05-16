@@ -103,6 +103,7 @@ export const AdminScheduleView = () => {
   const [setupDialogOpen, setSetupDialogOpen] = useState(false);
   const [calendarMode, setCalendarMode] = useState("normal");
   const [quickSlotDialog, setQuickSlotDialog] = useState(null);
+  const [quickManualAmount, setQuickManualAmount] = useState(4);
   const [clonePreview, setClonePreview] = useState(null);
   const [setupForm, setSetupForm] = useState({
     days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
@@ -345,7 +346,13 @@ export const AdminScheduleView = () => {
         delta,
         slot_type: quickSlotDialog.mode,
       });
-      toast.success(response.data.message || "Slot ajustat");
+      const requested = Math.abs(delta);
+      const adjusted = Math.abs(response.data.adjusted || 0);
+      if (quickSlotDialog.mode === "normal" && delta > 0 && adjusted < requested) {
+        toast.warning(`Am adăugat ${adjusted} din ${requested}. Sloturile standard se pot lega doar de livratori existenți fără program pe ora aceea.`);
+      } else {
+        toast.success(response.data.message || "Slot ajustat");
+      }
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || "Nu am putut ajusta slotul");
@@ -1013,8 +1020,42 @@ export const AdminScheduleView = () => {
                     </Button>
                   ))}
                 </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <label className="text-xs font-semibold text-muted-foreground" htmlFor="quick-manual-amount-input">
+                    Scrie manual câte sloturi vrei să modifici
+                  </label>
+                  <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-2">
+                    <Input
+                      id="quick-manual-amount-input"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={quickManualAmount}
+                      onChange={(event) => setQuickManualAmount(Math.max(1, Math.min(Number(event.target.value) || 1, 100)))}
+                      data-testid="schedule-quick-manual-amount-input"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => adjustQuickSlot(-Math.abs(quickManualAmount || 1))}
+                      disabled={autoGenerating}
+                      data-testid="schedule-quick-manual-minus-button"
+                    >
+                      Scade
+                    </Button>
+                    <Button
+                      type="button"
+                      className={quickSlotDialog.mode === "emergency" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}
+                      onClick={() => adjustQuickSlot(Math.abs(quickManualAmount || 1))}
+                      disabled={autoGenerating}
+                      data-testid="schedule-quick-manual-plus-button"
+                    >
+                      Adaugă
+                    </Button>
+                  </div>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  La scădere, sistemul scoate întâi sloturile create de admin/automat, ca să nu șteargă accidental ore alese manual de livratori.
+                  Standard = ore atribuite livratorilor existenți. Dacă ceri mai multe decât livratori disponibili pe ora aceea, sistemul adaugă doar câte poate. Urgență = capacitate liberă și poate fi crescută independent.
                 </p>
               </div>
             );

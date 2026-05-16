@@ -140,9 +140,7 @@ async def _upsert_generated_slot(driver: dict, target_week: str, day: str, hour:
 
 
 async def _quick_add_standard_slot(data: QuickAdjustScheduleRequest) -> int:
-    drivers = await db.drivers.find({"is_active": True}, {"_id": 0}).sort("name", 1).to_list(300)
-    if not drivers:
-      drivers = await db.drivers.find({}, {"_id": 0}).sort("name", 1).to_list(300)
+    drivers = await db.drivers.find({}, {"_id": 0}).sort("name", 1).to_list(300)
     created = 0
     for driver in drivers:
         if created >= data.delta:
@@ -401,8 +399,8 @@ async def quick_adjust_schedule_cell(data: QuickAdjustScheduleRequest, current_u
         raise HTTPException(status_code=400, detail="Zi invalidă")
     if data.hour not in ADMIN_ALLOWED_HOURS:
         raise HTTPException(status_code=400, detail="Oră invalidă")
-    if data.delta == 0 or abs(data.delta) > 5:
-        raise HTTPException(status_code=400, detail="Ajustarea rapidă acceptă valori între -5 și +5")
+    if data.delta == 0 or abs(data.delta) > 100:
+        raise HTTPException(status_code=400, detail="Ajustarea rapidă acceptă valori între -100 și +100")
 
     if data.slot_type == "emergency":
         result = await _quick_adjust_emergency_slot(data)

@@ -100,6 +100,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Program UX Fix 16 Mai 2026: bugul de scos sloturi a fost reparat prin endpoint backend `POST /api/schedules/admin/quick-adjust`, care adaugă/scade sloturi standard sau urgență pe celula exactă; la scădere standard se șterg întâi sloturile admin/auto ca să nu dispară accidental orele alese manual de livratori.
 - Program UX Fix 16 Mai 2026: dialogul simplu deschis din cardul unui livrator în tabul Program a fost simplificat vizual: total ore, ore livrator, ore admin, celule mari Verde/Gri/Roșu și quick edit pe zi `-3…+3` pentru adăugare/scoatere rapidă.
 - Validation 16 Mai 2026 Program UX Fix: backend quick-adjust testat cu curl pentru `+1/-1` standard și `+2/-2` urgență; Playwright smoke PASS pentru deschiderea quick dialog din calendar, click `+1` și `-1`, plus dialog program simplu livrator; lint frontend/backend PASS.
+- Program UX Clarification 16 Mai 2026: în dialogul rapid a fost adăugat câmp manual unde adminul poate scrie numărul de sloturi de adăugat/scăzut; quick-adjust acceptă acum valori manuale până la 100. Sloturile standard rămân ore atribuite livratorilor existenți, deci nu pot depăși numărul de livratori disponibili fără program pe ora respectivă; sloturile de urgență sunt capacitate liberă și pot fi crescute independent.
+- Validation 16 Mai 2026 Manual Quick Input: testat cu curl `delta=12` standard, sistemul a adăugat doar câți livratori reali erau disponibili și a curățat prin `delta=-added`; Playwright smoke PASS pentru input manual editabil în dialogul rapid; lint frontend/backend PASS.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
