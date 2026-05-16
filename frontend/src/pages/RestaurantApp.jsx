@@ -26,10 +26,11 @@ import {
   MapPin,
   XCircle,
   AlertTriangle,
-  Moon,
-  Sun,
+  Flame,
+  Utensils,
+  Power,
+  TimerReset,
 } from "lucide-react";
-import { useTheme } from "../context/ThemeContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const ORDER_POLL_INTERVAL_MS = 5000;
@@ -96,23 +97,30 @@ const getStatusConfig = (status) => {
 
 const RestaurantStatTile = ({ label, value, tone, testId }) => {
   const tones = {
-    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-100",
-    indigo: "border-indigo-200 bg-indigo-50 text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/20 dark:text-indigo-100",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100",
+    amber: "border-orange-500/30 bg-orange-500/10 text-orange-100",
+    indigo: "border-blue-500/30 bg-blue-500/10 text-blue-100",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
   };
   return (
-    <Card className={`premium-card ${tones[tone]}`} data-testid={testId}>
+    <Card className={`border ${tones[tone]} shadow-[0_18px_45px_-32px_rgba(0,0,0,0.9)]`} data-testid={testId}>
       <CardContent className="p-4 text-center">
         <p className="text-3xl font-black tracking-tight">{value}</p>
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
+        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.15em] opacity-70">{label}</p>
       </CardContent>
     </Card>
   );
 };
 
+const orderLaneMeta = {
+  NEW: { title: "Nouă", className: "border-orange-500/40 bg-orange-500/10 text-orange-200", icon: Bell },
+  PREPARING: { title: "În lucru", className: "border-blue-500/40 bg-blue-500/10 text-blue-200", icon: ChefHat },
+  READY: { title: "Gata", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200", icon: CheckCircle2 },
+  ASSIGNED: { title: "Ridicare", className: "border-sky-500/40 bg-sky-500/10 text-sky-200", icon: Truck },
+  ACCEPTED: { title: "Ridicare", className: "border-sky-500/40 bg-sky-500/10 text-sky-200", icon: Truck },
+};
+
 const RestaurantApp = () => {
   const { user, logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [preparingOrder, setPreparingOrder] = useState(null);
@@ -122,6 +130,17 @@ const RestaurantApp = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [now, setNow] = useState(Date.now());
   const [lateAlertedOrders, setLateAlertedOrders] = useState(new Set());
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
+
+  const fetchRestaurantStatus = useCallback(async () => {
+    if (!user?.restaurant_id) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/restaurants/${user.restaurant_id}`);
+      setAcceptingOrders(response.data.accepting_orders !== false);
+    } catch (error) {
+      console.error("Failed to fetch restaurant status", error);
+    }
+  }, [user?.restaurant_id]);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -138,12 +157,25 @@ const RestaurantApp = () => {
   useEffect(() => {
     if (user?.restaurant_id) {
       fetchOrders();
+      fetchRestaurantStatus();
       const interval = setInterval(fetchOrders, ORDER_POLL_INTERVAL_MS);
       return () => clearInterval(interval);
     } else {
       setIsLoading(false);
     }
-  }, [fetchOrders, user?.restaurant_id]);
+  }, [fetchOrders, fetchRestaurantStatus, user?.restaurant_id]);
+
+  const toggleRestaurantStatus = async () => {
+    if (!user?.restaurant_id) return;
+    const next = !acceptingOrders;
+    try {
+      await axios.patch(`${API_URL}/api/restaurants/${user.restaurant_id}/status`, { accepting_orders: next });
+      setAcceptingOrders(next);
+      toast.success(next ? "Restaurant online pentru comenzi" : "Restaurant pus pe pauză");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut schimba statusul restaurantului");
+    }
+  };
 
   // Play sound only once when NEW orders appear for the first time
   const [seenOrderIds, setSeenOrderIds] = useState(new Set());
@@ -254,6 +286,9 @@ const RestaurantApp = () => {
 
   const activeOrders = orders.filter(o => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
   const completedToday = orders.filter(o => o.status === 'DELIVERED').length;
+  const newCount = orders.filter(o => o.status === 'NEW').length;
+  const preparingCount = orders.filter(o => o.status === 'PREPARING').length;
+  const readyCount = orders.filter(o => o.status === 'READY').length;
 
   if (isLoading) {
     return (
@@ -264,234 +299,151 @@ const RestaurantApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950" data-testid="restaurant-app">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/85 backdrop-blur-xl dark:bg-slate-950/85">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-indigo-700 shadow-sm">
-              <ChefHat className="w-6 h-6 text-white" />
+    <div className="min-h-screen overflow-x-hidden bg-zinc-950 text-zinc-50" data-testid="restaurant-app">
+      <header className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-500 text-zinc-950 shadow-[0_0_22px_rgba(249,115,22,0.25)]">
+              <ChefHat className="h-6 w-6" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
-                {user?.restaurant_name || 'RESTAURANT'}
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">Kitchen Queue</p>
+              <h1 className="truncate text-lg font-black tracking-tight sm:text-xl" style={{ fontFamily: 'var(--font-heading)' }}>
+                {user?.restaurant_name || 'Restaurant'}
               </h1>
-              <p className="text-xs text-muted-foreground">Panou Comenzi</p>
             </div>
           </div>
-          
           <div className="flex items-center gap-2">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="border-border/80 bg-card/85 backdrop-blur"
-              title={isDark ? "Schimbă la tema light" : "Schimbă la tema dark"}
-              data-testid="restaurant-theme-toggle"
+              onClick={toggleRestaurantStatus}
+              className={`inline-flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-black transition-colors ${acceptingOrders ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300" : "border-red-500/40 bg-red-500/15 text-red-300"}`}
+              data-testid="restaurant-operational-toggle"
             >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <Power className="h-4 w-4" />
+              <span className="hidden sm:inline">{acceptingOrders ? "Acceptă comenzi" : "Pauză"}</span>
+            </button>
+            <Button variant="ghost" size="icon" onClick={fetchOrders} className="text-zinc-300 hover:bg-zinc-800 hover:text-white" data-testid="refresh-button">
+              <RefreshCw className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={fetchOrders} data-testid="refresh-button">
-              <RefreshCw className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={logout} data-testid="logout-button">
-              <LogOut className="w-5 h-5" />
+            <Button variant="ghost" size="icon" onClick={logout} className="text-zinc-300 hover:bg-zinc-800 hover:text-white" data-testid="logout-button">
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
       </header>
 
-      {/* New Order Flash Banner */}
       {newOrderFlash && (
-        <div 
-          className="mx-4 mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm dark:border-amber-900 dark:bg-amber-950/25"
-          style={{ 
-            color: 'hsl(24 90% 28%)'
-          }}
-          data-testid="new-order-flash"
-        >
-          <p className="text-lg font-bold tracking-wide">COMANDĂ NOUĂ PRIMITĂ!</p>
-          <p className="text-sm opacity-80 mt-1">Verifică lista de comenzi</p>
+        <div className="mx-auto mt-3 max-w-[1600px] px-4 lg:px-6">
+          <div className="rounded-xl border border-orange-500/40 bg-orange-500/15 p-4 text-center text-orange-100 shadow-lg" data-testid="new-order-flash">
+            <p className="text-lg font-black tracking-wide">COMANDĂ NOUĂ PRIMITĂ!</p>
+            <p className="text-sm opacity-80">Alege timpul de preparare.</p>
+          </div>
         </div>
       )}
 
-      {/* Stats */}
-      <section className="mx-4 mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="restaurant-kitchen-hero">
-        <div className="grid gap-3 p-5 md:grid-cols-[1fr_auto] md:items-center">
-          <div>
-            <Badge className="mb-2 border-white/20 bg-white/10 text-white hover:bg-white/10">Kitchen Queue</Badge>
-            <h2 className="text-2xl font-black tracking-tight">Comenzi pregătite rapid, fără haos în bucătărie.</h2>
-            <p className="mt-1 text-sm text-slate-300">Timerul live măsoară pregătirea reală și întârzierea pentru analytics.</p>
+      <main className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 lg:px-6">
+        <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.22),transparent_32%),linear-gradient(135deg,#18181b,#09090b)] shadow-2xl" data-testid="restaurant-kitchen-hero">
+          <div className="grid gap-5 p-5 lg:grid-cols-[1.35fr_0.9fr] lg:p-7">
+            <div>
+              <Badge className="mb-3 border-orange-500/30 bg-orange-500/15 text-orange-300 hover:bg-orange-500/15">
+                <Utensils className="mr-1 h-3.5 w-3.5" /> KDS live
+              </Badge>
+              <h2 className="max-w-3xl text-3xl font-black tracking-tight sm:text-4xl">Bucătărie organizată, timer mare, decizii rapide.</h2>
+              <p className="mt-2 max-w-2xl text-sm text-zinc-400">Comenzile sunt separate vizual pe status: nou, în lucru, gata și ridicare.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Ora curentă</p><p className="font-mono text-2xl font-black text-white">{new Date(now).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</p></div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Active</p><p className="font-mono text-2xl font-black text-orange-300">{activeOrders.length}</p></div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Gata</p><p className="font-mono text-2xl font-black text-emerald-300">{readyCount}</p></div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Status</p><p className={`text-sm font-black ${acceptingOrders ? "text-emerald-300" : "text-red-300"}`}>{acceptingOrders ? "ONLINE" : "PAUZĂ"}</p></div>
+            </div>
           </div>
-          <div className="font-mono text-sm text-slate-300">{new Date(now).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</div>
+        </section>
+
+        <div className="grid grid-cols-3 gap-3">
+          <RestaurantStatTile label="Noi" value={newCount} tone="amber" testId="restaurant-stat-new" />
+          <RestaurantStatTile label="În lucru" value={preparingCount} tone="indigo" testId="restaurant-stat-preparing" />
+          <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" testId="restaurant-stat-delivered" />
         </div>
-      </section>
 
-      <div className="p-4 grid grid-cols-3 gap-3">
-        <RestaurantStatTile label="Noi" value={orders.filter(o => o.status === 'NEW').length} tone="amber" testId="restaurant-stat-new" />
-        <RestaurantStatTile label="În pregătire" value={orders.filter(o => o.status === 'PREPARING').length} tone="indigo" testId="restaurant-stat-preparing" />
-        <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" testId="restaurant-stat-delivered" />
-      </div>
-
-      {/* Orders List */}
-      <main className="p-4 space-y-4">
         {activeOrders.length === 0 ? (
-          <div className="text-center py-16">
-            <Bell className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Nicio comandă activă</h2>
-            <p className="text-muted-foreground">Vei primi notificare când apare o comandă nouă</p>
-          </div>
+          <section className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/70 py-16 text-center" data-testid="restaurant-empty-state">
+            <Bell className="mx-auto mb-4 h-16 w-16 text-zinc-600" />
+            <h2 className="text-2xl font-black">Nicio comandă activă</h2>
+            <p className="mt-2 text-zinc-400">Vei primi alertă când apare o comandă nouă.</p>
+          </section>
         ) : (
-          activeOrders.map((order) => (
-            <Card 
-              key={order.id} 
-              className={`premium-card overflow-hidden ${order.status === 'NEW' ? 'border-amber-300 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/10' : 'control-surface'}`}
-              data-testid={`order-card-${order.id}`}
-            >
-              <CardHeader className="border-b bg-white/60 pb-3 dark:bg-slate-900/40">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold tracking-tight">{order.order_number}</span>
-                    <Badge className={`${getStatusConfig(order.status).bgColor} ${getStatusConfig(order.status).textColor} border-0`}>
-                      {getStatusConfig(order.status).label}
-                    </Badge>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(order.created_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-3">
-                {/* Items */}
-                <div className="rounded-lg border bg-slate-50/80 p-3 dark:bg-slate-900/60">
-                  {order.items?.map((item) => (
-                    <div key={`${order.id}-${item.name}-${item.price}-${item.quantity}`} className="flex justify-between text-sm">
-                      <span className="font-medium">{item.quantity}x {item.name}</span>
-                      <span className="text-muted-foreground">{item.price * item.quantity} RON</span>
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="restaurant-kds-grid">
+            {activeOrders.map((order) => {
+              const timer = getPreparationTimer(order, now);
+              const lane = orderLaneMeta[order.status] || orderLaneMeta.NEW;
+              const LaneIcon = lane.icon;
+              return (
+                <article key={order.id} className={`flex min-h-[420px] flex-col rounded-2xl border bg-zinc-900 p-4 shadow-xl transition-colors hover:border-zinc-700 ${order.status === "NEW" ? "border-orange-500/50" : "border-zinc-800"}`} data-testid={`order-card-${order.id}`}>
+                  <div className="mb-3 flex items-start justify-between gap-3 border-b border-zinc-800 pb-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-black text-zinc-400">{order.order_number}</p>
+                      <h3 className="mt-1 truncate text-xl font-black text-white">{order.customer_name}</h3>
                     </div>
-                  ))}
-                  <div className="border-t mt-2 pt-2 flex justify-between font-bold text-lg">
-                    <span>TOTAL</span>
-                    <span>{order.total_amount} RON</span>
+                    <Badge className={`${lane.className} border`}><LaneIcon className="mr-1 h-3.5 w-3.5" />{lane.title}</Badge>
                   </div>
-                </div>
 
-                {/* Customer Info */}
-                <div className="text-sm space-y-1">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <span>{order.customer_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{order.customer_address}</span>
-                  </div>
-                  {order.notes && (
-                    <div className="text-orange-600 font-medium dark:text-orange-200">📝 {order.notes}</div>
-                  )}
-                </div>
-
-                {/* Driver Info */}
-                {order.driver_name && (
-                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg dark:bg-blue-950/30">
-                    <Truck className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-100">Livrator: {order.driver_name}</span>
-                  </div>
-                )}
-
-                {/* Actions */}
-                {order.status === 'NEW' && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Timp pregătire:</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {PREPARATION_OPTIONS_MINUTES.map((minutes) => (
-                        <Button
-                          key={minutes}
-                          variant="outline"
-                          onClick={() => setPreparationTime(order.id, minutes)}
-                          className="h-12"
-                          data-testid={`prep-${minutes}-${order.id}`}
-                        >
-                          {minutes} min
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {order.status === 'PREPARING' && (
-                  <div className="space-y-2">
-                    {(() => {
-                      const timer = getPreparationTimer(order, now);
-                      return (
-                        <div
-                          className={`tracing-timer ${timer?.isLate ? "timer-late" : ""} rounded-xl border p-4 ${timer?.isLate ? "border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30" : "border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950/30"}`}
-                          data-testid={`preparation-timer-${order.id}`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <Clock className={`w-5 h-5 ${timer?.isLate ? "text-rose-600" : "text-indigo-600"}`} />
-                              <div>
-                                <p className="text-xs uppercase tracking-wide text-muted-foreground">Timer preparare</p>
-                                <p className="text-sm font-medium">Estimare: {order.preparation_time || "-"} min</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className={`font-mono text-5xl font-black tracking-tight ${timer?.isLate ? "text-rose-700 dark:text-rose-100" : "text-indigo-700 dark:text-indigo-100"}`} data-testid={`restaurant-timer-display-${order.id}`}>
-                                {timer?.label || "--:--"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {timer?.isLate ? "întârziere" : "rămas"}
-                              </p>
-                            </div>
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-zinc-800 bg-black/30 p-3">
+                      <div className="mb-2 flex items-center justify-between text-xs text-zinc-500"><span>Produse</span><span>{order.items?.length || 0} poziții</span></div>
+                      <div className="space-y-2">
+                        {order.items?.map((item) => (
+                          <div key={`${order.id}-${item.name}-${item.price}-${item.quantity}`} className="flex items-start justify-between gap-3 border-b border-zinc-800/70 pb-2 last:border-0 last:pb-0">
+                            <span className="text-sm font-semibold text-zinc-100">{item.quantity}× {item.name}</span>
+                            <span className="font-mono text-sm text-zinc-400">{item.price * item.quantity}</span>
                           </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3 text-lg font-black"><span>Total</span><span className="text-orange-300">{order.total_amount} RON</span></div>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-zinc-400">
+                      <p className="flex gap-2"><User className="mt-0.5 h-4 w-4 text-zinc-500" /><span className="min-w-0 truncate">{order.customer_name}</span></p>
+                      <p className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" /><span className="line-clamp-2">{order.customer_address}</span></p>
+                      {order.notes && <p className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-2 text-orange-200">📝 {order.notes}</p>}
+                    </div>
+
+                    {order.driver_name && <div className="flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 p-2 text-sm font-semibold text-blue-200"><Truck className="h-4 w-4" /> Livrator: {order.driver_name}</div>}
+                  </div>
+
+                  <div className="mt-auto space-y-3 pt-4">
+                    {order.status === 'NEW' && (
+                      <div className="space-y-2" data-testid={`prep-options-${order.id}`}>
+                        <p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">Setează timp</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {PREPARATION_OPTIONS_MINUTES.map((minutes) => (
+                            <Button key={minutes} variant="outline" onClick={() => setPreparationTime(order.id, minutes)} className="h-11 border-zinc-700 bg-zinc-800 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950" data-testid={`prep-${minutes}-${order.id}`}>{minutes}m</Button>
+                          ))}
                         </div>
-                      );
-                    })()}
-                    <Button 
-                      className="w-full h-14 text-lg font-bold bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => setConfirmReadyOrder(order)}
-                      data-testid={`ready-${order.id}`}
-                    >
-                      <CheckCircle2 className="w-6 h-6 mr-2" />
-                      COMANDA GATA
-                    </Button>
-                  </div>
-                )}
+                      </div>
+                    )}
 
-                {order.status === 'READY' && (
-                  <div className="p-3 bg-emerald-100 rounded-lg text-center dark:bg-emerald-950/30">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-1" />
-                    <p className="font-bold text-emerald-700 dark:text-emerald-100">GATA PENTRU RIDICARE</p>
-                    <p className="text-sm text-emerald-600 dark:text-emerald-200">Așteptăm livratorul</p>
-                  </div>
-                )}
+                    {order.status === 'PREPARING' && (
+                      <div className={`rounded-xl border p-4 ${timer?.isLate ? "border-red-500/50 bg-red-500/10" : "border-orange-500/40 bg-orange-500/10"}`} data-testid={`preparation-timer-${order.id}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div><p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">Timer</p><p className="text-sm text-zinc-400">Estimare {order.preparation_time || "-"} min</p></div>
+                          <p className={`font-mono text-4xl font-black ${timer?.isLate ? "animate-pulse text-red-300" : "text-orange-300"}`} data-testid={`restaurant-timer-display-${order.id}`}>{timer?.label || "--:--"}</p>
+                        </div>
+                        <Button className="mt-3 h-13 w-full bg-emerald-500 font-black text-emerald-950 hover:bg-emerald-400" onClick={() => setConfirmReadyOrder(order)} data-testid={`ready-${order.id}`}><CheckCircle2 className="mr-2 h-5 w-5" /> COMANDA GATA</Button>
+                      </div>
+                    )}
 
-                {['ASSIGNED', 'ACCEPTED'].includes(order.status) && (
-                  <div className="p-3 bg-blue-100 rounded-lg text-center dark:bg-blue-950/30">
-                    <Truck className="w-8 h-8 text-blue-600 mx-auto mb-1" />
-                    <p className="font-bold text-blue-700 dark:text-blue-100">LIVRATORUL VINE</p>
-                    <p className="text-sm text-blue-600 dark:text-blue-200">{order.driver_name} preia comanda</p>
-                  </div>
-                )}
+                    {order.status === 'READY' && <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-center text-emerald-200"><CheckCircle2 className="mx-auto mb-1 h-8 w-8" /><p className="font-black">GATA PENTRU RIDICARE</p><p className="text-sm opacity-80">Așteptăm livratorul</p></div>}
 
-                {/* Cancel Button - available for NEW, PREPARING, READY */}
-                {['NEW', 'PREPARING', 'READY'].includes(order.status) && (
-                  <Button
-                    variant="outline"
-                    className="w-full text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                    onClick={() => { setCancelOrder(order); setCancelReason(""); }}
-                    data-testid={`cancel-${order.id}`}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Anulează Comanda
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                    {['ASSIGNED', 'ACCEPTED'].includes(order.status) && <div className="rounded-xl border border-sky-500/40 bg-sky-500/10 p-4 text-center text-sky-200"><Truck className="mx-auto mb-1 h-8 w-8" /><p className="font-black">LIVRATORUL VINE</p><p className="text-sm opacity-80">{order.driver_name} preia comanda</p></div>}
+
+                    {['NEW', 'PREPARING', 'READY'].includes(order.status) && <Button variant="outline" className="h-11 w-full border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20" onClick={() => { setCancelOrder(order); setCancelReason(""); }} data-testid={`cancel-${order.id}`}><XCircle className="mr-2 h-4 w-4" /> Anulează</Button>}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
         )}
       </main>
 

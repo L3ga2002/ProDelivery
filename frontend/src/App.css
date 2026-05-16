@@ -358,3 +358,13 @@
 .delivery-map-marker-status-dot-offline {
   background: rgb(148 163 184);
 }
+
+.admin-tabs-scroll {
+  scrollbar-width: thin;
+}
+
+@media (max-width: 768px) {
+  [data-testid="admin-dashboard"] .leaflet-container {
+    min-height: 320px;
+  }
+}

@@ -744,23 +744,23 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30" data-testid="admin-dashboard">
+    <div className="min-h-screen overflow-x-hidden bg-muted/30" data-testid="admin-dashboard">
       {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'hsl(215 75% 22%)' }}>
+      <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: 'hsl(215 75% 22%)' }}>
               <Truck className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl" style={{ fontFamily: 'var(--font-heading)' }}>
                 PRODELIVERY <span style={{ color: 'hsl(24 95% 53%)', fontSize: '0.7em' }}>BACAU</span>
               </h1>
               <p className="text-xs text-muted-foreground">Dashboard Admin</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -773,8 +773,8 @@ const AdminDashboard = () => {
               <span className="hidden sm:inline">{isDark ? "Light" : "Dark"}</span>
             </Button>
             <Button variant="outline" size="sm" onClick={fetchData} data-testid="refresh-button">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Actualizează
+              <RefreshCw className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Actualizează</span>
             </Button>
             <div className="text-sm text-right hidden sm:block">
               <p className="font-medium">{user?.name}</p>
@@ -787,7 +787,7 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="mx-auto w-full max-w-[1600px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6">
         <AdminCommandCenter
           stats={stats}
           activeDriversCount={activeDrivers.length}
@@ -799,14 +799,14 @@ const AdminDashboard = () => {
 
         {/* Tabs */}
         <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="orders" data-testid="tab-orders">Comenzi ({activeOrders.length})</TabsTrigger>
-            <TabsTrigger value="analytics" data-testid="tab-analytics">Analize</TabsTrigger>
-            <TabsTrigger value="map" data-testid="tab-map">Hartă</TabsTrigger>
-            <TabsTrigger value="drivers" data-testid="tab-drivers">Livratori ({drivers.length})</TabsTrigger>
-            <TabsTrigger value="program" data-testid="tab-program">Program</TabsTrigger>
-            <TabsTrigger value="restaurants" data-testid="tab-restaurants">Restaurante ({restaurants.length})</TabsTrigger>
-            <TabsTrigger value="settings" data-testid="tab-settings">Setări</TabsTrigger>
+          <TabsList className="admin-tabs-scroll flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl border bg-card/90 p-1.5">
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="orders" data-testid="tab-orders">Comenzi ({activeOrders.length})</TabsTrigger>
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="analytics" data-testid="tab-analytics">Analize</TabsTrigger>
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="map" data-testid="tab-map">Hartă</TabsTrigger>
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="drivers" data-testid="tab-drivers">Livratori ({drivers.length})</TabsTrigger>
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="program" data-testid="tab-program">Program</TabsTrigger>
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="restaurants" data-testid="tab-restaurants">Restaurante ({restaurants.length})</TabsTrigger>
+            <TabsTrigger className="shrink-0 whitespace-nowrap px-3 py-2" value="settings" data-testid="tab-settings">Setări</TabsTrigger>
           </TabsList>
 
           {/* Orders Tab */}
@@ -816,7 +816,7 @@ const AdminDashboard = () => {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" data-testid="analytics-tab">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
               {/* Hourly Orders Chart */}
               <Card>
                 <CardHeader>
@@ -964,7 +964,7 @@ const AdminDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {drivers.map((driver) => (
                     <div
                       key={driver.id}

@@ -47,7 +47,52 @@ export const OrdersTab = ({ activeOrders, onAssignOrder }) => (
       </div>
     </CardHeader>
     <CardContent className="p-0">
-      <Table>
+      <div className="grid gap-3 p-3 md:hidden" data-testid="admin-orders-mobile-list">
+        {activeOrders.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground" data-testid="admin-orders-mobile-empty">
+            Nu există comenzi active
+          </div>
+        ) : activeOrders.map((order) => (
+          <article key={order.id} className="rounded-xl border bg-card p-3 shadow-sm" data-testid={`admin-order-mobile-card-${order.id}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-black text-slate-600 dark:text-slate-200">{order.order_number}</p>
+                <h3 className="truncate text-base font-bold">{order.restaurant_name}</h3>
+              </div>
+              {getSourceBadge(order.source)}
+            </div>
+            <div className="mt-3 grid gap-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Client</span>
+                <span className="truncate font-semibold">{order.customer_name}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Telefon</span>
+                <span className="font-mono">{order.customer_phone}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Sumă</span>
+                <span className="font-black">{order.total_amount} RON</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Status</span>
+                {getStatusBadge(order.status)}
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Livrator</span>
+                <span className="truncate font-medium">{order.driver_name || "-"}</span>
+              </div>
+            </div>
+            {["NEW", "PREPARING", "READY"].includes(order.status) && (
+              <Button size="sm" className="mt-3 w-full bg-indigo-700 hover:bg-indigo-600" onClick={() => onAssignOrder(order)} data-testid={`admin-order-mobile-assign-button-${order.id}`}>
+                Alocă livrator
+              </Button>
+            )}
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block" data-testid="admin-orders-table-wrapper">
+      <Table className="min-w-[920px]">
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
             <TableHead className="w-[100px]">Nr.</TableHead>
@@ -97,6 +142,7 @@ export const OrdersTab = ({ activeOrders, onAssignOrder }) => (
           )}
         </TableBody>
       </Table>
+      </div>
     </CardContent>
   </Card>
 );

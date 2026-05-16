@@ -39,16 +39,16 @@ export const AdminCommandCenter = ({
   onNewOrder,
 }) => (
   <>
-    <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="admin-command-center-hero">
-      <div className="grid gap-4 p-5 lg:grid-cols-[1.5fr_1fr] lg:p-6">
+    <section className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm lg:mb-6" data-testid="admin-command-center-hero">
+      <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.5fr_1fr] lg:p-6">
         <div>
           <Badge className="mb-3 border-white/20 bg-white/10 text-white hover:bg-white/10">Control Room · Bacău</Badge>
-          <h2 className="text-3xl font-bold tracking-tight">Operațiuni live, restaurante și program într-un singur panou.</h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Operațiuni live, restaurante și program într-un singur panou.</h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
             Fluxul este construit pentru dispecerat: comenzi active, timp de preparare, zone per restaurant și sloturi normale generate rapid.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-3 gap-2 text-center sm:gap-3">
           <div className="rounded-lg border border-white/10 bg-white/10 p-3" data-testid="hero-active-orders">
             <p className="text-2xl font-bold">{stats.active_orders || 0}</p>
             <p className="text-xs text-slate-300">active</p>
@@ -65,7 +65,7 @@ export const AdminCommandCenter = ({
       </div>
     </section>
 
-    <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+    <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:gap-4 xl:grid-cols-6">
       <AdminStatCard icon={Package} label="Active" value={stats.active_orders || 0} tone="amber" testId="admin-stat-active-orders" />
       <AdminStatCard icon={Clock} label="Total" value={stats.total_orders || 0} tone="blue" testId="admin-stat-total-orders" />
       <AdminStatCard icon={UserCheck} label="Livratori" value={stats.active_drivers || 0} tone="green" testId="admin-stat-active-drivers" />
@@ -74,7 +74,7 @@ export const AdminCommandCenter = ({
       <AdminStatCard icon={XCircle} label="Anulate" value={stats.cancelled_orders || 0} tone="red" testId="admin-stat-cancelled" />
     </div>
 
-    <div className="mb-6 flex flex-wrap gap-2">
+    <div className="mb-5 flex flex-wrap gap-2">
       <Button
         onClick={onRunSimulation}
         disabled={isSimRunning}

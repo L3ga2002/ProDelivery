@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from datetime import datetime, timezone
 import uuid
 from shapely.geometry import Point, Polygon
@@ -7,6 +8,10 @@ from auth import hash_password, get_current_user
 from models.restaurant import RestaurantCreate, RestaurantAvailabilityRequest
 
 router = APIRouter(prefix="/restaurants", tags=["restaurants"])
+
+
+class RestaurantStatusUpdate(BaseModel):
+    accepting_orders: bool
 
 
 @router.get("")
@@ -159,6 +164,7 @@ async def create_restaurant(data: RestaurantCreate, current_user: dict = Depends
         "latitude": data.latitude,
         "longitude": data.longitude,
         "location_source": data.location_source,
+        "accepting_orders": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -196,12 +202,40 @@ async def get_available_restaurants(
     current_user: dict = Depends(get_current_user),
 ):
     point = Point(data.lng, data.lat)
-    restaurants = await db.restaurants.find({}, {"_id": 0}).to_list(1000)
+    restaurants = await db.restaurants.find({"accepting_orders": {"$ne": False}}, {"_id": 0}).to_list(1000)
     available = []
     for restaurant in restaurants:
         if await restaurant_covers_point(restaurant["id"], point):
             available.append(restaurant)
     return {"restaurants": available, "count": len(available)}
+
+
+@router.get("/{restaurant_id}")
+async def get_restaurant(restaurant_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] == "restaurant" and current_user.get("restaurant_id") != restaurant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    restaurant = await db.restaurants.find_one({"id": restaurant_id}, {"_id": 0})
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    return restaurant
+
+
+@router.patch("/{restaurant_id}/status")
+async def update_restaurant_status(restaurant_id: str, data: RestaurantStatusUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] == "restaurant" and current_user.get("restaurant_id") != restaurant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if current_user["role"] not in ["restaurant", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    restaurant = await db.restaurants.find_one({"id": restaurant_id}, {"_id": 0})
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    update = {
+        "accepting_orders": data.accepting_orders,
+        "status_updated_at": datetime.now(timezone.utc).isoformat(),
+        "status_updated_by": current_user.get("user_id"),
+    }
+    await db.restaurants.update_one({"id": restaurant_id}, {"$set": update})
+    return {"message": "Status restaurant actualizat", **update}
 
 
 @router.get("/{restaurant_id}/analytics")
