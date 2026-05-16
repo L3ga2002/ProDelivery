@@ -80,9 +80,9 @@ L.Icon.Default.mergeOptions({
 });
 
 export const getDriverMapStatus = (driver) => {
+  if (driver?.operational_status) return driver.operational_status;
   if (driver.current_order_id) return "delivery";
   if (!driver?.is_active) return "offline";
-  if (driver.is_scheduled_today && !driver.is_on_shift_now) return "break";
   return "active";
 };
 

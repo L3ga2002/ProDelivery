@@ -67,7 +67,7 @@ async def clear_driver_assignment(order: dict | None) -> None:
     if order and order.get("driver_id"):
         await db.drivers.update_one(
             {"id": order["driver_id"]},
-            {"$set": {"current_order_id": None}}
+            {"$set": {"current_order_id": None, "driver_status": "active", "is_active": True}}
         )
 
 
@@ -76,7 +76,7 @@ async def finalize_delivered_order(order: dict | None) -> None:
         await db.drivers.update_one(
             {"id": order["driver_id"]},
             {
-                "$set": {"current_order_id": None},
+                "$set": {"current_order_id": None, "driver_status": "active", "is_active": True},
                 "$inc": {"total_deliveries": 1, "total_earnings": order.get("total_amount", 0) * 0.1}
             }
         )
@@ -193,7 +193,7 @@ async def assign_order(order_id: str, data: AssignOrder, current_user: dict = De
 
     await db.drivers.update_one(
         {"id": data.driver_id},
-        {"$set": {"current_order_id": order_id}}
+        {"$set": {"current_order_id": order_id, "driver_status": "delivery", "is_active": True}}
     )
 
     return {"message": "Order assigned"}

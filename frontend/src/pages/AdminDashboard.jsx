@@ -60,10 +60,7 @@ import {
   Moon,
   Sun,
   Search,
-  Car,
   Info,
-  Save,
-  Trash2,
   SlidersHorizontal,
 } from "lucide-react";
 import { AdminScheduleView } from "../components/AdminScheduleView";
@@ -72,6 +69,8 @@ import { LiveMapPanel } from "../components/admin/LiveMapPanel";
 import { OrdersTab } from "../components/admin/OrdersTab";
 import { RestaurantsTab } from "../components/admin/RestaurantsTab";
 import { SettingsTab } from "../components/admin/SettingsTab";
+import { DriverManagementDialog } from "../components/admin/DriverManagementDialog";
+import { DriverAvatar } from "../components/DriverAvatar";
 import { restaurantIcon } from "../components/admin/MapMarkerIcons";
 import { LocationAutocomplete } from "../components/LocationAutocomplete";
 import { useTheme } from "../context/ThemeContext";
@@ -111,6 +110,17 @@ const getSourceBadge = (source) => {
   };
   const names = { S: "Site", G: "Glovo", W: "Wolt", B: "Bolt" };
   return <Badge className={colors[source] || "bg-gray-100"}>{names[source] || source}</Badge>;
+};
+
+const getDriverStatusMeta = (driver) => {
+  const status = driver.operational_status || (driver.current_order_id ? "delivery" : driver.is_active ? "active" : "offline");
+  const meta = {
+    active: { label: "Activ", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100" },
+    delivery: { label: "În livrare", className: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-100" },
+    break: { label: "În pauză", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-100" },
+    offline: { label: "Offline", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100" },
+  };
+  return meta[status] || meta.offline;
 };
 
 const OrderLocationMapEvents = ({ onChange }) => {
@@ -289,8 +299,6 @@ const AdminDashboard = () => {
   const [newDriver, setNewDriver] = useState({ name: "", phone: "", email: "", vehicle_type: "scooter" });
   const [scoreDialogDriver, setScoreDialogDriver] = useState(null);
   const [driverManagement, setDriverManagement] = useState(null);
-  const [driverRankForm, setDriverRankForm] = useState({ manual_ranking_score: "", manual_rank_note: "" });
-  const [driverDeleteText, setDriverDeleteText] = useState("");
   
   // New restaurant form
   const [newRestaurant, setNewRestaurant] = useState({
@@ -560,63 +568,6 @@ const AdminDashboard = () => {
 
   const openDriverManagement = (driver) => {
     setDriverManagement(driver);
-    setDriverRankForm({
-      manual_ranking_score: driver.manual_ranking_score ?? driver.ranking_score ?? "",
-      manual_rank_note: driver.manual_rank_note || "",
-    });
-    setDriverDeleteText("");
-  };
-
-  const saveDriverRanking = async () => {
-    if (!driverManagement?.id) return;
-    const numericScore = Number(driverRankForm.manual_ranking_score);
-    if (Number.isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
-      toast.error("Scorul trebuie să fie între 0 și 100");
-      return;
-    }
-    try {
-      const response = await axios.patch(`${API_URL}/api/drivers/${driverManagement.id}/ranking`, {
-        manual_ranking_score: numericScore,
-        manual_rank_note: driverRankForm.manual_rank_note,
-      });
-      toast.success(`Scor actualizat: ${response.data.ranking_score} · ${response.data.ranking_tier}`);
-      setDriverManagement((prev) => ({ ...prev, ...response.data }));
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "Nu am putut actualiza scorul");
-    }
-  };
-
-  const clearDriverManualRanking = async () => {
-    if (!driverManagement?.id) return;
-    try {
-      await axios.patch(`${API_URL}/api/drivers/${driverManagement.id}/ranking`, {
-        manual_ranking_score: null,
-        manual_rank_note: "",
-      });
-      toast.success("Scorul manual a fost eliminat");
-      setDriverManagement(null);
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "Nu am putut elimina scorul manual");
-    }
-  };
-
-  const deleteDriverFromDatabase = async () => {
-    if (!driverManagement?.id) return;
-    if (driverDeleteText !== "STERGE") {
-      toast.error("Scrie STERGE pentru confirmare");
-      return;
-    }
-    try {
-      await axios.delete(`${API_URL}/api/drivers/${driverManagement.id}`, { params: { confirm_delete: true } });
-      toast.success("Livrator șters din baza de date");
-      setDriverManagement(null);
-      setDriverDeleteText("");
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "Nu am putut șterge livratorul");
-    }
   };
 
   const createRestaurant = async () => {
@@ -761,8 +712,8 @@ const AdminDashboard = () => {
   };
 
   const activeOrders = orders.filter((o) => o.status !== "DELIVERED");
-  const activeDrivers = drivers.filter((d) => d.is_active);
-  const availableDrivers = drivers.filter((d) => d.is_active && !d.current_order_id);
+  const activeDrivers = drivers.filter((d) => ["active", "delivery", "break"].includes(d.operational_status) || d.is_active);
+  const availableDrivers = drivers.filter((d) => (d.operational_status === "active" || (d.is_active && !d.operational_status)) && !d.current_order_id);
   const assignableOrders = activeOrders.filter((order) => ["NEW", "PREPARING", "READY"].includes(order.status));
   const filteredAvailableDrivers = availableDrivers
     .filter((driver) => {
@@ -1027,9 +978,7 @@ const AdminDashboard = () => {
                       data-testid={`driver-management-card-${driver.id}`}
                     >
                       <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${driver.is_active ? 'bg-green-500' : 'bg-gray-400'}`}>
-                          {driver.vehicle_type === "car" ? <Car className="w-6 h-6 text-white" /> : <Truck className="w-6 h-6 text-white" />}
-                        </div>
+                        <DriverAvatar driver={driver} size="md" testId={`driver-card-avatar-${driver.id}`} />
                         <div>
                           <p className="font-bold">{driver.name}</p>
                           <p className="text-sm text-muted-foreground font-mono">{driver.phone}</p>
@@ -1050,8 +999,8 @@ const AdminDashboard = () => {
                         </button>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge className={`mt-2 ${driver.is_active ? 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-100'}`}>
-                          {driver.is_active ? 'Activ' : 'Inactiv'}
+                        <Badge className={`mt-2 ${getDriverStatusMeta(driver).className}`} data-testid={`driver-operational-status-${driver.id}`}>
+                          {getDriverStatusMeta(driver).label}
                         </Badge>
                         {driver.ranking_tier && (
                           <Badge variant="outline" data-testid={`driver-tier-${driver.id}`}>
@@ -1440,104 +1389,12 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Driver Management Dialog */}
-      <Dialog open={!!driverManagement} onOpenChange={(open) => !open && setDriverManagement(null)}>
-        <DialogContent className="max-w-2xl" data-testid="driver-management-dialog">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <SlidersHorizontal className="h-5 w-5 text-indigo-600" />
-              Gestionare livrator · {driverManagement?.name}
-            </DialogTitle>
-            <DialogDescription>
-              Ajustează scorul de rank sau șterge livratorul dacă nu mai colaborați.
-            </DialogDescription>
-          </DialogHeader>
-          {driverManagement && (
-            <div className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <p className="text-xs text-muted-foreground">Scor curent</p>
-                  <p className="text-2xl font-bold">{driverManagement.ranking_score || 0}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <p className="text-xs text-muted-foreground">Scor automat</p>
-                  <p className="text-2xl font-bold">{driverManagement.ranking_base_score ?? driverManagement.ranking_score ?? 0}</p>
-                </div>
-                <div className="rounded-lg border bg-muted/40 p-3">
-                  <p className="text-xs text-muted-foreground">Rank</p>
-                  <p className="text-2xl font-bold">{driverManagement.ranking_tier || "Start"}</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-                <div>
-                  <Label>Scor manual 0-100</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={driverRankForm.manual_ranking_score}
-                    onChange={(event) => setDriverRankForm((prev) => ({ ...prev, manual_ranking_score: event.target.value }))}
-                    data-testid="driver-manual-score-input"
-                  />
-                </div>
-                <div>
-                  <Label>Notă internă rank</Label>
-                  <Textarea
-                    value={driverRankForm.manual_rank_note}
-                    onChange={(event) => setDriverRankForm((prev) => ({ ...prev, manual_rank_note: event.target.value }))}
-                    placeholder="Ex: creștere temporară pentru punctualitate / scădere pentru reclamații"
-                    className="min-h-20"
-                    data-testid="driver-rank-note-input"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={saveDriverRanking} data-testid="driver-save-rank-button">
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvează scor rank
-                </Button>
-                <Button type="button" variant="outline" onClick={clearDriverManualRanking} data-testid="driver-clear-manual-rank-button">
-                  Revino la scor automat
-                </Button>
-              </div>
-
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/20">
-                <div className="flex items-start gap-3">
-                  <Trash2 className="mt-0.5 h-5 w-5 text-red-700 dark:text-red-200" />
-                  <div className="flex-1 space-y-3">
-                    <div>
-                      <p className="font-bold text-red-900 dark:text-red-100">Ștergere din baza de date</p>
-                      <p className="text-sm text-red-800/80 dark:text-red-100/80">
-                        Ștergerea elimină contul, profilul și programările livratorului. Dacă are comenzi active, sistemul blochează ștergerea.
-                      </p>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <Input
-                        value={driverDeleteText}
-                        onChange={(event) => setDriverDeleteText(event.target.value)}
-                        placeholder="Scrie STERGE pentru confirmare"
-                        data-testid="driver-delete-confirm-input"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={deleteDriverFromDatabase}
-                        disabled={driverDeleteText !== "STERGE"}
-                        data-testid="driver-delete-button"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Șterge
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DriverManagementDialog
+        driver={driverManagement}
+        open={!!driverManagement}
+        onOpenChange={(open) => !open && setDriverManagement(null)}
+        onChanged={fetchData}
+      />
 
       {/* Driver Score Dialog */}
       <Dialog open={!!scoreDialogDriver} onOpenChange={(open) => !open && setScoreDialogDriver(null)}>

@@ -2,8 +2,8 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
-import { Car, MapPin, Package, Phone, Route, Store, Truck } from "lucide-react";
-import { useMemo } from "react";
+import { Car, Clock, MapPin, Package, Phone, Route, Store, Truck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createMapMarkerIcon,
   DriverCarIcon,
@@ -35,6 +35,21 @@ const MapLegendIcon = ({ className, children }) => (
   <span className={`delivery-map-legend-icon ${className}`}>{children}</span>
 );
 
+const BreakCountdown = ({ driverId, seconds }) => {
+  const [remaining, setRemaining] = useState(seconds || 0);
+  useEffect(() => {
+    setRemaining(seconds || 0);
+  }, [seconds]);
+  useEffect(() => {
+    if (remaining <= 0) return undefined;
+    const interval = setInterval(() => setRemaining((value) => Math.max(value - 1, 0)), 1000);
+    return () => clearInterval(interval);
+  }, [remaining]);
+  const minutes = Math.floor(remaining / 60);
+  const secs = remaining % 60;
+  return <span data-testid={`map-driver-break-countdown-${driverId}`}>{minutes}:{String(secs).padStart(2, "0")}</span>;
+};
+
 const DriverPopup = ({ driver, onAssignDriver }) => {
   const status = getDriverMapStatus(driver);
   const meta = driverStatusMeta[status];
@@ -64,6 +79,12 @@ const DriverPopup = ({ driver, onAssignDriver }) => {
           <div className="flex items-center gap-2 text-blue-700">
             <Package className="h-3.5 w-3.5" />
             <span>Comandă în curs</span>
+          </div>
+        )}
+        {status === "break" && (
+          <div className="flex items-center gap-2 text-amber-700" data-testid={`map-driver-break-timer-${driver.id}`}>
+            <Clock className="h-3.5 w-3.5" />
+            <span>Pauză rămasă: <BreakCountdown driverId={driver.id} seconds={driver.break_remaining_seconds} /></span>
           </div>
         )}
       </div>
@@ -101,9 +122,7 @@ const RestaurantPopup = ({ restaurant }) => (
 
 export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [], onAssignDriver }) => {
   const mapCenter = useMemo(() => [46.567, 26.913], []);
-  const relevantDrivers = useMemo(() => drivers.filter((driver) => (
-    driver.current_order_id || driver.is_scheduled_today || driver.is_active
-  )), [drivers]);
+  const relevantDrivers = useMemo(() => drivers.filter((driver) => getDriverMapStatus(driver) !== "offline"), [drivers]);
   const ordersById = useMemo(() => Object.fromEntries(orders.map((order) => [order.id, order])), [orders]);
   const restaurantsById = useMemo(() => Object.fromEntries(restaurants.map((restaurant) => [restaurant.id, restaurant])), [restaurants]);
   const driverMarkers = useMemo(() => relevantDrivers.map((driver) => {
@@ -136,10 +155,13 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
     })
     .filter(Boolean), [driverMarkers, ordersById, restaurantsById]);
 
-  const statusCounts = useMemo(() => driverMarkers.reduce((counts, marker) => ({
-    ...counts,
-    [marker.status]: counts[marker.status] + 1,
-  }), { active: 0, delivery: 0, break: 0, offline: 0 }), [driverMarkers]);
+  const statusCounts = useMemo(() => drivers.reduce((counts, driver) => {
+    const status = getDriverMapStatus(driver);
+    return {
+      ...counts,
+      [status]: counts[status] + 1,
+    };
+  }, { active: 0, delivery: 0, break: 0, offline: 0 }), [drivers]);
 
   return (
     <Card className="control-surface overflow-hidden" data-testid="admin-live-map-panel">
@@ -225,7 +247,7 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
           </div>
           <div className="flex items-center gap-2">
             <MapLegendIcon className="delivery-map-legend-driver-offline"><DriverScooterIcon /></MapLegendIcon>
-            <span>Livrator offline</span>
+            <span>Offline ascuns de pe hartă</span>
           </div>
           <div className="flex items-center gap-2">
             <MapLegendIcon className="delivery-map-legend-restaurant"><RestaurantStorefrontIcon /></MapLegendIcon>

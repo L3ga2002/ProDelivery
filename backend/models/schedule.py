@@ -7,6 +7,8 @@ class TimeSlot(BaseModel):
     start: str  # "08:00"
     end: str    # "16:00"
     added_by: str = "driver"  # "driver" or "admin"
+    forced: bool = False
+    warning: Optional[str] = None
 
 
 class ScheduleCreate(BaseModel):
@@ -14,6 +16,7 @@ class ScheduleCreate(BaseModel):
     week_start: str  # ISO date string of Monday, e.g. "2026-03-02"
     slots: Dict[str, List[TimeSlot]]  # {"monday": [{"start": "08:00", "end": "16:00"}], ...}
     source: str = "driver"  # "driver" or "admin"
+    force_override: bool = False
 
 
 class ScheduleUpdate(BaseModel):

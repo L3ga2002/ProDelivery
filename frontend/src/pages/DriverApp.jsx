@@ -25,6 +25,8 @@ import {
   AlertTriangle,
   Moon,
   Sun,
+  PauseCircle,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Dialog,
@@ -35,7 +37,10 @@ import {
 } from "../components/ui/dialog";
 import { Textarea } from "../components/ui/textarea";
 import { DriverSchedule } from "../components/DriverSchedule";
+import { AvatarUploadCropper } from "../components/AvatarUploadCropper";
+import { DriverAvatar } from "../components/DriverAvatar";
 import { useTheme } from "../context/ThemeContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 const DRIVER_ORDER_POLL_INTERVAL_MS = 5000;
@@ -73,6 +78,9 @@ const DriverApp = () => {
   const [confirmAction, setConfirmAction] = useState(null); // {status, label}
   const [cancelDialog, setCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [driverDashboard, setDriverDashboard] = useState(null);
+  const [driverStatusForm, setDriverStatusForm] = useState({ status: "active", break_minutes: 30 });
+  const [avatarUploading, setAvatarUploading] = useState(false);
   
   // Check if PWA can be installed
   useEffect(() => {
@@ -148,6 +156,21 @@ const DriverApp = () => {
     }
   }, [user?.driver_id]);
 
+  const fetchDriverProfile = useCallback(async () => {
+    if (!user?.driver_id) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/drivers/${user.driver_id}/dashboard`);
+      setDriverDashboard(response.data);
+      const status = response.data.driver?.operational_status || "active";
+      setDriverStatusForm((prev) => ({
+        ...prev,
+        status: status === "delivery" ? "active" : status,
+      }));
+    } catch (error) {
+      console.error("Failed to fetch driver profile", error);
+    }
+  }, [user?.driver_id]);
+
   useEffect(() => {
     setEmailVerified(user?.email_verified !== false);
   }, [user?.email_verified]);
@@ -169,9 +192,35 @@ const DriverApp = () => {
 
   useEffect(() => {
     fetchOrder();
+    fetchDriverProfile();
     const interval = setInterval(fetchOrder, DRIVER_ORDER_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [fetchOrder]);
+  }, [fetchDriverProfile, fetchOrder]);
+
+  const updateDriverOperationalStatus = async () => {
+    try {
+      await axios.put(`${API_URL}/api/drivers/${user.driver_id}/status`, driverStatusForm);
+      toast.success("Status actualizat");
+      fetchDriverProfile();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut actualiza statusul");
+    }
+  };
+
+  const uploadDriverAvatar = async (blob, filename) => {
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, filename || "avatar.webp");
+      await axios.post(`${API_URL}/api/drivers/${user.driver_id}/avatar`, formData, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success("Poza a fost trimisă la aprobare");
+      fetchDriverProfile();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut încărca poza");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const updateStatus = useCallback(async (newStatus) => {
     if (!currentOrder) return;
@@ -321,6 +370,60 @@ const DriverApp = () => {
                 <Button type="button" onClick={verifyEmailCode} data-testid="driver-email-verify-button">
                   Verifică
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {user?.role === "driver" && driverDashboard?.driver && (
+          <Card className="mb-4 overflow-hidden border-orange-200 bg-gradient-to-br from-slate-950 to-slate-900 text-white shadow-lg" data-testid="driver-profile-status-card">
+            <CardContent className="space-y-4 p-4">
+              <div className="flex items-center gap-4">
+                <DriverAvatar driver={driverDashboard.driver} size="lg" className="border-orange-400" testId="driver-profile-avatar" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-orange-200">Bun venit,</p>
+                  <h2 className="truncate text-2xl font-black">{driverDashboard.driver.name}</h2>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge className="bg-orange-500 text-white" data-testid="driver-profile-status-badge">
+                      {driverDashboard.driver.operational_status_label || "Activ"}
+                    </Badge>
+                    {driverDashboard.driver.avatar_status === "pending" && <Badge className="bg-amber-100 text-amber-900" data-testid="driver-avatar-pending-badge">Poză în aprobare</Badge>}
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
+                <Select value={driverStatusForm.status} onValueChange={(value) => setDriverStatusForm((prev) => ({ ...prev, status: value }))}>
+                  <SelectTrigger className="bg-white text-slate-950" data-testid="driver-operational-status-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Activ</SelectItem>
+                    <SelectItem value="break">În pauză</SelectItem>
+                    <SelectItem value="offline">Offline</SelectItem>
+                  </SelectContent>
+                </Select>
+                {driverStatusForm.status === "break" && (
+                  <Input
+                    type="number"
+                    min="1"
+                    max="180"
+                    value={driverStatusForm.break_minutes}
+                    onChange={(event) => setDriverStatusForm((prev) => ({ ...prev, break_minutes: Number(event.target.value) || 30 }))}
+                    className="bg-white text-slate-950"
+                    data-testid="driver-break-minutes-input"
+                  />
+                )}
+                <Button type="button" onClick={updateDriverOperationalStatus} className="bg-orange-600 hover:bg-orange-700" data-testid="driver-status-update-button">
+                  <ShieldCheck className="mr-2 h-4 w-4" /> Setează
+                </Button>
+              </div>
+              {driverDashboard.driver.operational_status === "break" && (
+                <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100" data-testid="driver-break-live-info">
+                  <PauseCircle className="mr-2 inline h-4 w-4" /> Pauza este activă și rămâi vizibil pe harta dispeceratului.
+                </div>
+              )}
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="mb-3 text-sm font-bold text-orange-100">Poză profil</p>
+                <AvatarUploadCropper onUpload={uploadDriverAvatar} isUploading={avatarUploading} testIdPrefix="driver-self-avatar" />
               </div>
             </CardContent>
           </Card>

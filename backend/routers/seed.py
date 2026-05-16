@@ -177,7 +177,7 @@ async def seed_demo_map_routes() -> int:
 
     await db.drivers.update_many(
         {"id": {"$in": ["driver-001", "driver-002", "driver-005"]}},
-        {"$set": {"is_active": True}},
+        {"$set": {"is_active": True, "driver_status": "delivery"}},
     )
     await db.drivers.update_one({"id": "driver-001"}, {"$set": {"current_order_id": "demo-route-001", "vehicle_type": "scooter", "latitude": 46.5634, "longitude": 26.9105}})
     await db.drivers.update_one({"id": "driver-002"}, {"$set": {"current_order_id": "demo-route-002", "vehicle_type": "car", "latitude": 46.5692, "longitude": 26.9132}})
