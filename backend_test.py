@@ -10,7 +10,7 @@ import sys
 from typing import Dict, Any, Optional
 
 # Backend URL from frontend .env
-BACKEND_URL = "https://delivery-mgmt-ro.preview.emergentagent.com/api"
+BACKEND_URL = "https://delivery-dispatch-17.preview.emergentagent.com/api"
 
 # Test credentials from test_credentials.md
 ADMIN_EMAIL = "admin@delivery.ro"

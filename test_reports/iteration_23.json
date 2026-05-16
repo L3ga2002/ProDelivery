@@ -40,5 +40,5 @@
   "retest_needed": true,
   "should_main_agent_self_test": true,
   "context_for_next_testing_agent": "UI smoke and requested admin flows are currently functional on public preview URL. Temporary UI-created driver was deleted successfully. Remaining blocker is only credentialed CORS preflight wildcard response.",
-  "rca of the issue": "RCA: Although backend middleware is configured for explicit allowlist origins, runtime OPTIONS /api/auth/login still responds with wildcard ACAO (`*`), indicating ingress/proxy or middleware ordering mismatch for preflight handling. Repro: send OPTIONS with Origin=https://delivery-mgmt-ro.preview.emergentagent.com and Access-Control-Request-Method=POST; observe ACAO='*'. Mitigation: enforce explicit origin reflection at final response layer handling preflight for auth routes."
+  "rca of the issue": "RCA: Although backend middleware is configured for explicit allowlist origins, runtime OPTIONS /api/auth/login still responds with wildcard ACAO (`*`), indicating ingress/proxy or middleware ordering mismatch for preflight handling. Repro: send OPTIONS with Origin=https://delivery-dispatch-17.preview.emergentagent.com and Access-Control-Request-Method=POST; observe ACAO='*'. Mitigation: enforce explicit origin reflection at final response layer handling preflight for auth routes."
 }
