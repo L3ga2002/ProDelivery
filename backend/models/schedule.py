@@ -42,6 +42,14 @@ class BulkDeleteScheduleRequest(BaseModel):
     added_by: str = "auto"
 
 
+class QuickAdjustScheduleRequest(BaseModel):
+    week_start: str
+    day: str
+    hour: str
+    delta: int
+    slot_type: str = "normal"
+
+
 class ClonePreviousWeekRequest(BaseModel):
     week_start: str
     preview_only: bool = True

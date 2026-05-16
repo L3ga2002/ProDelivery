@@ -216,14 +216,16 @@ async def create_emergency_slot(data: EmergencySlotCreate, current_user: dict = 
 
     if existing:
         # Update existing
+        claimed_count = len(existing.get("claimed_by", []))
+        total_spots = max(data.total_spots, claimed_count)
         await db.emergency_slots.update_one(
             {"week_start": data.week_start, "day": data.day, "hour": data.hour},
             {"$set": {
-                "total_spots": data.total_spots,
-                "remaining_spots": data.total_spots - len(existing.get("claimed_by", []))
+                "total_spots": total_spots,
+                "remaining_spots": max(total_spots - claimed_count, 0)
             }}
         )
-        return {"message": "Slot urgență actualizat", "total_spots": data.total_spots}
+        return {"message": "Slot urgență actualizat", "total_spots": total_spots}
 
     slot = EmergencySlot(
         week_start=data.week_start,

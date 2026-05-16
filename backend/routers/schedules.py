@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timedelta, timezone
 from database import db
 from auth import get_current_user
-from models.schedule import AutoGenerateScheduleRequest, BulkDeleteScheduleRequest, ClonePreviousWeekRequest, ScheduleCreate, ScheduleUpdate, Schedule
+from models.schedule import AutoGenerateScheduleRequest, BulkDeleteScheduleRequest, ClonePreviousWeekRequest, QuickAdjustScheduleRequest, ScheduleCreate, ScheduleUpdate, Schedule
 from utils.driver_ranking import build_driver_ranking_payload, build_tier_access_state, ROMANIA_TZ
 
 router = APIRouter(prefix="/schedules", tags=["schedules"])
@@ -137,6 +137,76 @@ async def _upsert_generated_slot(driver: dict, target_week: str, day: str, hour:
     doc = Schedule(driver_id=driver["id"], week_start=target_week, slots=slots, total_hours=total_hours).model_dump()
     await db.schedules.insert_one(doc)
     return True
+
+
+async def _quick_add_standard_slot(data: QuickAdjustScheduleRequest) -> int:
+    drivers = await db.drivers.find({"is_active": True}, {"_id": 0}).sort("name", 1).to_list(300)
+    if not drivers:
+      drivers = await db.drivers.find({}, {"_id": 0}).sort("name", 1).to_list(300)
+    created = 0
+    for driver in drivers:
+        if created >= data.delta:
+            break
+        if await _upsert_generated_slot(driver, data.week_start, data.day, data.hour):
+            created += 1
+    return created
+
+
+async def _quick_remove_standard_slot(data: QuickAdjustScheduleRequest) -> int:
+    target_remove = abs(data.delta)
+    schedules = await db.schedules.find({"week_start": data.week_start}, {"_id": 0}).to_list(500)
+    removed = 0
+    for schedule in schedules:
+        if removed >= target_remove:
+            break
+        slots = schedule.get("slots", {})
+        day_slots = slots.get(data.day, [])
+        removable = [slot for slot in day_slots if slot.get("start") == data.hour and slot.get("added_by") in ["admin", "auto"]]
+        if not removable:
+            continue
+        to_remove_here = min(len(removable), target_remove - removed)
+        remaining_to_remove = to_remove_here
+        next_day_slots = []
+        for slot in day_slots:
+            if remaining_to_remove > 0 and slot.get("start") == data.hour and slot.get("added_by") in ["admin", "auto"]:
+                remaining_to_remove -= 1
+                removed += 1
+                continue
+            next_day_slots.append(slot)
+        slots[data.day] = next_day_slots
+        await db.schedules.update_one(
+            {"id": schedule["id"]},
+            {"$set": {"slots": slots, "total_hours": calc_total_hours(slots)}},
+        )
+    return removed
+
+
+async def _quick_adjust_emergency_slot(data: QuickAdjustScheduleRequest) -> dict:
+    if data.hour not in DRIVER_ALLOWED_HOURS:
+        raise HTTPException(status_code=400, detail="Urgențele se pot seta doar între 10:00-22:00")
+    existing = await db.emergency_slots.find_one(
+        {"week_start": data.week_start, "day": data.day, "hour": data.hour},
+        {"_id": 0},
+    )
+    claimed_count = len((existing or {}).get("claimed_by", []))
+    current_total = int((existing or {}).get("total_spots", 0))
+    next_total = max(current_total + data.delta, claimed_count, 0)
+    if next_total == 0 and existing:
+        await db.emergency_slots.delete_one({"id": existing["id"]})
+        return {"adjusted": -current_total, "total_spots": 0, "remaining_spots": 0}
+    if next_total == 0:
+        return {"adjusted": 0, "total_spots": 0, "remaining_spots": 0}
+    remaining = max(next_total - claimed_count, 0)
+    if existing:
+        await db.emergency_slots.update_one(
+            {"id": existing["id"]},
+            {"$set": {"total_spots": next_total, "remaining_spots": remaining, "created_by": "admin"}},
+        )
+    else:
+        from models.emergency_slot import EmergencySlot
+        slot = EmergencySlot(week_start=data.week_start, day=data.day, hour=data.hour, total_spots=next_total, remaining_spots=remaining, created_by="admin")
+        await db.emergency_slots.insert_one(slot.model_dump())
+    return {"adjusted": next_total - current_total, "total_spots": next_total, "remaining_spots": remaining}
 
 
 async def _generate_week_slots(data: AutoGenerateScheduleRequest, drivers: list[dict], hours: list[str], target_week: str) -> int:
@@ -321,6 +391,30 @@ async def bulk_delete_generated_slots(data: BulkDeleteScheduleRequest, current_u
                 {"$set": {"slots": slots, "total_hours": calc_total_hours(slots)}},
             )
     return {"message": f"Ștergere bulk completă: {removed} sloturi eliminate", "deleted_slots": removed}
+
+
+@router.post("/admin/quick-adjust")
+async def quick_adjust_schedule_cell(data: QuickAdjustScheduleRequest, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    if data.day not in DAYS:
+        raise HTTPException(status_code=400, detail="Zi invalidă")
+    if data.hour not in ADMIN_ALLOWED_HOURS:
+        raise HTTPException(status_code=400, detail="Oră invalidă")
+    if data.delta == 0 or abs(data.delta) > 5:
+        raise HTTPException(status_code=400, detail="Ajustarea rapidă acceptă valori între -5 și +5")
+
+    if data.slot_type == "emergency":
+        result = await _quick_adjust_emergency_slot(data)
+        return {"message": "Urgență ajustată rapid", "slot_type": "emergency", **result}
+
+    adjusted = await _quick_add_standard_slot(data) if data.delta > 0 else await _quick_remove_standard_slot(data)
+    return {
+        "message": f"Sloturi standard ajustate: {adjusted}",
+        "slot_type": "normal",
+        "adjusted": adjusted,
+        "requested_delta": data.delta,
+    }
 
 
 @router.post("/admin/clone-previous-week")

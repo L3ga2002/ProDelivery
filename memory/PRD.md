@@ -96,6 +96,10 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Phase 2 Driver App UX 16 Mai 2026: aplicația livratorului include card profil/status cu direcție vizuală orange/gri, setare rapidă Activ/Pauză/Offline și upload poză profil trimis spre aprobare.
 - Phase 2 Orders Source Fix 16 Mai 2026: tabelul de comenzi afișează sursa completă `Site / Bolt / Wolt / Glovo`, nu doar prescurtările `S/B/W/G`.
 - Validation 16 Mai 2026: lint frontend/backend PASS; self-test API PASS pentru login, driver dashboard, status pauză, blocare pauză/offline în livrare, avatar admin, avatar driver pending/aprobare; smoke Playwright PASS pentru Admin Drivers dialog și Orders source labels. Testing Agent iteration 24: 13/14 backend PASS + frontend major flows PASS; singurul fail rămas este preflight CORS extern interceptat la ingress.
+- Program UX Fix 16 Mai 2026: quick edit `-3/-2/-1/+1/+2/+3` a fost mutat în calendarul principal de Program, pe fiecare celulă de zi/oră; inputul numeric și flow-ul vechi de selectare/creare au fost eliminate din zona rapidă.
+- Program UX Fix 16 Mai 2026: bugul de scos sloturi a fost reparat prin endpoint backend `POST /api/schedules/admin/quick-adjust`, care adaugă/scade sloturi standard sau urgență pe celula exactă; la scădere standard se șterg întâi sloturile admin/auto ca să nu dispară accidental orele alese manual de livratori.
+- Program UX Fix 16 Mai 2026: dialogul simplu deschis din cardul unui livrator în tabul Program a fost simplificat vizual: total ore, ore livrator, ore admin, celule mari Verde/Gri/Roșu și quick edit pe zi `-3…+3` pentru adăugare/scoatere rapidă.
+- Validation 16 Mai 2026 Program UX Fix: backend quick-adjust testat cu curl pentru `+1/-1` standard și `+2/-2` urgență; Playwright smoke PASS pentru deschiderea quick dialog din calendar, click `+1` și `-1`, plus dialog program simplu livrator; lint frontend/backend PASS.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -124,6 +128,7 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `POST /api/drivers/{driver_id}/avatar` - upload avatar crop-uit/compresat; admin aprobă automat, livrator trimite pending
 - `PATCH /api/drivers/{driver_id}/avatars/{avatar_id}` - admin aprobă/respinge avatar pending
 - `GET /api/drivers/{driver_id}/avatars/{avatar_id}/image` - servește imaginea avatarului prin backend
+- `POST /api/schedules/admin/quick-adjust` - adaugă/scade rapid sloturi pe o celulă exactă din calendarul de Program (`day`, `hour`, `delta`, `slot_type`)
 
 ## DB Schema - delivery_zones
 ```

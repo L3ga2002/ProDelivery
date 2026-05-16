@@ -102,8 +102,7 @@ export const AdminScheduleView = () => {
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [setupDialogOpen, setSetupDialogOpen] = useState(false);
   const [calendarMode, setCalendarMode] = useState("normal");
-  const [selectedCalendarSlots, setSelectedCalendarSlots] = useState([]);
-  const [calendarSlotsPerHour, setCalendarSlotsPerHour] = useState(2);
+  const [quickSlotDialog, setQuickSlotDialog] = useState(null);
   const [clonePreview, setClonePreview] = useState(null);
   const [setupForm, setSetupForm] = useState({
     days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
@@ -167,6 +166,34 @@ export const AdminScheduleView = () => {
   const isSelected = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour);
   const isAdminSlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by === "admin");
   const isDriverSlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by !== "admin");
+
+  const quickAdjustDriverDay = (dayKey, amount) => {
+    setEditSlots((prev) => {
+      const daySlots = [...(prev[dayKey] || [])];
+      if (amount < 0) {
+        let remaining = Math.abs(amount);
+        const nextSlots = [];
+        for (const slot of daySlots) {
+          if (remaining > 0 && slot.added_by !== "emergency") {
+            remaining -= 1;
+            continue;
+          }
+          nextSlots.push(slot);
+        }
+        return { ...prev, [dayKey]: nextSlots };
+      }
+      const existingHours = new Set(daySlots.map((slot) => slot.start));
+      const additions = [];
+      for (const hour of ALL_HOURS) {
+        if (additions.length >= amount) break;
+        if (!existingHours.has(hour)) {
+          const endH = (parseInt(hour, 10) + 1) % 24;
+          additions.push({ start: hour, end: `${String(endH).padStart(2, "0")}:00`, added_by: "admin" });
+        }
+      }
+      return { ...prev, [dayKey]: [...daySlots, ...additions] };
+    });
+  };
 
   const saveSchedule = async () => {
     setSaving(true);
@@ -299,54 +326,29 @@ export const AdminScheduleView = () => {
     }
   };
 
-  const getSlotKey = (day, hour) => `${day}|${hour}`;
-
-  const toggleCalendarSlot = (day, hour) => {
-    if (NIGHT_HOURS.includes(hour)) {
-      const confirmed = window.confirm("Deblochezi interval de noapte?");
-      if (!confirmed) return;
-    }
-    const key = getSlotKey(day, hour);
-    setSelectedCalendarSlots((prev) => (
-      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
-    ));
-  };
-
-  const submitCalendarSlots = async () => {
-    if (selectedCalendarSlots.length === 0) {
-      toast.error("Selectează cel puțin un interval");
+  const openQuickSlotDialog = (day, hour) => {
+    if (calendarMode === "emergency" && !EMERGENCY_HOURS.includes(hour)) {
+      toast.warning("Sloturile de urgență se pot modifica doar între 10:00-22:00");
       return;
     }
+    setQuickSlotDialog({ day, hour, mode: calendarMode });
+  };
+
+  const adjustQuickSlot = async (delta) => {
+    if (!quickSlotDialog) return;
     setAutoGenerating(true);
     try {
-      let touched = 0;
-      for (const key of selectedCalendarSlots) {
-        const [day, hour] = key.split("|");
-        if (calendarMode === "emergency" && !EMERGENCY_HOURS.includes(hour)) {
-          toast.warning("Sloturile de urgență se pot crea doar între 10:00-22:00");
-          continue;
-        }
-        const payload = {
-          week_start: toISODate(weekStart),
-          days: [day],
-          start_hour: hour,
-          end_hour: `${String((parseInt(hour, 10) + 1) % 24).padStart(2, "0")}:00`,
-          total_slots: calendarSlotsPerHour,
-          slot_type: calendarMode,
-          repeat_weeks: 1,
-        };
-        if (calendarMode === "emergency") {
-          await axios.post(`${API_URL}/api/schedules/emergency/setup-generate`, payload);
-        } else {
-          await axios.post(`${API_URL}/api/schedules/admin/auto-generate`, payload);
-        }
-        touched += 1;
-      }
-      toast.success(`${calendarMode === "emergency" ? "Sloturi de urgență" : "Intervale standard"} create: ${touched}`);
-      setSelectedCalendarSlots([]);
+      const response = await axios.post(`${API_URL}/api/schedules/admin/quick-adjust`, {
+        week_start: toISODate(weekStart),
+        day: quickSlotDialog.day,
+        hour: quickSlotDialog.hour,
+        delta,
+        slot_type: quickSlotDialog.mode,
+      });
+      toast.success(response.data.message || "Slot ajustat");
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Eroare la crearea sloturilor");
+      toast.error(error.response?.data?.detail || "Nu am putut ajusta slotul");
     } finally {
       setAutoGenerating(false);
     }
@@ -506,7 +508,7 @@ export const AdminScheduleView = () => {
                 <CalendarCheck className="h-5 w-5 text-emerald-600" />
                 Calendar rapid dispecerat
               </CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">Selectează intervalele direct pe grilă: verde pentru standard, roșu pentru urgență.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Click pe orice celulă pentru comenzi rapide: -3, -2, -1, +1, +2, +3.</p>
               <div className="mt-2 flex flex-wrap gap-2 text-xs" data-testid="schedule-calendar-week-summary">
                 <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100">
                   Standard create: {weeklyCalendarTotals.standard}
@@ -527,7 +529,7 @@ export const AdminScheduleView = () => {
                 onClick={() => setCalendarMode("normal")}
                 data-testid="schedule-mode-standard-button"
               >
-                Creare sloturi standard
+                Standard
               </Button>
               <Button
                 type="button"
@@ -536,18 +538,7 @@ export const AdminScheduleView = () => {
                 onClick={() => setCalendarMode("emergency")}
                 data-testid="schedule-mode-emergency-button"
               >
-                Creare sloturi urgență
-              </Button>
-              <Input
-                type="number"
-                min="1"
-                value={calendarSlotsPerHour}
-                onChange={(event) => setCalendarSlotsPerHour(Number(event.target.value) || 1)}
-                className="w-20"
-                data-testid="schedule-calendar-slots-input"
-              />
-              <Button type="button" onClick={submitCalendarSlots} disabled={autoGenerating || selectedCalendarSlots.length === 0} data-testid="schedule-calendar-create-button">
-                Creează ({selectedCalendarSlots.length})
+                Urgență
               </Button>
             </div>
           </div>
@@ -569,17 +560,10 @@ export const AdminScheduleView = () => {
                       {isNight && <Moon className="mr-1 inline h-3 w-3" />}{formatInterval(hour)}
                     </div>
                     {DAYS.map((day) => {
-                      const key = getSlotKey(day.key, hour);
-                      const selected = selectedCalendarSlots.includes(key);
                       const metrics = getCalendarCellMetrics(day.key, hour);
                       const hasStandard = metrics.standardTotal > 0;
                       const hasEmergency = metrics.emergencyTotal > 0;
-                      const colorClass = calendarMode === "emergency"
-                        ? "bg-red-600 hover:bg-red-500 text-white"
-                        : "bg-emerald-600 hover:bg-emerald-500 text-white";
-                      const activeClass = selected
-                        ? colorClass
-                        : hasEmergency
+                      const activeClass = hasEmergency
                           ? "border-red-300 bg-red-50 text-red-950 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100"
                           : hasStandard
                             ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"
@@ -588,13 +572,13 @@ export const AdminScheduleView = () => {
                         <div key={day.key} className="p-1" role="cell">
                           <button
                             type="button"
-                            onClick={() => toggleCalendarSlot(day.key, hour)}
-                            title={metrics.driverNames.length ? `Programați: ${metrics.driverNames.join(", ")}` : "Fără sloturi create"}
+                            onClick={() => openQuickSlotDialog(day.key, hour)}
+                            title={metrics.driverNames.length ? `Click pentru +/−. Programați: ${metrics.driverNames.join(", ")}` : "Click pentru +/− rapid"}
                             className={`min-h-[58px] w-full rounded border px-1.5 py-1 text-left text-[11px] font-semibold transition-colors ${activeClass}`}
                             data-testid={`schedule-calendar-cell-${day.key}-${hour}`}
                           >
                             <span className="block leading-tight">
-                              {selected ? (calendarMode === "emergency" ? "Selectat urgență" : "Selectat standard") : hasStandard ? `Std ${metrics.standardTotal}` : hasEmergency ? "Urgență" : ""}
+                              {hasStandard ? `Standard ${metrics.standardTotal}` : hasEmergency ? "Urgență" : "Liber"}
                             </span>
                             {hasStandard && (
                               <span className="mt-0.5 block text-[10px] font-medium opacity-85" data-testid={`schedule-standard-count-${day.key}-${hour}`}>
@@ -989,6 +973,55 @@ export const AdminScheduleView = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!quickSlotDialog} onOpenChange={(open) => !open && setQuickSlotDialog(null)}>
+        <DialogContent className="max-w-md !bg-white !opacity-100 dark:!bg-slate-950" data-testid="schedule-quick-adjust-dialog">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {quickSlotDialog?.mode === "emergency" ? <Flame className="h-5 w-5 text-red-600" /> : <CalendarCheck className="h-5 w-5 text-emerald-600" />}
+              Ajustare rapidă · {DAYS.find((d) => d.key === quickSlotDialog?.day)?.label} {quickSlotDialog?.hour ? formatInterval(quickSlotDialog.hour) : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Alege rapid câte locuri adaugi sau scoți din intervalul selectat.
+            </DialogDescription>
+          </DialogHeader>
+          {quickSlotDialog && (() => {
+            const metrics = getCalendarCellMetrics(quickSlotDialog.day, quickSlotDialog.hour);
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg border bg-emerald-50 p-3 text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-100" data-testid="quick-standard-current-count">
+                    <p className="text-xs opacity-80">Standard acum</p>
+                    <p className="text-2xl font-black">{metrics.standardTotal}</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-3 text-red-900 dark:bg-red-950/20 dark:text-red-100" data-testid="quick-emergency-current-count">
+                    <p className="text-xs opacity-80">Urgență acum</p>
+                    <p className="text-2xl font-black">{metrics.emergencyTotal}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[-3, -2, -1, 1, 2, 3].map((delta) => (
+                    <Button
+                      key={delta}
+                      type="button"
+                      variant={delta < 0 ? "outline" : "default"}
+                      className={delta > 0 ? (quickSlotDialog.mode === "emergency" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700") : ""}
+                      onClick={() => adjustQuickSlot(delta)}
+                      disabled={autoGenerating}
+                      data-testid={`schedule-quick-adjust-${delta}`}
+                    >
+                      {delta > 0 ? `+${delta}` : delta}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  La scădere, sistemul scoate întâi sloturile create de admin/automat, ca să nu șteargă accidental ore alese manual de livratori.
+                </p>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       {/* Emergency Slot Dialog */}
       <Dialog open={!!emergencyDialog} onOpenChange={(open) => !open && setEmergencyDialog(null)}>
         <DialogContent className="max-w-sm">
@@ -1095,43 +1128,46 @@ export const AdminScheduleView = () => {
 
       {/* Edit Driver Schedule Dialog */}
       <Dialog open={!!editDriver} onOpenChange={(open) => !open && setEditDriver(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[88vh] overflow-y-auto !bg-white !opacity-100 dark:!bg-slate-950" data-testid="driver-simple-schedule-dialog">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarCheck className="w-5 h-5" />
-              Program {editDriver?.driver_name} - {formatWeekRange(weekStart)}
+              Program simplu · {editDriver?.driver_name}
             </DialogTitle>
             <DialogDescription>
-              Editează manual sloturile normale, de admin sau de urgență pentru livrator.
+              Verde = are program. Gri = liber. Click pe ore pentru adăugare/scoatere rapidă.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-wrap gap-3 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-orange-500" />
-              <span>Setat de livrator</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-green-500" />
-              <span>Setat de admin</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-red-500" />
-              <span>Urgență</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Moon className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Tura de noapte</span>
-            </div>
+          <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-4">
+            <div data-testid="driver-simple-total-hours"><span className="text-muted-foreground">Total</span><br /><strong>{editTotalHours}h</strong></div>
+            <div><span className="text-muted-foreground">Din aplicație</span><br /><strong className="text-orange-600">{editDriverHours}h</strong></div>
+            <div><span className="text-muted-foreground">Adăugat admin</span><br /><strong className="text-emerald-600">{editAdminHours}h</strong></div>
+            <div className="flex items-center gap-2"><Moon className="h-4 w-4 text-indigo-500" /><span>Tura de noapte marcată discret</span></div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[760px] text-xs">
               <thead>
                 <tr>
-                  <th className="text-left p-1 w-16"><Clock className="w-3 h-3 inline mr-1" />Ora</th>
+                  <th className="text-left p-2 w-20"><Clock className="w-3 h-3 inline mr-1" />Ora</th>
                   {DAYS.map((d) => (
-                    <th key={d.key} className="p-1 text-center min-w-[44px] font-semibold">{d.label.substring(0, 3)}</th>
+                    <th key={d.key} className="p-2 text-center min-w-[88px] font-semibold">
+                      <div>{d.label.substring(0, 3)}</div>
+                      <div className="mt-1 grid grid-cols-3 gap-1">
+                        {[-3, -2, -1, 1, 2, 3].map((amount) => (
+                          <button
+                            key={amount}
+                            type="button"
+                            onClick={() => quickAdjustDriverDay(d.key, amount)}
+                            className={`rounded px-1 py-0.5 text-[10px] ${amount > 0 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                            data-testid={`driver-simple-quick-${d.key}-${amount}`}
+                          >
+                            {amount > 0 ? `+${amount}` : amount}
+                          </button>
+                        ))}
+                      </div>
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -1140,7 +1176,7 @@ export const AdminScheduleView = () => {
                   const isNight = NIGHT_HOURS.includes(hour);
                   return (
                     <tr key={hour} className={isNight ? "bg-indigo-50/50" : ""}>
-                      <td className={`p-1 font-mono ${isNight ? "text-indigo-500" : "text-muted-foreground"}`}>
+                      <td className={`p-2 font-mono ${isNight ? "text-indigo-500" : "text-muted-foreground"}`}>
                         {isNight && <Moon className="w-2.5 h-2.5 inline mr-0.5" />}
                         {formatInterval(hour)}
                       </td>
@@ -1149,21 +1185,29 @@ export const AdminScheduleView = () => {
                         const byDriver = isDriverSlot(d.key, hour);
                         const isEmergency = (editSlots[d.key] || []).some((s) => s.start === hour && s.added_by === "emergency");
 
-                        let cellClass = "bg-muted/50 hover:bg-muted border border-transparent hover:border-green-300";
+                        let cellClass = "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300";
+                        let label = "Liber";
                         if (isEmergency) {
-                          cellClass = "bg-red-500 hover:bg-red-400 text-white";
+                          cellClass = "border-red-300 bg-red-500 text-white hover:bg-red-400";
+                          label = "Urg";
                         } else if (sel && byDriver) {
-                          cellClass = "bg-orange-500 hover:bg-orange-400";
+                          cellClass = "border-orange-300 bg-orange-500 text-white hover:bg-orange-400";
+                          label = "Liv";
                         } else if (sel) {
-                          cellClass = "bg-green-500 hover:bg-green-400";
+                          cellClass = "border-emerald-300 bg-emerald-500 text-white hover:bg-emerald-400";
+                          label = "Admin";
                         }
 
                         return (
-                          <td key={d.key} className="p-0.5 text-center">
+                          <td key={d.key} className="p-1 text-center">
                             <button
+                              type="button"
                               onClick={() => toggleHour(d.key, hour)}
-                              className={`w-full h-7 rounded transition-all ${cellClass}`}
-                            />
+                              className={`h-10 w-full rounded border text-[11px] font-bold transition-colors ${cellClass}`}
+                              data-testid={`driver-simple-cell-${d.key}-${hour}`}
+                            >
+                              {label}
+                            </button>
                           </td>
                         );
                       })}
@@ -1174,12 +1218,7 @@ export const AdminScheduleView = () => {
             </table>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex gap-3 text-sm text-muted-foreground">
-              <span>Total: <strong>{editTotalHours}h</strong></span>
-              <span className="text-orange-600">Livrator: {editDriverHours}h</span>
-              <span className="text-green-600">Admin: {editAdminHours}h</span>
-            </div>
+          <div className="flex items-center justify-end pt-2">
             <Button onClick={saveSchedule} disabled={saving} data-testid="admin-save-schedule-btn">
               <Save className="w-4 h-4 mr-2" />
               {saving ? "Se salvează..." : "Salvează"}
