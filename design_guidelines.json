@@ -1,123 +1,93 @@
 {
-  "theme": "light",
-  "archetype": "4_swiss_and_high_contrast",
-  "domain_context": "Logistics & Dispatch Dashboard (Restaurant & Driver Management)",
-  "core_philosophy": {
-    "emotion": "Authority, Clarity, High-Efficiency Control Center",
-    "key_instruction": "Eliminate the 'too much red' feedback. Replace red with Deep Indigo/Slate as the primary action color. Red is strictly reserved for destructive actions or critical failures. High perceived effort achieved through dense bento grids, micro-interactions, and glassmorphic floating headers."
-  },
+  "theme": "dark_and_light_mixed",
+  "archetype": "Archetype 2: The Performance Pro (Adapted for Logistics)",
   "colors": {
-    "background": {
-      "light": "bg-slate-50",
-      "dark": "bg-slate-950"
-    },
-    "surface": {
-      "light": "bg-white border-slate-200",
-      "dark": "bg-slate-900 border-slate-800"
-    },
-    "primary": {
-      "DEFAULT": "bg-indigo-600",
-      "hover": "hover:bg-indigo-500",
-      "text": "text-indigo-600 dark:text-indigo-400"
-    },
-    "state_indicators": {
-      "success_completed": "bg-emerald-500 text-white",
-      "warning_pending": "bg-amber-500 text-slate-900",
-      "info_dispatching": "bg-blue-500 text-white",
-      "critical_failed": "bg-rose-600 text-white (Use sparingly)"
-    }
+    "primary": "#F97316",
+    "primary_hover": "#EA580C",
+    "dark_background": "#0A0A0A",
+    "dark_surface": "#171717",
+    "dark_border": "#262626",
+    "light_background": "#FFFFFF",
+    "light_surface": "#F9FAFB",
+    "light_border": "#E5E7EB",
+    "success": "#22C55E",
+    "error": "#EF4444",
+    "text_dark_mode": "#F8FAFC",
+    "text_dark_muted": "#94A3B8",
+    "text_light_mode": "#0F172A",
+    "text_light_muted": "#64748B"
   },
   "typography": {
-    "font_pairings": {
-      "headings": {
-        "family": "Chivo, sans-serif",
-        "weight": "font-bold to font-black",
-        "tracking": "tracking-tight"
-      },
-      "body": {
-        "family": "IBM Plex Sans, sans-serif",
-        "weight": "font-normal to font-medium",
-        "tracking": "tracking-normal"
-      },
-      "data_and_timers": {
-        "family": "IBM Plex Mono, monospace",
-        "weight": "font-medium",
-        "usage": "Order IDs, Timers, Analytics Numbers"
-      }
-    },
-    "hierarchy": {
-      "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
-      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
-      "h3": "text-lg sm:text-xl font-semibold",
-      "body": "text-sm md:text-base text-slate-600 dark:text-slate-400"
+    "heading_font": "Outfit",
+    "body_font": "Manrope",
+    "strategies": {
+      "h1": "text-3xl sm:text-4xl font-bold tracking-tight",
+      "h2": "text-xl sm:text-2xl font-semibold tracking-tight",
+      "body": "text-base leading-relaxed",
+      "labels": "text-xs font-bold uppercase tracking-[0.1em]"
     }
   },
-  "spacing_and_layout": {
-    "grid_system": "Mode B: 'Control Room Grid'",
-    "rules": [
-      "Use gap-4 or gap-6 for high-density dashboard layouts.",
-      "Containers with borders must use p-6 internally to prevent collision.",
-      "Employ 'Bento Box' asymmetry: mix col-span-1, col-span-2, and row-span-2 to create visual tension and hierarchy.",
-      "Grid children must stretch using h-full to eliminate jagged bottoms."
-    ]
+  "layout_and_spacing": {
+    "strategy": "Mobile-First 'Thumb-Zone' Design",
+    "container": "w-full max-w-md mx-auto min-h-screen shadow-2xl relative flex flex-col bg-dark_background overflow-x-hidden",
+    "spacing_scale": "p-4, p-5, p-6. High density for driver info, generous touch targets (min 48px height for inputs/buttons)",
+    "bottom_nav": "Fixed bottom, w-full max-w-md mx-auto z-50 pb-safe h-20 flex items-center justify-around bg-dark_surface border-t border-dark_border rounded-t-2xl"
   },
-  "surfaces_and_effects": {
-    "cards": "Neumorphism mix: Flat white/slate backgrounds with 1px border-slate-200/800 and soft ambient shadow (shadow-sm). On hover, translate-y-[-2px] and shadow-md.",
-    "headers": "Crystal Glassmorphism: backdrop-blur-xl bg-white/80 dark:bg-slate-950/80 with border-b border-slate-200/50.",
-    "urgent_timers": "Tracing Beam effect: pulsing border using framer-motion or CSS animations for the Restaurant App active order cards."
+  "components": {
+    "buttons": "Large tap targets (h-14). Primary: bg-orange-500 text-white rounded-2xl font-bold text-lg w-full transition-transform active:scale-95.",
+    "inputs": "h-14 rounded-2xl px-4 text-base. Light mode (Login): bg-gray-50 border border-gray-200. Focus: ring-2 ring-orange-500. Dark mode (Profile): bg-neutral-900 border border-neutral-800 text-white.",
+    "cards": "Rounded-[24px]. Dark mode: bg-neutral-900 border border-neutral-800 p-5 shadow-sm.",
+    "badges": "Rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider."
   },
-  "key_components_strategy": {
-    "restaurant_cards": {
-      "layout": "Grid-based cards containing core KPIs (active orders, revenue).",
-      "visuals": "Use subtle glass effects for badges. Left-align data."
+  "specific_views": {
+    "login_screen": {
+      "theme": "Light",
+      "visuals": "Top and bottom orange wave vectors (use SVG background). Centered Scooter logo (logo_light). Large welcome text ('Salut, Livrator!'). Rounded input fields for Email and Password. Full-width orange login button."
     },
-    "analytics_charts": {
-      "library": "Recharts or Shadcn Charts",
-      "styling": "Remove axis grid lines for a cleaner look. Use Area charts with gradient fills (Indigo to transparent). Custom tooltips with backdrop-blur."
+    "home_screen": {
+      "theme": "Dark",
+      "visuals": "Orange wave at top (SVG). Centered logo (logo_dark). Greeting ('Salut, [Name]'). Order volume stats card. Current active order card showing pickup to delivery route overview. Summary today (earnings/deliveries)."
     },
-    "program_slots": {
-      "layout": "Horizontal scrollable timeline or Shadcn Calendar.",
-      "interaction": "Click and drag to select slots. Use indigo-100 for available, indigo-600 for selected."
+    "delivery_screen": {
+      "theme": "Dark",
+      "visuals": "State 1: 'Offline' (Shows large 'Intră în program' toggle/button). State 2: 'Active' (Shows map interface, step-by-step delivery checklist, customer contact buttons, swipe-to-complete delivery slider)."
     },
-    "admin_orders_table": {
-      "layout": "Dense Shadcn Table.",
-      "visuals": "Monospace fonts for Order IDs. Use traffic-light color logic for status badges (Green=Delivered, Amber=Cooking, Blue=Dispatching)."
+    "calendar_screen": {
+      "theme": "Dark",
+      "visuals": "Shadcn Calendar customized for dark mode. Shows shifts/schedule. List below calendar showing upcoming shift times."
     },
-    "restaurant_app_timer": {
-      "visuals": "Massive IBM Plex Mono typography. Circular pulsing progress ring.",
-      "animation": "Pulse animation (animate-pulse) when time is < 5 minutes."
+    "profile_screen": {
+      "theme": "Dark",
+      "visuals": "Avatar upload UI at top. Form fields: Name, DOB (Datepicker), Gender (Radio or Select: Masculin/Feminin), Email (with 'Validare' CTA next to it & verified badge), Phone (with format validation UI & 'Validare' CTA). Toggle for shift status."
     }
   },
-  "media_and_assets": {
-    "icons": {
-      "library": "Phosphor Icons (@phosphor-icons/react) - Duotone weight for a premium tech feel."
-    },
-    "image_urls": [
+  "media": {
+    "images": [
       {
-        "category": "auth_login_background",
-        "description": "Abstract topographic map of a city, dark sleek logistics theme, deep blue and slate colors, glowing routing nodes",
-        "url": "https://static.prod-images.emergentagent.com/jobs/08a91b36-5c31-4b31-84af-c87acbb0ee8d/images/105b3090170be678a664a8d64a5e762a4d6cf913f99c362ed85f824833f00103.png"
+        "category": "logo_light",
+        "url": "https://static.prod-images.emergentagent.com/jobs/9b6cf4c3-386b-4135-8933-61580d3b559e/images/33b66f7b6c6f41e8d0e0ac7295550bfc51292e5b34a7790c91d9522eaf757982.png",
+        "description": "ProDelivery scooter logo for Light mode (Login)"
       },
       {
-        "category": "restaurant_dashboard_hero",
-        "description": "Modern sleek restaurant kitchen dashboard screen, close up on a glowing order timer",
-        "url": "https://static.prod-images.emergentagent.com/jobs/08a91b36-5c31-4b31-84af-c87acbb0ee8d/images/d7181a032dc78a41e5b78da4f481b98ada159e8e054c005cf72bea7f283437a4.png"
+        "category": "logo_dark",
+        "url": "https://static.prod-images.emergentagent.com/jobs/9b6cf4c3-386b-4135-8933-61580d3b559e/images/f60b4d7f723e491ca185f2ad654e9d8f095c801cd7e3c0fd0c2de03e96251592.png",
+        "description": "ProDelivery scooter logo for Dark mode (Dashboard/Home)"
       },
       {
-        "category": "driver_avatar_placeholder",
-        "description": "Professional driver smiling",
-        "url": "https://images.pexels.com/photos/35788376/pexels-photo-35788376.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+        "category": "avatar_placeholder",
+        "url": "https://images.unsplash.com/photo-1551825687-f9de1603ed8b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMG1hbiUyMGRlbGl2ZXJ5JTIwZHJpdmVyJTIwc21pbGluZ3xlbnwwfHx8fDE3Nzg5NjA1ODd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Smiling delivery driver avatar placeholder"
       }
     ]
-  },
-  "testing_requirements": {
-    "data_testid": "All interactive and key informational elements MUST include a data-testid attribute formatted as kebab-case role-based (e.g., 'admin-orders-table', 'restaurant-timer-display')."
   },
   "instructions_to_main_agent": [
-    "Strictly follow the color palette. Remove the overwhelming red from the previous iteration. Use Indigo/Blue as primary.",
-    "Implement the 'Control Room Grid' for the Admin Orders and Analytics. It must look dense, professional, and high-effort.",
-    "Use Phosphor icons. Install via: yarn add @phosphor-icons/react.",
-    "For the Restaurant App timer, implement a highly visible, pulsing component using IBM Plex Mono.",
-    "Use the provided image URLs for placeholders, avatars, and authentication backgrounds to establish the high-end logistics mood."
+    "CRITICAL: The entire app must be wrapped in a mobile simulator container: `<div className=\"w-full max-w-md mx-auto min-h-screen relative shadow-2xl bg-black overflow-hidden\">` to satisfy the 'optimizezi cum se vede pe telefon' requirement on desktop.",
+    "The app has two distinct themes as requested: Login is strictly LIGHT MODE (bg-white with orange waves), and post-login is strictly DARK MODE (bg-[#0A0A0A] with orange accents).",
+    "Implement the Orange Waves using inline SVG paths or custom CSS shapes positioned absolutely at the top (and bottom for login).",
+    "Use 'lucide-react' for all iconography (Home, Map/Delivery, Calendar, User).",
+    "Profile inputs (Email, Phone) MUST have a distinct 'Validare' (Validate) state and button. Use Shadcn Dialog to simulate entering an OTP code.",
+    "Navigation tabs: Acasă, Livrare, Calendar, Profil. Hide bottom nav on Login screen.",
+    "Add 'data-testid' to EVERY interactive element (inputs, buttons, tabs, toggles).",
+    "Ensure large tap targets (minimum h-12 to h-14) for all buttons and inputs to adhere to 2026 driver app UX standards."
   ]
 }
