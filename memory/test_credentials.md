@@ -7,6 +7,7 @@
 
 ## Driver Accounts
 - Email: driver-001@delivery.ro
+- Phone login: 0722111222
 - Password: driver123
 - Role: driver
 - Extra test driver: driver-002@delivery.ro / driver123
@@ -24,6 +25,7 @@
 - POST `/api/drivers/{driver_id}/verify-email`
 - POST `/api/drivers/{driver_id}/resend-verification`
 - GET `/api/drivers/{driver_id}/dashboard`
+- PATCH `/api/drivers/{driver_id}/self-profile`
 - PATCH `/api/drivers/{driver_id}/profile` (admin only; can set/reset manual password)
 - PUT `/api/drivers/{driver_id}/status`
 - POST `/api/drivers/{driver_id}/avatar`
@@ -40,3 +42,4 @@
 - If Resend ever blocks/fails external recipients, admin receives a temporary local verification code in the UI fallback dialog as a backup
 - Driver avatar flow: driver uploads are pending approval; admin uploads are approved automatically
 - Test credentials above are unchanged after the 16 Mai 2026 driver profile/password management update
+- Driver login supports email OR phone. SMS verification is deferred/not configured and is not mocked.

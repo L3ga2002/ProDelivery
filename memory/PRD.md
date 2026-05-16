@@ -102,6 +102,12 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Validation 16 Mai 2026 Program UX Fix: backend quick-adjust testat cu curl pentru `+1/-1` standard și `+2/-2` urgență; Playwright smoke PASS pentru deschiderea quick dialog din calendar, click `+1` și `-1`, plus dialog program simplu livrator; lint frontend/backend PASS.
 - Program UX Clarification 16 Mai 2026: în dialogul rapid a fost adăugat câmp manual unde adminul poate scrie numărul de sloturi de adăugat/scăzut; quick-adjust acceptă acum valori manuale până la 100. Sloturile standard rămân ore atribuite livratorilor existenți, deci nu pot depăși numărul de livratori disponibili fără program pe ora respectivă; sloturile de urgență sunt capacitate liberă și pot fi crescute independent.
 - Validation 16 Mai 2026 Manual Quick Input: testat cu curl `delta=12` standard, sistemul a adăugat doar câți livratori reali erau disponibili și a curățat prin `delta=-added`; Playwright smoke PASS pentru input manual editabil în dialogul rapid; lint frontend/backend PASS.
+- Driver App Redesign 16 Mai 2026: aplicația livratorului a fost refăcută mobile-first după imaginile clientului — login alb/gri/orange cu wave-uri, inputuri mari și CTA orange; aplicația post-login este dark/orange cu header vizual, greeting, card comandă curentă, sumar și bottom navigation.
+- Driver App Redesign 16 Mai 2026: adăugate rubrici separate `Acasă / Livrare / Calendar / Profil`; `Livrare` conține status operațional + comandă curentă, `Calendar` are sumar compact + editor program existent, iar `Profil` are avatar și date personale.
+- Driver Profile 16 Mai 2026: profilul livratorului include nume, prenume, CNP, data nașterii, sex masculin/feminin, email, telefon și avatar; profilul se salvează din aplicația livratorului prin endpoint dedicat.
+- Auth/Profile 16 Mai 2026: login-ul acceptă email sau telefon; telefonul are validare de format (`07xxxxxxxx` sau `+407xxxxxxxx`) și rămâne neverificat până la integrarea SMS reală. Emailul păstrează flow-ul existent cu Resend/cod.
+- SMS Decision 16 Mai 2026: clientul a ales să amâne codurile SMS reale deoarece furnizorii tip Twilio sunt plătiți; nu există SMS MOCKED, UI-ul explică explicit că SMS se conectează ulterior.
+- Validation 16 Mai 2026 Driver App Redesign: self-test curl PASS pentru login email, login telefon, dashboard, PATCH profil cu CNP/telefon/email; Playwright smoke PASS pentru login, Driver App, Profil/Calendar/Livrare tabs. Testing Agent iteration 25: frontend requested flows PASS, backend 10/11 PASS; singurul fail rămas este preflight CORS extern la ingress.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -131,6 +137,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `PATCH /api/drivers/{driver_id}/avatars/{avatar_id}` - admin aprobă/respinge avatar pending
 - `GET /api/drivers/{driver_id}/avatars/{avatar_id}/image` - servește imaginea avatarului prin backend
 - `POST /api/schedules/admin/quick-adjust` - adaugă/scade rapid sloturi pe o celulă exactă din calendarul de Program (`day`, `hour`, `delta`, `slot_type`)
+- `PATCH /api/drivers/{driver_id}/self-profile` - actualizează profilul personal al livratorului: nume, prenume, CNP, data nașterii, sex, telefon, email
+- `POST /api/auth/login` - acceptă identificator email sau telefon pentru autentificare
 
 ## DB Schema - delivery_zones
 ```
@@ -150,8 +158,10 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: monitorizare primele emailuri reale Resend pentru spam/deliverability; fallback-ul local rămâne doar backup dacă providerul returnează eroare.
 - P1: rezolvare la nivel ingress/platformă pentru preflight OPTIONS care returnează `Access-Control-Allow-Origin: *` extern, deși backend-ul returnează explicit origin intern
 - P1: CORS preflight extern necesită modificare de ingress Kubernetes; troubleshoot RCA confirmă că FastAPI răspunde corect pe localhost și OPTIONS este interceptat înainte de backend.
-- P1: Polish final design Driver App conform direcției orange/gri din imaginile clientului, după stabilizarea completă a fluxurilor operaționale.
+- P1: Polish final design Driver App conform direcției orange/gri din imaginile clientului, după feedback pe noul shell mobile.
 - P1: Dacă se dorește stocare persistentă multi-deploy pentru avataruri, migrare din filesystem server-side către object storage dedicat; endpoint-urile actuale ascund detaliul de storage în spatele backend-ului.
+- P1: Integrare SMS reală pentru validarea telefonului când clientul aprobă costurile/alege furnizorul (ex. Twilio Verify); în prezent SMS este deferred, nu mocked.
+- P1: Refactorizare UI Calendar livrator pentru a înlocui complet componenta veche `DriverSchedule` cu o experiență dark/orange nativă, dacă utilizatorul cere polish total.
 - P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi
