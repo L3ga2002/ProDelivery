@@ -14,6 +14,12 @@ class Driver(BaseModel):
     name: str
     phone: str
     email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    birth_date: Optional[str] = None
+    gender: Optional[Literal["masculin", "feminin"]] = None
+    cnp: Optional[str] = None
+    phone_verified: bool = False
     vehicle_type: Literal["scooter", "car"] = "scooter"
     email_verified: bool = False
     is_active: bool = False
@@ -56,6 +62,16 @@ class DriverProfileUpdate(BaseModel):
     phone: str
     email: EmailStr
     new_password: Optional[str] = None
+
+
+class DriverSelfProfileUpdate(BaseModel):
+    first_name: str
+    last_name: str
+    birth_date: Optional[str] = None
+    gender: Optional[Literal["masculin", "feminin"]] = None
+    cnp: Optional[str] = None
+    phone: str
+    email: EmailStr
 
 
 class DriverStatusUpdate(BaseModel):

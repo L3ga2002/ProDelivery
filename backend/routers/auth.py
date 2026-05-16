@@ -112,18 +112,19 @@ async def register(user_data: UserCreate, request: Request, response: Response):
 
 @router.post("/login")
 async def login(credentials: UserLogin, request: Request, response: Response):
-    normalized_email = credentials.email.strip().lower()
-    await _ensure_not_locked(request, normalized_email)
-    user = await db.users.find_one({"email": normalized_email}, {"_id": 0})
+    login_identifier = credentials.email.strip().lower().replace(" ", "")
+    await _ensure_not_locked(request, login_identifier)
+    query = {"email": login_identifier} if "@" in login_identifier else {"phone": login_identifier}
+    user = await db.users.find_one(query, {"_id": 0})
     if not user:
-        await _record_failed_login(request, normalized_email)
+        await _record_failed_login(request, login_identifier)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not verify_password(credentials.password, user["password_hash"]):
-        await _record_failed_login(request, normalized_email)
+        await _record_failed_login(request, login_identifier)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    await _clear_failed_logins(request, normalized_email)
+    await _clear_failed_logins(request, login_identifier)
     user_payload = await resolve_user_context(user["id"])
     access_token = create_access_token(user_payload)
     refresh_token = create_refresh_token(user_payload)

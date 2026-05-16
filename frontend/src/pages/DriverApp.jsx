@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import {
+  Bell,
+  CalendarDays,
+  Camera,
+  Check,
   LogOut,
   Package,
   MapPin,
@@ -16,17 +20,25 @@ import {
   Banknote,
   Navigation,
   CheckCircle2,
-  Truck,
+  Bike,
   RefreshCw,
   FileText,
   Clock,
   Download,
   XCircle,
   AlertTriangle,
-  Moon,
-  Sun,
   PauseCircle,
   ShieldCheck,
+  Home,
+  ClipboardList,
+  WalletCards,
+  BarChart3,
+  Store,
+  Mail,
+  IdCard,
+  Cake,
+  VenusAndMars,
+  Menu,
 } from "lucide-react";
 import {
   Dialog,
@@ -39,7 +51,6 @@ import { Textarea } from "../components/ui/textarea";
 import { DriverSchedule } from "../components/DriverSchedule";
 import { AvatarUploadCropper } from "../components/AvatarUploadCropper";
 import { DriverAvatar } from "../components/DriverAvatar";
-import { useTheme } from "../context/ThemeContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -63,13 +74,69 @@ const getStatusConfig = (status) => {
   return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" };
 };
 
+const splitName = (name = "") => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return { first_name: parts[0] || "", last_name: parts.slice(1).join(" ") || "" };
+};
+
+const isValidPhone = (phone = "") => /^(07\d{8}|\+407\d{8})$/.test(phone.replace(/\s/g, ""));
+const isValidCnp = (cnp = "") => cnp === "" || /^\d{13}$/.test(cnp);
+
+const formatScheduleDay = (date) => date.toLocaleDateString("ro-RO", { weekday: "short", day: "2-digit", month: "2-digit" });
+
+const ProDeliveryMark = ({ dark = true, testId = "prodelivery-mark" }) => (
+  <div className="inline-flex flex-col items-center" data-testid={testId}>
+    <div className="relative h-14 w-24">
+      <Bike className="absolute left-7 top-1 h-12 w-12 text-orange-500" strokeWidth={2.8} />
+      <span className="absolute left-1 top-5 h-1 w-9 rounded-full bg-orange-500" />
+      <span className="absolute left-4 top-9 h-1 w-6 rounded-full bg-orange-500" />
+    </div>
+    <div className="text-2xl font-black italic tracking-tight">
+      <span className={dark ? "text-orange-500" : "text-slate-700"}>Pro</span><span className={dark ? "text-white" : "text-orange-600"}>Delivery</span>
+    </div>
+  </div>
+);
+
+const CompactSchedule = ({ dashboard }) => {
+  const latest = dashboard?.schedules?.[0];
+  const slots = latest?.slots || {};
+  const dayMap = [
+    ["monday", "Luni"], ["tuesday", "Marți"], ["wednesday", "Miercuri"], ["thursday", "Joi"],
+    ["friday", "Vineri"], ["saturday", "Sâmbătă"], ["sunday", "Duminică"],
+  ];
+  return (
+    <div className="space-y-3" data-testid="driver-compact-schedule">
+      {dayMap.map(([key, label]) => {
+        const daySlots = slots[key] || [];
+        return (
+          <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4" data-testid={`driver-calendar-day-${key}`}>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-bold text-white">{label}</p>
+              <Badge className={daySlots.length ? "bg-orange-500 text-white" : "bg-white/10 text-zinc-400"} data-testid={`driver-calendar-day-count-${key}`}>
+                {daySlots.length ? `${daySlots.length}h` : "Liber"}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {daySlots.length ? daySlots.map((slot) => (
+                <span key={`${key}-${slot.start}-${slot.end}`} className={`rounded-full px-3 py-1 text-xs font-bold ${slot.added_by === "emergency" ? "bg-red-500/20 text-red-200" : "bg-orange-500/15 text-orange-200"}`}>
+                  {slot.start}-{slot.end}
+                </span>
+              )) : <span className="text-sm text-zinc-500">Nu ai program în ziua asta.</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const DriverApp = () => {
   const { user, logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const [currentOrder, setCurrentOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
+  const [activeTab, setActiveTab] = useState("home");
   const lastOrderIdRef = useRef(null);
   const hasLoadedOrdersRef = useRef(false);
   const [newOrderFlash, setNewOrderFlash] = useState(false);
@@ -81,6 +148,16 @@ const DriverApp = () => {
   const [driverDashboard, setDriverDashboard] = useState(null);
   const [driverStatusForm, setDriverStatusForm] = useState({ status: "active", break_minutes: 30 });
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    first_name: "",
+    last_name: "",
+    birth_date: "",
+    gender: "masculin",
+    cnp: "",
+    phone: "",
+    email: "",
+  });
   
   // Check if PWA can be installed
   useEffect(() => {
@@ -161,6 +238,17 @@ const DriverApp = () => {
     try {
       const response = await axios.get(`${API_URL}/api/drivers/${user.driver_id}/dashboard`);
       setDriverDashboard(response.data);
+      const driver = response.data.driver || {};
+      const fallback = splitName(driver.name || user?.name || "");
+      setProfileForm({
+        first_name: driver.first_name || fallback.first_name,
+        last_name: driver.last_name || fallback.last_name,
+        birth_date: driver.birth_date || "",
+        gender: driver.gender || "masculin",
+        cnp: driver.cnp || "",
+        phone: driver.phone || user?.phone || "",
+        email: driver.email || user?.email || "",
+      });
       const status = response.data.driver?.operational_status || "active";
       setDriverStatusForm((prev) => ({
         ...prev,
@@ -169,7 +257,7 @@ const DriverApp = () => {
     } catch (error) {
       console.error("Failed to fetch driver profile", error);
     }
-  }, [user?.driver_id]);
+  }, [user?.driver_id, user?.email, user?.name, user?.phone]);
 
   useEffect(() => {
     setEmailVerified(user?.email_verified !== false);
@@ -219,6 +307,27 @@ const DriverApp = () => {
       toast.error(error.response?.data?.detail || "Nu am putut încărca poza");
     } finally {
       setAvatarUploading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!isValidPhone(profileForm.phone)) {
+      toast.error("Telefonul trebuie să fie 07xxxxxxxx sau +407xxxxxxxx");
+      return;
+    }
+    if (!isValidCnp(profileForm.cnp)) {
+      toast.error("CNP-ul trebuie să aibă 13 cifre");
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const response = await axios.patch(`${API_URL}/api/drivers/${user.driver_id}/self-profile`, profileForm);
+      setDriverDashboard((prev) => ({ ...prev, driver: response.data.driver }));
+      toast.success(response.data.email_verification_sent ? "Profil salvat. Verifică emailul nou." : "Profil salvat");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut salva profilul");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -286,58 +395,174 @@ const DriverApp = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-muted/30 flex flex-col" data-testid="driver-app">
-      {/* Header */}
-      <header className="bg-card border-b sticky top-0 z-50">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'hsl(215 75% 22%)' }}>
-              <Truck className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
-                PRODELIVERY <span style={{ color: 'hsl(24 95% 53%)', fontSize: '0.75em' }}>BACAU</span>
-              </h1>
-              <p className="text-xs text-muted-foreground">{user?.name}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="border-border/80 bg-card/85 backdrop-blur"
-              title={isDark ? "Schimbă la tema light" : "Schimbă la tema dark"}
-              data-testid="driver-theme-toggle"
-            >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            {canInstall && (
-              <Button variant="outline" size="icon" onClick={installPWA} data-testid="install-pwa-button" title="Instalează aplicația">
-                <Download className="w-5 h-5" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={fetchOrder} data-testid="refresh-button">
-              <RefreshCw className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={logout} data-testid="logout-button">
-              <LogOut className="w-5 h-5" />
-            </Button>
+  const driver = driverDashboard?.driver || {};
+  const today = new Date();
+  const todaySummary = {
+    deliveries: driver.total_deliveries || 0,
+    earnings: Number(driver.total_earnings || 0).toFixed(2),
+    activeTime: driver.schedule_today_hours ? `${driver.schedule_today_hours}h` : "0h",
+  };
+  const statusLabel = driver.operational_status_label || "Offline";
+  const currentStepLabel = currentOrder
+    ? currentOrder.status === "ASSIGNED" ? "Comandă primită" : currentOrder.status === "ACCEPTED" ? "Mergi la restaurant" : currentOrder.status === "PICKED_UP" ? "Livrează clientului" : "Finalizată"
+    : "Fără comandă";
+
+  const renderHome = () => (
+    <div className="space-y-4" data-testid="driver-home-tab">
+      <section className="rounded-[1.35rem] border border-orange-500/70 bg-black/30 p-4" data-testid="driver-order-volume-card">
+        <div className="flex items-center justify-between">
+          <p className="text-lg font-black text-white">Volum comenzi</p>
+          <div className="flex items-end gap-1.5">
+            {[30, 48, 32].map((height, index) => <span key={height} className={`w-3 rounded-full ${index === 1 ? "bg-orange-400" : "bg-zinc-600"}`} style={{ height }} />)}
           </div>
         </div>
-      </header>
+      </section>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4">
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4 shadow-2xl" data-testid="driver-current-order-card">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Package className="h-6 w-6 text-orange-500" />
+            <p className="text-lg font-black text-white">Comanda curentă</p>
+          </div>
+          {currentOrder && <Badge className="bg-orange-500/20 text-orange-300" data-testid="driver-current-order-number">{currentOrder.order_number}</Badge>}
+        </div>
+        {currentOrder ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-[54px_1fr] gap-3">
+              <div className="flex flex-col items-center">
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-orange-500"><Store className="h-6 w-6 text-white" /></div>
+                <div className="h-16 border-l-2 border-dashed border-white/50" />
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-orange-500"><MapPin className="h-6 w-6 text-white" /></div>
+              </div>
+              <div className="space-y-6 py-1">
+                <div>
+                  <p className="text-xs text-zinc-400">Locația de ridicare</p>
+                  <p className="text-xl font-black text-white">{currentOrder.restaurant_name}</p>
+                  <p className="text-sm text-zinc-400">{currentOrder.restaurant_address || "Adresă restaurant"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-400">Livrare la</p>
+                  <p className="text-base font-bold text-white">{currentOrder.customer_address}</p>
+                </div>
+              </div>
+            </div>
+            <button type="button" onClick={() => setActiveTab("delivery")} className="flex h-12 w-full items-center justify-between rounded-2xl border border-white/10 px-3 text-left text-white" data-testid="driver-open-delivery-tab-button">
+              <span className="flex items-center gap-2"><Navigation className="h-5 w-5 text-orange-500" /> Vezi detalii comandă</span>
+              <span className="text-2xl text-zinc-400">›</span>
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center" data-testid="driver-no-order-home">
+            <p className="text-xl font-black text-white">Nu ai comandă acum</p>
+            <p className="mt-1 text-sm text-zinc-400">Când dispeceratul îți alocă o comandă, apare aici instant.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4" data-testid="driver-today-summary-card">
+        <div className="mb-3 flex items-center gap-2"><BarChart3 className="h-5 w-5 text-orange-500" /><p className="font-black text-white">Sumar astăzi</p></div>
+        <div className="grid grid-cols-3 divide-x divide-white/10 text-center">
+          <div><ClipboardList className="mx-auto mb-1 h-6 w-6 text-orange-500" /><p className="text-2xl font-black text-white">{todaySummary.deliveries}</p><p className="text-xs text-zinc-400">comenzi</p></div>
+          <div><Clock className="mx-auto mb-1 h-6 w-6 text-orange-500" /><p className="text-2xl font-black text-white">{todaySummary.activeTime}</p><p className="text-xs text-zinc-400">program azi</p></div>
+          <div><WalletCards className="mx-auto mb-1 h-6 w-6 text-orange-500" /><p className="text-xl font-black text-white">{todaySummary.earnings}</p><p className="text-xs text-zinc-400">RON</p></div>
+        </div>
+      </section>
+    </div>
+  );
+
+  const renderDelivery = () => (
+    <div className="space-y-4" data-testid="driver-delivery-tab">
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4">
+        <p className="text-sm text-zinc-400">Status livrator</p>
+        <h2 className="mt-1 text-2xl font-black text-white">{statusLabel}</h2>
+        <div className="mt-4 grid gap-2">
+          <Select value={driverStatusForm.status} onValueChange={(value) => setDriverStatusForm((prev) => ({ ...prev, status: value }))}>
+            <SelectTrigger className="h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-operational-status-select"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="active">Activ</SelectItem><SelectItem value="break">În pauză</SelectItem><SelectItem value="offline">Offline</SelectItem></SelectContent>
+          </Select>
+          {driverStatusForm.status === "break" && <Input type="number" min="1" max="180" value={driverStatusForm.break_minutes} onChange={(event) => setDriverStatusForm((prev) => ({ ...prev, break_minutes: Number(event.target.value) || 30 }))} className="h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-break-minutes-input" />}
+          <Button type="button" onClick={updateDriverOperationalStatus} className="h-13 rounded-2xl bg-orange-600 font-black hover:bg-orange-700" data-testid="driver-status-update-button"><ShieldCheck className="mr-2 h-5 w-5" /> Setează status</Button>
+        </div>
+      </section>
+
+      {!currentOrder ? (
+        <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-5 text-center" data-testid="driver-no-delivery-state">
+          <Bike className="mx-auto h-14 w-14 text-orange-500" />
+          <h2 className="mt-3 text-2xl font-black text-white">Aștepți livrare</h2>
+          <p className="mt-2 text-sm text-zinc-400">Când ești în program și activ, comanda apare aici.</p>
+          <Button type="button" onClick={fetchOrder} className="mt-4 h-13 w-full rounded-2xl bg-orange-600 font-black" data-testid="driver-check-delivery-button"><RefreshCw className="mr-2 h-5 w-5" /> Verifică</Button>
+        </section>
+      ) : (
+        <section className="space-y-3" data-testid="active-order">
+          <Card className="border-white/10 bg-zinc-950 text-white"><CardContent className="p-4"><div className="flex items-center justify-between"><div><p className="text-sm text-zinc-400">Pas curent</p><p className="text-xl font-black">{currentStepLabel}</p></div><Badge className="bg-orange-500 text-white">{getStatusConfig(currentOrder.status).label}</Badge></div></CardContent></Card>
+          <Card className="border-white/10 bg-zinc-950 text-white" data-testid="customer-info-card"><CardHeader><CardTitle className="text-base">Client</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-xl font-black">{currentOrder.customer_name}</p><p className="text-zinc-300">{currentOrder.customer_address}</p><Button type="button" onClick={() => callCustomer(currentOrder.customer_phone)} className="h-13 w-full rounded-2xl bg-emerald-600 font-black" data-testid="call-customer-button"><Phone className="mr-2 h-5 w-5" /> Sună clientul</Button><Button type="button" variant="outline" onClick={() => openNavigation(currentOrder.customer_address)} className="h-13 w-full rounded-2xl border-white/10 bg-transparent text-white" data-testid="navigate-button"><Navigation className="mr-2 h-5 w-5" /> Navigație</Button></CardContent></Card>
+          <Card className="border-white/10 bg-zinc-950 text-white" data-testid="order-details-card"><CardHeader><CardTitle className="text-base">Detalii comandă</CardTitle></CardHeader><CardContent className="space-y-3">{currentOrder.items?.map((item) => <div key={`${currentOrder.id}-${item.name}`} className="flex justify-between border-b border-white/10 pb-2"><span>{item.quantity}x {item.name}</span><span>{item.price * item.quantity} RON</span></div>)}<div className="rounded-2xl bg-white/5 p-3"><p className="text-sm text-zinc-400">De încasat</p><p className="text-2xl font-black">{currentOrder.total_amount} RON</p><p className="text-sm text-orange-300">{currentOrder.payment_type === "CASH" ? "Numerar" : "Card"}</p></div></CardContent></Card>
+        </section>
+      )}
+    </div>
+  );
+
+  const renderCalendar = () => (
+    <div className="space-y-4" data-testid="driver-calendar-tab">
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4">
+        <div className="flex items-center justify-between"><div><p className="text-sm text-zinc-400">Calendar separat</p><h2 className="text-2xl font-black text-white">Programul meu</h2></div><CalendarDays className="h-8 w-8 text-orange-500" /></div>
+        <p className="mt-2 text-sm text-zinc-400">Azi: {formatScheduleDay(today)} · {driver.schedule_today_hours || 0} ore</p>
+      </section>
+      <CompactSchedule dashboard={driverDashboard} />
+      <div className="rounded-[1.35rem] border border-orange-500/30 bg-orange-500/10 p-4" data-testid="driver-calendar-editor-wrapper">
+        <p className="mb-3 font-bold text-orange-100">Alege/editează program</p>
+        {user?.driver_id && <DriverSchedule driverId={user.driver_id} />}
+      </div>
+    </div>
+  );
+
+  const renderProfile = () => (
+    <div className="space-y-4" data-testid="driver-profile-tab">
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4 text-white">
+        <div className="flex items-center gap-4"><DriverAvatar driver={driver} size="lg" className="border-orange-400" testId="driver-profile-avatar" /><div className="min-w-0 flex-1"><p className="text-sm text-zinc-400">Profil livrator</p><h2 className="truncate text-2xl font-black">{driver.name || user?.name}</h2><div className="mt-2 flex flex-wrap gap-2"><Badge className="bg-orange-500 text-white" data-testid="driver-profile-status-badge">{statusLabel}</Badge>{driver.avatar_status === "pending" && <Badge className="bg-amber-200 text-amber-950" data-testid="driver-avatar-pending-badge">Poză în aprobare</Badge>}</div></div></div>
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3"><p className="mb-3 text-sm font-bold text-orange-100"><Camera className="mr-2 inline h-4 w-4" /> Poză profil</p><AvatarUploadCropper onUpload={uploadDriverAvatar} isUploading={avatarUploading} testIdPrefix="driver-self-avatar" /></div>
+      </section>
+      {!emailVerified && <Card className="border-amber-500/40 bg-amber-500/10 text-white" data-testid="driver-email-verification-card"><CardContent className="space-y-3 p-4"><p className="font-bold text-amber-100">Confirmă emailul</p><div className="grid grid-cols-[1fr_auto] gap-2"><Input value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Cod 6 cifre" inputMode="numeric" className="h-13 rounded-2xl bg-black text-white" data-testid="driver-email-code-input" /><Button type="button" onClick={verifyEmailCode} className="rounded-2xl bg-orange-600" data-testid="driver-email-verify-button">Verifică</Button></div></CardContent></Card>}
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4 text-white">
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-zinc-400">Nume</label><Input value={profileForm.last_name} onChange={(e) => setProfileForm((p) => ({ ...p, last_name: e.target.value }))} className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-profile-last-name-input" /></div><div><label className="text-xs font-bold text-zinc-400">Prenume</label><Input value={profileForm.first_name} onChange={(e) => setProfileForm((p) => ({ ...p, first_name: e.target.value }))} className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-profile-first-name-input" /></div></div>
+          <div><label className="text-xs font-bold text-zinc-400"><IdCard className="mr-1 inline h-3 w-3" /> CNP</label><Input value={profileForm.cnp} onChange={(e) => setProfileForm((p) => ({ ...p, cnp: e.target.value.replace(/\D/g, "").slice(0, 13) }))} className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" inputMode="numeric" data-testid="driver-profile-cnp-input" />{!isValidCnp(profileForm.cnp) && <p className="mt-1 text-xs text-red-300" data-testid="driver-profile-cnp-error">CNP-ul trebuie să aibă 13 cifre.</p>}</div>
+          <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-zinc-400"><Cake className="mr-1 inline h-3 w-3" /> Data nașterii</label><Input type="date" value={profileForm.birth_date} onChange={(e) => setProfileForm((p) => ({ ...p, birth_date: e.target.value }))} className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-profile-birth-date-input" /></div><div><label className="text-xs font-bold text-zinc-400"><VenusAndMars className="mr-1 inline h-3 w-3" /> Sex</label><Select value={profileForm.gender} onValueChange={(value) => setProfileForm((p) => ({ ...p, gender: value }))}><SelectTrigger className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-profile-gender-select"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="masculin">Masculin</SelectItem><SelectItem value="feminin">Feminin</SelectItem></SelectContent></Select></div></div>
+          <div><label className="text-xs font-bold text-zinc-400"><Mail className="mr-1 inline h-3 w-3" /> Email</label><Input type="email" value={profileForm.email} onChange={(e) => setProfileForm((p) => ({ ...p, email: e.target.value }))} className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-profile-email-input" /><div className="mt-2 flex items-center gap-2 text-xs">{driver.email_verified ? <span className="text-emerald-300"><Check className="mr-1 inline h-3 w-3" /> validat</span> : <span className="text-amber-300">nevalidat · se folosește codul pe email</span>}</div></div>
+          <div><label className="text-xs font-bold text-zinc-400"><Phone className="mr-1 inline h-3 w-3" /> Telefon</label><Input value={profileForm.phone} onChange={(e) => setProfileForm((p) => ({ ...p, phone: e.target.value }))} className="mt-1 h-13 rounded-2xl border-white/10 bg-black text-white" data-testid="driver-profile-phone-input" />{!isValidPhone(profileForm.phone) && <p className="mt-1 text-xs text-red-300" data-testid="driver-profile-phone-error">Format acceptat: 07xxxxxxxx sau +407xxxxxxxx.</p>}<button type="button" onClick={() => toast.info("Validarea SMS reală va fi activată când clientul decide serviciul SMS.")} className="mt-2 text-xs font-bold text-orange-300 underline" data-testid="driver-phone-validation-info-button">Telefon neverificat · SMS se conectează ulterior</button></div>
+          <Button type="button" onClick={saveProfile} disabled={savingProfile} className="mt-2 h-14 rounded-2xl bg-orange-600 text-lg font-black hover:bg-orange-700" data-testid="driver-profile-save-button">{savingProfile ? "Se salvează..." : "Salvează profil"}</Button>
+        </div>
+      </section>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-neutral-950 text-white" data-testid="driver-app">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-[#090b0f] shadow-2xl">
+        <header className="relative shrink-0 overflow-hidden px-5 pb-4 pt-4" data-testid="driver-mobile-header">
+          <div className="absolute -left-16 -top-28 h-52 w-72 rounded-full bg-orange-600" />
+          <div className="relative z-10 flex items-center justify-between">
+            <button type="button" className="grid h-11 w-11 place-items-center rounded-full bg-black/20 text-white" data-testid="driver-menu-button"><Menu className="h-6 w-6" /></button>
+            <div className="flex items-center gap-2">
+              {canInstall && <button type="button" onClick={installPWA} className="grid h-11 w-11 place-items-center rounded-full bg-white/10" data-testid="install-pwa-button"><Download className="h-5 w-5" /></button>}
+              <button type="button" onClick={fetchOrder} className="grid h-11 w-11 place-items-center rounded-full bg-white/10" data-testid="refresh-button"><RefreshCw className="h-5 w-5" /></button>
+              <button type="button" onClick={logout} className="grid h-11 w-11 place-items-center rounded-full bg-white/10" data-testid="logout-button"><LogOut className="h-5 w-5" /></button>
+            </div>
+          </div>
+          <div className="relative z-10 mt-2 text-center">
+            <ProDeliveryMark dark testId="driver-header-logo" />
+            <h1 className="mt-1 text-3xl font-black tracking-tight">Bun venit, {driver.first_name || user?.name?.split(" ")[0] || "Livrator"}!</h1>
+            <p className="text-zinc-400">Hai să facem bani astăzi! 💰</p>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto px-4 pb-28">
         {/* New Order Flash Banner */}
         {newOrderFlash && (
           <div 
@@ -352,262 +577,18 @@ const DriverApp = () => {
             <p className="text-sm opacity-90 mt-1">Verifică detaliile și confirmă preluarea rapid.</p>
           </div>
         )}
-        {user?.role === "driver" && !emailVerified && (
-          <Card className="mb-4 border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30" data-testid="driver-email-verification-card">
-            <CardContent className="space-y-3 p-4">
-              <div>
-                <p className="font-bold text-amber-900 dark:text-amber-100">Confirmă emailul pentru documente și rapoarte</p>
-                <p className="text-sm text-amber-800/80 dark:text-amber-100/80">Introdu codul primit pe email. Codul expiră în 30 de minute.</p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={emailCode}
-                  onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Cod 6 cifre"
-                  inputMode="numeric"
-                  data-testid="driver-email-code-input"
-                />
-                <Button type="button" onClick={verifyEmailCode} data-testid="driver-email-verify-button">
-                  Verifică
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {user?.role === "driver" && driverDashboard?.driver && (
-          <Card className="mb-4 overflow-hidden border-orange-200 bg-gradient-to-br from-slate-950 to-slate-900 text-white shadow-lg" data-testid="driver-profile-status-card">
-            <CardContent className="space-y-4 p-4">
-              <div className="flex items-center gap-4">
-                <DriverAvatar driver={driverDashboard.driver} size="lg" className="border-orange-400" testId="driver-profile-avatar" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-orange-200">Bun venit,</p>
-                  <h2 className="truncate text-2xl font-black">{driverDashboard.driver.name}</h2>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge className="bg-orange-500 text-white" data-testid="driver-profile-status-badge">
-                      {driverDashboard.driver.operational_status_label || "Activ"}
-                    </Badge>
-                    {driverDashboard.driver.avatar_status === "pending" && <Badge className="bg-amber-100 text-amber-900" data-testid="driver-avatar-pending-badge">Poză în aprobare</Badge>}
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
-                <Select value={driverStatusForm.status} onValueChange={(value) => setDriverStatusForm((prev) => ({ ...prev, status: value }))}>
-                  <SelectTrigger className="bg-white text-slate-950" data-testid="driver-operational-status-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Activ</SelectItem>
-                    <SelectItem value="break">În pauză</SelectItem>
-                    <SelectItem value="offline">Offline</SelectItem>
-                  </SelectContent>
-                </Select>
-                {driverStatusForm.status === "break" && (
-                  <Input
-                    type="number"
-                    min="1"
-                    max="180"
-                    value={driverStatusForm.break_minutes}
-                    onChange={(event) => setDriverStatusForm((prev) => ({ ...prev, break_minutes: Number(event.target.value) || 30 }))}
-                    className="bg-white text-slate-950"
-                    data-testid="driver-break-minutes-input"
-                  />
-                )}
-                <Button type="button" onClick={updateDriverOperationalStatus} className="bg-orange-600 hover:bg-orange-700" data-testid="driver-status-update-button">
-                  <ShieldCheck className="mr-2 h-4 w-4" /> Setează
-                </Button>
-              </div>
-              {driverDashboard.driver.operational_status === "break" && (
-                <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100" data-testid="driver-break-live-info">
-                  <PauseCircle className="mr-2 inline h-4 w-4" /> Pauza este activă și rămâi vizibil pe harta dispeceratului.
-                </div>
-              )}
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <p className="mb-3 text-sm font-bold text-orange-100">Poză profil</p>
-                <AvatarUploadCropper onUpload={uploadDriverAvatar} isUploading={avatarUploading} testIdPrefix="driver-self-avatar" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {!currentOrder ? (
-          // No Order State
-          <div className="h-full flex flex-col items-center justify-center text-center py-12" data-testid="no-order-state">
-            {/* Schedule Card */}
-            {user?.driver_id && (
-              <div className="w-full mb-6">
-                <DriverSchedule driverId={user.driver_id} />
-              </div>
-            )}
-            
-            <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
-              <Package className="w-12 h-12 text-muted-foreground" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
-              NICIO COMANDĂ
-            </h2>
-            <p className="text-muted-foreground mb-6 max-w-xs">
-              Așteptăm să ți se aloce o nouă comandă. Vei primi notificare instant.
-            </p>
-            <Button variant="outline" onClick={fetchOrder} data-testid="check-orders-button">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Verifică Comenzi
-            </Button>
-          </div>
-        ) : (
-          // Active Order
-          <div className="space-y-4" data-testid="active-order">
-            {/* Order Header */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getStatusConfig(currentOrder.status).color}`}>
-                      <Package className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-mono text-sm text-muted-foreground">{currentOrder.order_number}</p>
-                      <CardTitle className="text-xl">{currentOrder.restaurant_name}</CardTitle>
-                    </div>
-                  </div>
-                  <Badge className={`${getStatusConfig(currentOrder.status).bgColor} ${getStatusConfig(currentOrder.status).textColor} border-0 text-sm px-3 py-1`}>
-                    {getStatusConfig(currentOrder.status).label}
-                  </Badge>
-                </div>
-              </CardHeader>
-              {currentOrder.status === "ASSIGNED" && (
-                <CardContent className="pt-0">
-                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100" data-testid="driver-upcoming-order-notice">
-                    Urmează să primești această comandă. Confirmă acceptarea ca dispeceratul să vadă că ai preluat-o.
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-
-            {/* Customer Info */}
-            <Card data-testid="customer-info-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Detalii Client
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Name */}
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                    <User className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Nume</p>
-                    <p className="font-semibold text-lg">{currentOrder.customer_name}</p>
-                  </div>
-                </div>
-
-                {/* Phone with Call Button */}
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                    <Phone className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Telefon</p>
-                    <p className="font-mono font-semibold text-lg">{currentOrder.customer_phone}</p>
-                  </div>
-                  <Button
-                    size="lg"
-                    className="bg-green-600 hover:bg-green-700 h-14 px-6"
-                    onClick={() => callCustomer(currentOrder.customer_phone)}
-                    data-testid="call-customer-button"
-                  >
-                    <Phone className="w-5 h-5 mr-2" />
-                    SUNĂ
-                  </Button>
-                </div>
-
-                {/* Address with Navigate Button */}
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center shrink-0 mt-1">
-                    <MapPin className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Adresă Livrare</p>
-                    <p className="font-semibold">{currentOrder.customer_address}</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full h-12"
-                  onClick={() => openNavigation(currentOrder.customer_address)}
-                  data-testid="navigate-button"
-                >
-                  <Navigation className="w-5 h-5 mr-2" />
-                  Deschide Navigația
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Order Details */}
-            <Card data-testid="order-details-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Detalii Comandă
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Items */}
-                {currentOrder.items && currentOrder.items.length > 0 && (
-                  <div className="space-y-2">
-                    {currentOrder.items.map((item) => (
-                      <div key={`${currentOrder.id}-${item.name}-${item.price}-${item.quantity}`} className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span>{item.quantity}x {item.name}</span>
-                        <span className="font-mono">{item.price * item.quantity} RON</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Total & Payment */}
-                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {currentOrder.payment_type === "CASH" ? (
-                      <Banknote className="w-6 h-6 text-green-600" />
-                    ) : (
-                      <CreditCard className="w-6 h-6 text-blue-600" />
-                    )}
-                    <div>
-                      <p className="text-sm text-muted-foreground">De încasat</p>
-                      <p className="text-2xl font-bold">{currentOrder.total_amount} RON</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-base px-4 py-2">
-                    {currentOrder.payment_type === "CASH" ? "NUMERAR" : "CARD"}
-                  </Badge>
-                </div>
-
-                {/* Notes */}
-                {currentOrder.notes && (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-950/30 dark:border-yellow-900">
-                    <p className="text-sm font-medium text-yellow-800 mb-1 dark:text-yellow-100">Observații:</p>
-                    <p className="text-yellow-900 dark:text-yellow-50">{currentOrder.notes}</p>
-                  </div>
-                )}
-
-                {/* Created Time */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>Comandă primită la: {new Date(currentOrder.created_at).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {activeTab === "home" && renderHome()}
+        {activeTab === "delivery" && renderDelivery()}
+        {activeTab === "calendar" && renderCalendar()}
+        {activeTab === "profile" && renderProfile()}
       </main>
 
       {/* Action Buttons - Fixed at Bottom */}
-      {currentOrder && (
-        <div className="sticky bottom-0 p-4 bg-card border-t space-y-3" data-testid="action-buttons">
+      {currentOrder && activeTab === "delivery" && (
+        <div className="border-t border-white/10 bg-black p-4 space-y-3" data-testid="action-buttons">
           {currentOrder.status === "ASSIGNED" && (
             <Button
-              className="driver-btn bg-purple-600 hover:bg-purple-700"
+              className="driver-btn bg-orange-600 hover:bg-orange-700"
               onClick={() => updateStatus("ACCEPTED")}
               disabled={isUpdating}
               data-testid="accept-button"
@@ -655,6 +636,15 @@ const DriverApp = () => {
           )}
         </div>
       )}
+
+        <nav className="fixed bottom-0 left-1/2 z-50 grid h-20 w-full max-w-md -translate-x-1/2 grid-cols-4 rounded-t-[1.6rem] border-t border-white/10 bg-zinc-950 px-2 pb-2 pt-2" data-testid="driver-bottom-navigation">
+          {[{ key: "home", label: "Acasă", icon: Home }, { key: "delivery", label: "Livrare", icon: Navigation }, { key: "calendar", label: "Calendar", icon: CalendarDays }, { key: "profile", label: "Profil", icon: User }].map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.key;
+            return <button key={item.key} type="button" onClick={() => setActiveTab(item.key)} className={`flex flex-col items-center justify-center gap-1 rounded-2xl text-xs font-bold transition-colors ${active ? "text-orange-400" : "text-zinc-500"}`} data-testid={`driver-nav-${item.key}-button`}><Icon className="h-6 w-6" /><span>{item.label}</span></button>;
+          })}
+        </nav>
+      </div>
 
       {/* Confirm Action Dialog */}
       <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>

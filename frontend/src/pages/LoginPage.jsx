@@ -7,7 +7,18 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { useTheme } from "../context/ThemeContext";
 import { toast } from "sonner";
-import { Truck, Lock, Mail, Download, Moon, Sun } from "lucide-react";
+import { Lock, Download, UserRound, Eye, Bike } from "lucide-react";
+
+const ProDeliveryLoginMark = () => (
+  <div className="inline-flex flex-col items-center" data-testid="login-logo">
+    <div className="relative h-20 w-36">
+      <span className="absolute left-0 top-8 h-1.5 w-12 rounded-full bg-white" />
+      <span className="absolute left-4 top-12 h-1.5 w-8 rounded-full bg-white" />
+      <Bike className="absolute left-12 top-1 h-20 w-20 text-white drop-shadow" strokeWidth={2.8} />
+    </div>
+    <div className="text-4xl font-black tracking-tight"><span className="text-slate-700">Pro</span><span className="text-orange-600">Delivery</span></div>
+  </div>
+);
 
 const DEMO_CREDENTIALS = {
   admin: {
@@ -37,7 +48,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const { login } = useAuth();
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const hasDemoCredentials = Object.values(DEMO_CREDENTIALS).every(
     (account) => account.email && account.password,
@@ -114,102 +125,60 @@ const LoginPage = () => {
     setIsLoading(false);
   };
 
-  const loginBackground =
-    theme === "dark"
-      ? "linear-gradient(135deg, hsl(215 75% 10% / 0.96), hsl(220 30% 6% / 0.92)), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?w=1920&q=80')"
-      : "linear-gradient(135deg, hsl(215 75% 92% / 0.86), hsl(24 95% 88% / 0.76)), url('https://images.unsplash.com/photo-1526367790999-0150786686a2?w=1920&q=80')";
-
   return (
-    <div 
-      className="relative min-h-screen flex items-center justify-center overflow-hidden p-4 bg-cover bg-center"
-      style={{
-        backgroundImage: loginBackground,
-      }}
-    >
-      <div className="absolute right-4 top-4 z-10">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={toggleTheme}
-          className="border-border/80 bg-card/85 backdrop-blur"
-          data-testid="login-theme-toggle"
-        >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          <span className="ml-2 hidden sm:inline">Tema: {isDark ? "Dark" : "Light"}</span>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-neutral-200 text-slate-900">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-[#eeeeee] shadow-2xl" data-testid="login-card">
+        <div className="absolute -left-20 -top-20 h-56 w-[38rem] rotate-[-10deg] rounded-[50%] bg-orange-600" />
+        <div className="absolute -bottom-24 -right-32 h-48 w-[42rem] rotate-[-8deg] rounded-[50%] bg-orange-600" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-[linear-gradient(to_top,rgba(148,163,184,0.45),transparent)]" />
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.22),transparent_30%)] dark:bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_30%)]" />
+        <div className="relative z-10 flex flex-1 flex-col justify-center px-8 py-10">
+          <div className="mb-10 text-center">
+            <ProDeliveryLoginMark />
+            <h1 className="mt-4 text-4xl font-black tracking-tight">Bun Venit!</h1>
+            <p className="mt-2 text-lg font-semibold text-slate-500">Conectează-te pentru a continua!</p>
+          </div>
 
-      <Card className="relative z-10 w-full max-w-md border border-white/15 bg-card/92 shadow-2xl backdrop-blur-md" data-testid="login-card">
-        <CardHeader className="space-y-4 text-center pb-2">
-          <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, hsl(215 75% 22%), hsl(215 75% 30%))' }}>
-            <Truck className="w-10 h-10 text-white" />
-          </div>
-          <div>
-            <CardTitle className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.05em' }}>
-              PRODELIVERY
-            </CardTitle>
-            <p className="text-sm font-semibold tracking-widest mt-0.5" style={{ color: 'hsl(24 95% 53%)' }}>BACAU</p>
-            <CardDescription className="text-base mt-1">
-              Platformă de management livrări
-            </CardDescription>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-6 pt-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@exemplu.ro"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-11"
-                  required
-                  data-testid="email-input"
-                />
-              </div>
+            <div className="relative">
+              <UserRound className="absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-500" />
+              <Input
+                id="email"
+                type="text"
+                placeholder="Număr de telefon sau mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-16 rounded-2xl border-0 bg-white pl-16 text-base font-semibold shadow-lg placeholder:text-slate-400"
+                required
+                data-testid="email-input"
+              />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Parolă</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 h-11"
-                  required
-                  data-testid="password-input"
-                />
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-500" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="Parola"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-16 rounded-2xl border-0 bg-white pl-16 pr-14 text-base font-semibold shadow-lg placeholder:text-slate-400"
+                required
+                data-testid="password-input"
+              />
+              <Eye className="absolute right-5 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-500" />
             </div>
-
-            <Button 
-              type="submit" 
-              className="w-full h-12 text-base font-semibold"
-              disabled={isLoading}
-              data-testid="login-button"
-            >
-              {isLoading ? "Se conectează..." : "Autentificare"}
+            <button type="button" onClick={() => toast.info("Resetarea parolei va fi activată din panoul admin.")} className="block w-full text-center text-sm font-black text-orange-600" data-testid="forgot-password-button">ai uitat parola?</button>
+            <Button type="submit" className="h-16 w-full rounded-2xl bg-orange-600 text-lg font-black shadow-xl hover:bg-orange-700" disabled={isLoading} data-testid="login-button">
+              {isLoading ? "Se conectează..." : "Conectează-te"}
             </Button>
           </form>
 
-          <div className="relative">
+          <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">sau acces demo</span>
+              <span className="bg-[#eeeeee] px-2 text-slate-500">sau acces demo</span>
             </div>
           </div>
 
@@ -218,7 +187,7 @@ const LoginPage = () => {
               variant="outline"
               onClick={() => handleDemoLogin("admin")}
               disabled={isLoading}
-              className="h-11"
+              className="h-11 rounded-xl bg-white text-xs"
               data-testid="demo-admin-button"
             >
               Demo Admin
@@ -227,7 +196,7 @@ const LoginPage = () => {
               variant="outline"
               onClick={() => handleDemoLogin("driver")}
               disabled={isLoading}
-              className="h-11"
+              className="h-11 rounded-xl bg-white text-xs"
               data-testid="demo-driver-button"
             >
               Demo Livrator
@@ -236,15 +205,15 @@ const LoginPage = () => {
               variant="outline"
               onClick={() => handleDemoLogin("restaurant")}
               disabled={isLoading}
-              className="h-11"
+              className="h-11 rounded-xl bg-white text-xs"
               data-testid="demo-restaurant-button"
             >
               Demo Restaurant
             </Button>
           </div>
 
-          {hasDemoCredentials && (
-            <p className="text-xs text-center text-muted-foreground">
+          {hasDemoCredentials && theme !== "production" && (
+            <p className="mt-4 text-center text-[10px] text-slate-500">
               Admin: {DEMO_CREDENTIALS.admin.email} / {DEMO_CREDENTIALS.admin.password}<br />
               Livrator: {DEMO_CREDENTIALS.driver.email} / {DEMO_CREDENTIALS.driver.password}<br />
               Restaurant: {DEMO_CREDENTIALS.restaurant.email} / {DEMO_CREDENTIALS.restaurant.password}
@@ -262,14 +231,8 @@ const LoginPage = () => {
               Instalează Aplicația
             </Button>
           )}
-
-          <div className="text-xs text-center text-muted-foreground p-3 bg-muted/60 rounded-lg">
-            <p className="font-medium mb-1">📱 Instalare pe telefon:</p>
-            <p>Android: Menu Chrome → "Adaugă pe ecranul principal"</p>
-            <p>iPhone: Safari → Share → "Add to Home Screen"</p>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

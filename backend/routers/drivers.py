@@ -9,6 +9,7 @@ from models.driver import (
     DriverCreate,
     DriverEmailVerification,
     DriverProfileUpdate,
+    DriverSelfProfileUpdate,
     DriverRankingUpdate,
     DriverStatusUpdate,
 )
@@ -28,6 +29,47 @@ def _normalise_email(email: str) -> str:
 
 def _generate_verification_code() -> str:
     return f"{secrets.randbelow(900000) + 100000}"
+
+
+def _split_driver_name(name: str | None) -> tuple[str, str]:
+    parts = (name or "").strip().split()
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:])
+
+
+def _validate_ro_phone(phone: str) -> str:
+    value = phone.strip().replace(" ", "")
+    allowed = value.startswith("+40") and len(value) == 12 and value[1:].isdigit()
+    local = value.startswith("07") and len(value) == 10 and value.isdigit()
+    if not (allowed or local):
+        raise HTTPException(status_code=400, detail="Numărul de telefon trebuie să fie 07xxxxxxxx sau +407xxxxxxxx")
+    return value
+
+
+def _validate_birth_date(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value).date()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Data nașterii trebuie să fie validă") from exc
+    today = datetime.now(timezone.utc).date()
+    age = today.year - parsed.year - ((today.month, today.day) < (parsed.month, parsed.day))
+    if age < 16 or age > 90:
+        raise HTTPException(status_code=400, detail="Vârsta livratorului nu este validă")
+    return parsed.isoformat()
+
+
+def _validate_cnp(cnp: str | None) -> str | None:
+    value = (cnp or "").strip()
+    if not value:
+        return None
+    if not (len(value) == 13 and value.isdigit()):
+        raise HTTPException(status_code=400, detail="CNP-ul trebuie să aibă 13 cifre")
+    return value
 
 
 def _current_week_and_day() -> tuple[str, str, str]:
@@ -80,16 +122,21 @@ async def _ensure_admin_or_self(driver_id: str, current_user: dict) -> dict:
 
 
 async def _attach_user_contact(driver: dict) -> dict:
-    if driver.get("email") and driver.get("phone") and driver.get("name"):
-        return driver
     user = await db.users.find_one({"id": driver.get("user_id")}, {"_id": 0})
     if not user:
-        return driver
+        user = {}
+    first_name, last_name = _split_driver_name(driver.get("name") or user.get("name"))
     return {
         **driver,
         "email": driver.get("email") or user.get("email"),
         "phone": driver.get("phone") or user.get("phone") or "",
         "name": driver.get("name") or user.get("name") or "",
+        "first_name": driver.get("first_name") or user.get("first_name") or first_name,
+        "last_name": driver.get("last_name") or user.get("last_name") or last_name,
+        "birth_date": driver.get("birth_date") or user.get("birth_date"),
+        "gender": driver.get("gender") or user.get("gender"),
+        "cnp": driver.get("cnp") or user.get("cnp"),
+        "phone_verified": bool(driver.get("phone_verified") or user.get("phone_verified")),
     }
 
 
@@ -127,6 +174,64 @@ async def _attach_today_schedule_state(driver: dict) -> dict:
         "operational_status_label": _status_label(operational_status),
         "break_remaining_seconds": break_remaining_seconds,
     }
+
+
+@router.patch("/{driver_id}/self-profile")
+async def update_driver_self_profile(driver_id: str, data: DriverSelfProfileUpdate, current_user: dict = Depends(get_current_user)):
+    driver = await _ensure_admin_or_self(driver_id, current_user)
+    if current_user["role"] != "driver" and current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    normalized_email = _normalise_email(str(data.email))
+    normalized_phone = _validate_ro_phone(data.phone)
+    birth_date = _validate_birth_date(data.birth_date)
+    cnp = _validate_cnp(data.cnp)
+    first_name = data.first_name.strip()
+    last_name = data.last_name.strip()
+    if len(first_name) < 2 or len(last_name) < 2:
+        raise HTTPException(status_code=400, detail="Numele și prenumele sunt obligatorii")
+
+    duplicate = await db.users.find_one({"email": normalized_email, "id": {"$ne": driver.get("user_id")}}, {"_id": 0})
+    if duplicate:
+        raise HTTPException(status_code=400, detail="Emailul este deja folosit de alt cont")
+
+    full_name = f"{first_name} {last_name}".strip()
+    email_changed = normalized_email != (driver.get("email") or "")
+    phone_changed = normalized_phone != (driver.get("phone") or "")
+    update = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "name": full_name,
+        "birth_date": birth_date,
+        "gender": data.gender,
+        "cnp": cnp,
+        "phone": normalized_phone,
+        "email": normalized_email,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if phone_changed:
+        update["phone_verified"] = False
+        update["phone_verification_status"] = "sms_not_configured"
+    if email_changed:
+        update["email_verified"] = False
+
+    await db.drivers.update_one({"id": driver_id}, {"$set": update})
+    await db.users.update_one({"id": driver["user_id"]}, {"$set": update})
+    if email_changed:
+        try:
+            await _create_and_send_verification(driver_id, driver["user_id"], normalized_email, full_name)
+        except EmailDeliveryError as exc:
+            await db.drivers.update_one({"id": driver_id}, {"$set": {"email_verification_delivery_status": "failed"}})
+            await db.users.update_one({"id": driver["user_id"]}, {"$set": {"email_verification_delivery_status": "failed"}})
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    await _log_driver_audit(driver_id, current_user, "driver_self_profile_updated", {
+        "email_changed": email_changed,
+        "phone_changed": phone_changed,
+        "identity_fields_changed": True,
+    })
+    updated_driver = await _attach_user_contact(await db.drivers.find_one({"id": driver_id}, {"_id": 0}))
+    return {"message": "Profil actualizat", "driver": updated_driver, "email_verification_sent": email_changed}
 
 
 async def _create_and_send_verification(driver_id: str, user_id: str, email: str, name: str) -> dict:
