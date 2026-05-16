@@ -88,6 +88,14 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Operations UX Patch 10 Mai 2026: zonele de livrare create sunt blocate implicit; editarea/ștergerea cer confirmare explicită `CONFIRM`, iar backend-ul refuză modificările fără confirmare.
 - Operations UX Patch 10 Mai 2026: Driver App are notificare profesională „Urmează să primești o comandă”, card verificare email pentru livratori neverificați și dialog explicativ pentru scor/rank.
 - Security Patch 10 Mai 2026: login-ul are brute-force lockout după 5 încercări eșuate, iar backend-ul returnează CORS explicit intern; preflight-ul extern din ingress încă răspunde wildcard la OPTIONS înainte de backend.
+- Phase 2 Advanced Driver Ops 16 Mai 2026: statusurile livratorilor au fost refăcute în `Activ / În livrare / În pauză / Offline`; pauza păstrează livratorul vizibil pe hartă cu timer countdown, iar offline este ascuns de pe harta live.
+- Phase 2 Advanced Driver Ops 16 Mai 2026: adminul are dashboard individual complet de livrator cu profil, status operațional, rank manual, calendar vizual, avatar, istoric comenzi și audit securitate.
+- Phase 2 Advanced Driver Ops 16 Mai 2026: adminul poate modifica nume/telefon/email și poate seta/resetă manual parola livratorului; acțiunile sunt validate și logate în `audit_logs`.
+- Phase 2 Advanced Driver Ops 16 Mai 2026: calendarul individual al livratorului are grilă vizuală verde/roșu/gri, quick edit `-5…+5`, sloturi forțate permise cu warning de supraîncărcare și salvare prin flow admin.
+- Phase 2 Avatar Workflow 16 Mai 2026: adăugat upload avatar cu galerie/selfie, crop client-side, limită 4MB, compresie server-side WebP și stocare pe server; upload-ul livratorului intră `pending`, adminul aprobă/respinge, iar upload-ul adminului devine activ automat.
+- Phase 2 Driver App UX 16 Mai 2026: aplicația livratorului include card profil/status cu direcție vizuală orange/gri, setare rapidă Activ/Pauză/Offline și upload poză profil trimis spre aprobare.
+- Phase 2 Orders Source Fix 16 Mai 2026: tabelul de comenzi afișează sursa completă `Site / Bolt / Wolt / Glovo`, nu doar prescurtările `S/B/W/G`.
+- Validation 16 Mai 2026: lint frontend/backend PASS; self-test API PASS pentru login, driver dashboard, status pauză, blocare pauză/offline în livrare, avatar admin, avatar driver pending/aprobare; smoke Playwright PASS pentru Admin Drivers dialog și Orders source labels. Testing Agent iteration 24: 13/14 backend PASS + frontend major flows PASS; singurul fail rămas este preflight CORS extern interceptat la ingress.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -110,6 +118,12 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `PATCH /api/drivers/{driver_id}/ranking` - setează/șterge scor manual de rank pentru livrator
 - `DELETE /api/drivers/{driver_id}?confirm_delete=true` - șterge livratorul și userul asociat, dacă nu există comenzi active
 - `POST /api/schedules/admin/clone-previous-week` - preview/confirmare pentru refacerea sloturilor după săptămâna precedentă
+- `GET /api/drivers/{driver_id}/dashboard` - profil individual livrator cu rank, program, comenzi recente, avataruri și audit
+- `PATCH /api/drivers/{driver_id}/profile` - editare admin nume/telefon/email/parolă, cu audit log
+- `PUT /api/drivers/{driver_id}/status` - setează status operațional `active / break / offline`; `delivery` este derivat din comandă activă
+- `POST /api/drivers/{driver_id}/avatar` - upload avatar crop-uit/compresat; admin aprobă automat, livrator trimite pending
+- `PATCH /api/drivers/{driver_id}/avatars/{avatar_id}` - admin aprobă/respinge avatar pending
+- `GET /api/drivers/{driver_id}/avatars/{avatar_id}/image` - servește imaginea avatarului prin backend
 
 ## DB Schema - delivery_zones
 ```
@@ -129,6 +143,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: monitorizare primele emailuri reale Resend pentru spam/deliverability; fallback-ul local rămâne doar backup dacă providerul returnează eroare.
 - P1: rezolvare la nivel ingress/platformă pentru preflight OPTIONS care returnează `Access-Control-Allow-Origin: *` extern, deși backend-ul returnează explicit origin intern
 - P1: CORS preflight extern necesită modificare de ingress Kubernetes; troubleshoot RCA confirmă că FastAPI răspunde corect pe localhost și OPTIONS este interceptat înainte de backend.
+- P1: Polish final design Driver App conform direcției orange/gri din imaginile clientului, după stabilizarea completă a fluxurilor operaționale.
+- P1: Dacă se dorește stocare persistentă multi-deploy pentru avataruri, migrare din filesystem server-side către object storage dedicat; endpoint-urile actuale ascund detaliul de storage în spatele backend-ului.
 - P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi

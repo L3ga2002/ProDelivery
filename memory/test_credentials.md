@@ -23,6 +23,11 @@
 - POST `/api/auth/logout`
 - POST `/api/drivers/{driver_id}/verify-email`
 - POST `/api/drivers/{driver_id}/resend-verification`
+- GET `/api/drivers/{driver_id}/dashboard`
+- PATCH `/api/drivers/{driver_id}/profile` (admin only; can set/reset manual password)
+- PUT `/api/drivers/{driver_id}/status`
+- POST `/api/drivers/{driver_id}/avatar`
+- PATCH `/api/drivers/{driver_id}/avatars/{avatar_id}` (admin approval/reject)
 
 ## Notes
 - Credențialele demo sunt încărcate din environment variables
@@ -33,3 +38,5 @@
 - New drivers start with `email_verified=false` until they confirm the Resend code
 - Resend sender is now `verificare@prodeliverybacau.com` after domain verification
 - If Resend ever blocks/fails external recipients, admin receives a temporary local verification code in the UI fallback dialog as a backup
+- Driver avatar flow: driver uploads are pending approval; admin uploads are approved automatically
+- Test credentials above are unchanged after the 16 Mai 2026 driver profile/password management update
