@@ -125,7 +125,7 @@ def test_create_driver_accepts_vehicle_type_and_sets_email_unverified(admin_sess
     created = next((d for d in drivers_response.json() if d.get("id") == create_data["driver_id"]), None)
     assert created is not None
     assert created.get("vehicle_type") == "car"
-    assert created.get("email_verified") is False
+    assert not created.get("email_verified")
 
 
 def test_zone_protection_blocks_update_and_delete_without_confirm(admin_session: requests.Session):

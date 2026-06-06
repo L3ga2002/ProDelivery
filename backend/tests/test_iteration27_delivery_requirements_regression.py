@@ -105,7 +105,7 @@ def test_restaurant_schedule_settings_patch_persists(restaurant_session: request
         schedule = get_after.json().get("schedule_settings", {})
         assert schedule.get("monday", {}).get("open_time") == "09:30"
         assert schedule.get("monday", {}).get("close_time") == "21:30"
-        assert schedule.get("tuesday", {}).get("enabled") is False
+        assert not schedule.get("tuesday", {}).get("enabled")
     finally:
         if original_schedule:
             restaurant_session.patch(
@@ -152,7 +152,7 @@ def test_problem_order_creates_linked_followup_and_marks_original(
 
     original_after = restaurant_session.get(f"{BASE_URL}/api/orders/{original_id}", timeout=25)
     assert original_after.status_code == 200
-    assert original_after.json().get("has_problem_followup") is True
+    assert original_after.json().get("has_problem_followup")
 
     if linked_id:
         admin_session.put(

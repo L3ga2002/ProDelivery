@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
+import hashlib
 from database import db
 from auth import get_current_user
 
@@ -29,10 +30,7 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
 
 @router.get("/hourly")
 async def get_hourly_stats(current_user: dict = Depends(get_current_user)):
-    import random as rnd
     today_seed = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
-    rnd.seed(today_seed)
-
     hours = list(range(10, 24)) + [0, 1, 2]
     hourly_orders = []
 
@@ -40,10 +38,11 @@ async def get_hourly_stats(current_user: dict = Depends(get_current_user)):
 
     for h in hours:
         multiplier = peak_hours.get(h, 1.0)
-        base_count = int(rnd.randint(4, 12) * multiplier)
+        digest = hashlib.sha256(f"{today_seed}:{h}".encode()).hexdigest()
+        base_random = 4 + (int(digest[:4], 16) % 9)
+        base_count = int(base_random * multiplier)
         hourly_orders.append({"hour": f"{h:02d}:00", "orders": base_count})
 
-    rnd.seed()
     return {"hourly_orders": hourly_orders}
 
 

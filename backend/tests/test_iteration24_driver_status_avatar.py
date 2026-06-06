@@ -297,7 +297,7 @@ def test_admin_avatar_upload_is_immediately_approved_and_image_serves(admin_sess
     assert upload_response.status_code == 200, upload_response.text
     avatar_payload = upload_response.json().get("avatar", {})
     assert avatar_payload.get("status") == "approved"
-    assert avatar_payload.get("is_active") is True
+    assert avatar_payload.get("is_active")
     assert avatar_payload.get("content_type") == "image/webp"
     assert avatar_payload.get("size", 0) > 0
 
@@ -325,7 +325,7 @@ def test_driver_avatar_upload_creates_pending_then_admin_can_approve(admin_sessi
     assert upload_response.status_code == 200, upload_response.text
     avatar_payload = upload_response.json().get("avatar", {})
     assert avatar_payload.get("status") == "pending"
-    assert avatar_payload.get("is_active") is False
+    assert not avatar_payload.get("is_active")
     avatar_id = avatar_payload.get("id")
     assert avatar_id
 
@@ -386,7 +386,7 @@ def test_create_driver_regression_vehicle_type_and_verification_fields(admin_ses
     assert dashboard_response.status_code == 200
     driver_data = dashboard_response.json().get("driver", {})
     assert driver_data.get("vehicle_type") == "car"
-    assert driver_data.get("email_verified") is False
+    assert not driver_data.get("email_verified")
 
 
 def test_order_assignment_regression_and_driver_current_order_endpoint(admin_session: requests.Session, driver_session: tuple[requests.Session, dict]):

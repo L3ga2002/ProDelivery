@@ -185,6 +185,97 @@ async def seed_demo_map_routes() -> int:
     return len(route_orders)
 
 
+async def clear_demo_collections() -> None:
+    await db.users.delete_many({"role": {"$ne": "admin"}})
+    await db.drivers.delete_many({})
+    await db.restaurants.delete_many({})
+    await db.orders.delete_many({})
+    await db.emergency_slots.delete_many({})
+    await db.schedules.delete_many({})
+    await db.delivery_zones.delete_many({})
+
+
+async def seed_admin_account(demo_credentials: dict) -> None:
+    admin = User(id="admin-001", email=demo_credentials["admin"]["email"], name="Administrator", role="admin")
+    admin_doc = admin.model_dump()
+    admin_doc["password_hash"] = hash_password(demo_credentials["admin"]["password"])
+    admin_doc["created_at"] = admin_doc["created_at"].isoformat()
+    await db.users.update_one({"id": "admin-001"}, {"$set": admin_doc}, upsert=True)
+
+
+async def seed_driver_accounts(drivers_data: list[dict], driver_email_map: dict, demo_credentials: dict) -> None:
+    for driver_seed in drivers_data:
+        user = User(
+            id=f"user-{driver_seed['id']}",
+            email=driver_email_map.get(driver_seed["id"], f"{driver_seed['id']}@delivery.ro"),
+            name=driver_seed["name"],
+            role="driver",
+            phone=driver_seed["phone"],
+        )
+        user_doc = user.model_dump()
+        user_doc["password_hash"] = hash_password(demo_credentials["driver_1"]["password"])
+        joined_at = datetime.now(timezone.utc) - timedelta(days=driver_seed["joined_days_ago"])
+        user_doc["created_at"] = joined_at.isoformat()
+        await db.users.insert_one(user_doc)
+
+        driver = Driver(
+            id=driver_seed["id"],
+            user_id=user.id,
+            name=driver_seed["name"],
+            phone=driver_seed["phone"],
+            is_active=driver_seed["active"],
+            vehicle_type=driver_seed.get("vehicle_type", "scooter"),
+            latitude=driver_seed["lat"],
+            longitude=driver_seed["lng"],
+            total_deliveries=driver_seed["deliveries"],
+            punctuality_rate=driver_seed["punctuality"],
+            joined_at=joined_at.isoformat(),
+        )
+        await db.drivers.insert_one(driver.model_dump())
+
+
+async def seed_restaurant_accounts(restaurants_data: list[dict], restaurant_email_map: dict, demo_credentials: dict) -> None:
+    for restaurant_seed in restaurants_data:
+        restaurant = Restaurant(**restaurant_seed)
+        await db.restaurants.insert_one(restaurant.model_dump())
+
+        rest_user = User(
+            id=f"user-{restaurant_seed['id']}",
+            email=restaurant_email_map.get(restaurant_seed["id"], f"{restaurant_seed['id']}@delivery.ro"),
+            name=restaurant_seed["name"],
+            role="restaurant",
+            phone=restaurant_seed["phone"],
+            restaurant_id=restaurant_seed["id"],
+            restaurant_name=restaurant_seed["name"],
+        )
+        rest_user_doc = rest_user.model_dump()
+        rest_user_doc["password_hash"] = hash_password(demo_credentials["restaurant_1"]["password"])
+        rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
+        await db.users.insert_one(rest_user_doc)
+
+
+async def seed_delivery_zones(restaurants_data: list[dict]) -> None:
+    sort_order = 1
+    for restaurant_seed in restaurants_data:
+        for zone_level, radius in [(1, 0.015), (2, 0.026)]:
+            await db.delivery_zones.insert_one({
+                "id": f"{restaurant_seed['id']}-zone-{zone_level}",
+                "restaurant_id": restaurant_seed["id"],
+                "restaurant_name": restaurant_seed["name"],
+                "sector": restaurant_seed["name"],
+                "zone_level": zone_level,
+                "name": "Aproape" if zone_level == 1 else "Extinsă",
+                "color": ZONE_COLORS[zone_level],
+                "fee": 10.0 if zone_level == 1 else 18.0,
+                "is_active": True,
+                "sort_order": sort_order,
+                "polygon": build_restaurant_zone_polygon(restaurant_seed["latitude"], restaurant_seed["longitude"], radius),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            sort_order += 1
+
+
 def build_demo_order_payload(
     index: int,
     source: str,
@@ -430,24 +521,8 @@ async def seed_data():
         "rest-001": demo_credentials["restaurant_1"]["email"],
     }
 
-    await db.users.delete_many({"role": {"$ne": "admin"}})
-    await db.drivers.delete_many({})
-    await db.restaurants.delete_many({})
-    await db.orders.delete_many({})
-    await db.emergency_slots.delete_many({})
-    await db.schedules.delete_many({})
-    await db.delivery_zones.delete_many({})
-
-    # Admin
-    admin = User(id="admin-001", email=demo_credentials["admin"]["email"], name="Administrator", role="admin")
-    admin_doc = admin.model_dump()
-    admin_doc["password_hash"] = hash_password(demo_credentials["admin"]["password"])
-    admin_doc["created_at"] = admin_doc["created_at"].isoformat()
-    await db.users.update_one(
-        {"id": "admin-001"},
-        {"$set": admin_doc},
-        upsert=True,
-    )
+    await clear_demo_collections()
+    await seed_admin_account(demo_credentials)
 
     # Drivers
     drivers_data = [
@@ -458,27 +533,7 @@ async def seed_data():
         {"id": "driver-005", "name": "Bogdan Stanescu", "phone": "0722999000", "lat": 46.5710, "lng": 26.9150, "active": True, "deliveries": 12, "punctuality": 0.78, "joined_days_ago": 45, "vehicle_type": "car"},
     ]
 
-    for d in drivers_data:
-        user = User(
-            id=f"user-{d['id']}", email=driver_email_map.get(d["id"], f"{d['id']}@delivery.ro"),
-            name=d["name"], role="driver", phone=d["phone"]
-        )
-        user_doc = user.model_dump()
-        user_doc["password_hash"] = hash_password(demo_credentials["driver_1"]["password"])
-        joined_at = datetime.now(timezone.utc) - timedelta(days=d["joined_days_ago"])
-        user_doc["created_at"] = joined_at.isoformat()
-        await db.users.insert_one(user_doc)
-
-        driver = Driver(
-            id=d["id"], user_id=user.id, name=d["name"],
-            phone=d["phone"], is_active=d["active"],
-            vehicle_type=d.get("vehicle_type", "scooter"),
-            latitude=d["lat"], longitude=d["lng"],
-            total_deliveries=d["deliveries"],
-            punctuality_rate=d["punctuality"],
-            joined_at=joined_at.isoformat(),
-        )
-        await db.drivers.insert_one(driver.model_dump())
+    await seed_driver_accounts(drivers_data, driver_email_map, demo_credentials)
 
     # Restaurants
     restaurants_data = [
@@ -489,44 +544,8 @@ async def seed_data():
         {"id": "rest-005", "name": "Casa Moldoveanu", "address": "Str. Mihai Eminescu 8, Bacău", "phone": "0234999111", "latitude": 46.5630, "longitude": 26.9060},
     ]
 
-    for r in restaurants_data:
-        restaurant = Restaurant(**r)
-        await db.restaurants.insert_one(restaurant.model_dump())
-
-        rest_user = User(
-            id=f"user-{r['id']}", email=restaurant_email_map.get(r["id"], f"{r['id']}@delivery.ro"),
-            name=r["name"], role="restaurant", phone=r["phone"],
-            restaurant_id=r["id"], restaurant_name=r["name"]
-        )
-        rest_user_doc = rest_user.model_dump()
-        rest_user_doc["password_hash"] = hash_password(demo_credentials["restaurant_1"]["password"])
-        rest_user_doc["created_at"] = rest_user_doc["created_at"].isoformat()
-        await db.users.insert_one(rest_user_doc)
-
-    sort_order = 1
-    for restaurant_data in restaurants_data:
-        for zone_level, radius in [(1, 0.015), (2, 0.026)]:
-            doc = {
-                "id": f"{restaurant_data['id']}-zone-{zone_level}",
-                "restaurant_id": restaurant_data["id"],
-                "restaurant_name": restaurant_data["name"],
-                "sector": restaurant_data["name"],
-                "zone_level": zone_level,
-                "name": "Aproape" if zone_level == 1 else "Extinsă",
-                "color": ZONE_COLORS[zone_level],
-                "fee": 10.0 if zone_level == 1 else 18.0,
-                "is_active": True,
-                "sort_order": sort_order,
-                "polygon": build_restaurant_zone_polygon(
-                    restaurant_data["latitude"],
-                    restaurant_data["longitude"],
-                    radius,
-                ),
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-            await db.delivery_zones.insert_one(doc)
-            sort_order += 1
+    await seed_restaurant_accounts(restaurants_data, restaurant_email_map, demo_credentials)
+    await seed_delivery_zones(restaurants_data)
 
     await seed_demo_orders(drivers_data)
     demo_routes = await seed_demo_map_routes()

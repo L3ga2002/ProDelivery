@@ -1,5 +1,4 @@
-/* eslint-disable */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useReducer } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button";
@@ -80,6 +79,44 @@ function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
 
+const getCoverageToneClass = (count) => {
+  if (count === 0) return "bg-amber-100";
+  if (count <= 1) return "bg-yellow-100";
+  if (count <= 2) return "bg-blue-100";
+  return "bg-emerald-100";
+};
+
+const getCoverageTextClass = (count) => {
+  if (count === 0) return "text-amber-700";
+  if (count <= 1) return "text-yellow-600";
+  if (count <= 2) return "text-blue-600";
+  return "text-emerald-600";
+};
+
+const getQuickDeltaClass = (delta, mode) => {
+  if (delta <= 0) return "";
+  return mode === "emergency" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700";
+};
+
+const getSimpleStandardLabel = (slot) => {
+  if (!slot) return "Liber";
+  return slot.added_by === "admin" ? "Admin" : "Liv";
+};
+
+const getSimpleStandardClass = (slot) => {
+  if (!slot) return "border-slate-200 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-emerald-950/30";
+  return slot.added_by === "admin"
+    ? "border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-500"
+    : "border-orange-400 bg-orange-500 text-white hover:bg-orange-400";
+};
+
+const weekStartReducer = (state, action) => {
+  if (action.type !== "shift") return state;
+  const next = new Date(state);
+  next.setDate(next.getDate() + action.dir * 7);
+  return next;
+};
+
 const ZONE_COLORS = {
   "Zona 1": "bg-blue-100 text-blue-700",
   "Zona 2": "bg-green-100 text-green-700",
@@ -89,7 +126,7 @@ const ZONE_COLORS = {
 };
 
 export const AdminScheduleView = () => {
-  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  const [weekStart, dispatchWeekStart] = useReducer(weekStartReducer, undefined, () => getMonday(new Date()));
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editDriver, setEditDriver] = useState(null);
@@ -135,13 +172,7 @@ export const AdminScheduleView = () => {
     fetchData();
   }, [fetchData]);
 
-  const shiftWeek = (dir) => {
-    setWeekStart((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + dir * 7);
-      return d;
-    });
-  };
+  const shiftWeek = useCallback((dir) => dispatchWeekStart({ type: "shift", dir }), []);
 
   // Driver schedule edit
   const openEdit = (driver) => {
@@ -814,17 +845,13 @@ export const AdminScheduleView = () => {
               return (
                 <div
                   key={hour}
-                  className={`flex flex-col items-center p-1.5 rounded min-w-[48px] ${
-                    avg === 0 ? "bg-amber-100" : avg <= 1 ? "bg-yellow-100" : avg <= 2 ? "bg-blue-100" : "bg-emerald-100"
-                  } ${isNight ? "ring-1 ring-indigo-300" : ""}`}
+                  className={`flex flex-col items-center p-1.5 rounded min-w-[48px] ${getCoverageToneClass(avg)} ${isNight ? "ring-1 ring-indigo-300" : ""}`}
                 >
                   <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                     {isNight && <Moon className="w-2.5 h-2.5" />}
                     {formatInterval(hour)}
                   </span>
-                  <span className={`text-lg font-bold ${
-                    avg === 0 ? "text-amber-700" : avg <= 1 ? "text-yellow-600" : avg <= 2 ? "text-blue-600" : "text-emerald-600"
-                  }`}>{avg}</span>
+                  <span className={`text-lg font-bold ${getCoverageTextClass(avg)}`}>{avg}</span>
                   {eCount > 0 && (
                     <span className="text-[9px] text-amber-700 font-bold">+{eCount} urgență</span>
                   )}
@@ -1020,7 +1047,7 @@ export const AdminScheduleView = () => {
                       key={delta}
                       type="button"
                       variant={delta < 0 ? "outline" : "default"}
-                      className={delta > 0 ? (quickSlotDialog.mode === "emergency" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700") : ""}
+                      className={getQuickDeltaClass(delta, quickSlotDialog.mode)}
                       onClick={() => adjustQuickSlot(delta)}
                       disabled={autoGenerating}
                       data-testid={`schedule-quick-adjust-${delta}`}
@@ -1225,7 +1252,7 @@ export const AdminScheduleView = () => {
                       {DAYS.map((d) => {
                         const standardSlot = (editSlots[d.key] || []).find((s) => s.start === hour && s.added_by !== "emergency");
                         const emergencySlot = (editSlots[d.key] || []).find((s) => s.start === hour && s.added_by === "emergency");
-                        const standardLabel = standardSlot ? (standardSlot.added_by === "admin" ? "Admin" : "Liv") : "Liber";
+                        const standardLabel = getSimpleStandardLabel(standardSlot);
                         const emergencyLabel = emergencySlot ? "Urg" : "Liber";
 
                         return (
@@ -1234,7 +1261,7 @@ export const AdminScheduleView = () => {
                               <button
                                 type="button"
                                 onClick={() => toggleHour(d.key, hour, "standard")}
-                                className={`min-h-[29px] border-b px-1 transition-colors ${standardSlot ? (standardSlot.added_by === "admin" ? "border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-500" : "border-orange-400 bg-orange-500 text-white hover:bg-orange-400") : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-emerald-950/30"}`}
+                                className={`min-h-[29px] border-b px-1 transition-colors ${getSimpleStandardClass(standardSlot)}`}
                                 data-testid={`driver-simple-standard-cell-${d.key}-${hour}`}
                                 title="Standard: click pentru adăugare/scoatere"
                               >

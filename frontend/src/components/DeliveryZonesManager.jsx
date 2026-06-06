@@ -107,7 +107,7 @@ export function DeliveryZonesManager() {
     fetchZones();
   }, [fetchZones]);
 
-  const handlePolygonCreated = (coords) => {
+  const handlePolygonCreated = useCallback((coords) => {
     setNewPolygon(coords);
     if (redrawMode && selectedZone) {
       setEditDialog(true);
@@ -125,7 +125,7 @@ export function DeliveryZonesManager() {
     });
     setSelectedZone(null);
     setEditDialog(true);
-  };
+  }, [redrawMode, sectorFilter, sectorOptions, selectedZone]);
 
   const updateZoneLevel = (zoneLevel) => {
     setEditForm((prev) => ({
@@ -398,7 +398,7 @@ export function DeliveryZonesManager() {
                   <MapPinned className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p>Nicio zonă definită</p>
                   <p className="text-xs mt-1">
-                    Apasă "Zonă Nouă" și desenează pe hartă
+                    Apasă &quot;Zonă Nouă&quot; și desenează pe hartă
                   </p>
                 </div>
               ) : (

@@ -93,6 +93,17 @@ const defaultScheduleSettings = () => Object.fromEntries(
   RESTAURANT_DAYS.map((day) => [day.key, { enabled: true, open_time: "10:00", close_time: "22:00" }])
 );
 
+const splitRestaurantOrders = (orders) => {
+  const groups = { active: [], inWork: [], delivered: [], newOrders: [] };
+  orders.forEach((order) => {
+    if (order.status === "NEW") groups.newOrders.push(order);
+    if (order.status === "DELIVERED") groups.delivered.push(order);
+    if (['PREPARING', 'READY', 'ASSIGNED', 'ACCEPTED', 'PICKED_UP'].includes(order.status)) groups.inWork.push(order);
+    if (!['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(order.status)) groups.active.push(order);
+  });
+  return groups;
+};
+
 const playLatePreparationAlert = () => {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -400,22 +411,20 @@ const RestaurantApp = () => {
     }
   }, [cancelOrder?.id, cancelReason, fetchOrders]);
 
-  const activeOrders = useMemo(() => orders.filter((order) => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(order.status)), [orders]);
-  const inWorkOrders = useMemo(() => orders.filter((order) => ['PREPARING', 'READY', 'ASSIGNED', 'ACCEPTED', 'PICKED_UP'].includes(order.status)), [orders]);
-  const deliveredOrders = useMemo(() => orders.filter((order) => order.status === 'DELIVERED'), [orders]);
+  const orderGroups = useMemo(() => splitRestaurantOrders(orders), [orders]);
   const visibleOrders = useMemo(() => {
-    if (activeView === "new") return orders.filter((order) => order.status === "NEW");
-    if (activeView === "work") return inWorkOrders;
-    if (activeView === "delivered") return deliveredOrders;
-    return activeOrders;
-  }, [activeOrders, activeView, deliveredOrders, inWorkOrders, orders]);
+    if (activeView === "new") return orderGroups.newOrders;
+    if (activeView === "work") return orderGroups.inWork;
+    if (activeView === "delivered") return orderGroups.delivered;
+    return orderGroups.active;
+  }, [activeView, orderGroups]);
   const historyOrders = useMemo(() => {
     const term = historySearch.trim().toLowerCase();
     const base = orders.filter(o => ['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
     if (!term) return base;
     return base.filter((order) => `${order.order_number || ""} ${order.customer_name || ""} ${order.customer_phone || ""} ${order.customer_address || ""} ${order.items?.map((item) => item.name).join(" ") || ""}`.toLowerCase().includes(term));
   }, [historySearch, orders]);
-  const completedToday = deliveredOrders.length;
+  const completedToday = orderGroups.delivered.length;
   const newCount = useMemo(() => orders.filter((order) => order.status === 'NEW').length, [orders]);
   const preparingCount = useMemo(() => orders.filter((order) => order.status === 'PREPARING').length, [orders]);
   const readyCount = useMemo(() => orders.filter((order) => order.status === 'READY').length, [orders]);
@@ -502,7 +511,7 @@ const RestaurantApp = () => {
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Ora curentă</p><p className="font-mono text-2xl font-black text-white">{new Date(now).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</p></div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Active</p><p className="font-mono text-2xl font-black text-orange-300">{activeOrders.length}</p></div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Active</p><p className="font-mono text-2xl font-black text-orange-300">{orderGroups.active.length}</p></div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Gata</p><p className="font-mono text-2xl font-black text-emerald-300">{readyCount}</p></div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-3"><p className="text-xs text-zinc-400">Status</p><p className={`text-sm font-black ${acceptingOrders ? "text-emerald-300" : "text-red-300"}`}>{acceptingOrders ? "ONLINE" : "PAUZĂ"}</p></div>
             </div>
@@ -511,7 +520,7 @@ const RestaurantApp = () => {
 
         <div className="grid grid-cols-3 gap-3">
           <RestaurantStatTile label="Noi" value={newCount} tone="amber" active={activeView === "new"} onClick={() => setActiveView("new")} testId="restaurant-stat-new" />
-          <RestaurantStatTile label="În lucru" value={inWorkOrders.length} tone="indigo" active={activeView === "work"} onClick={() => setActiveView("work")} testId="restaurant-stat-preparing" />
+          <RestaurantStatTile label="În lucru" value={orderGroups.inWork.length} tone="indigo" active={activeView === "work"} onClick={() => setActiveView("work")} testId="restaurant-stat-preparing" />
           <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" active={activeView === "delivered"} onClick={() => setActiveView("delivered")} testId="restaurant-stat-delivered" />
         </div>
 

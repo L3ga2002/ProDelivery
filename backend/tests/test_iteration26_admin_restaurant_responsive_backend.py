@@ -103,11 +103,11 @@ def test_restaurant_status_patch_persists_via_get(restaurant_session: requests.S
             timeout=25,
         )
         assert patch_false.status_code == 200, patch_false.text
-        assert patch_false.json().get("accepting_orders") is False
+        assert not patch_false.json().get("accepting_orders")
 
         get_false = restaurant_session.get(f"{BASE_URL}/api/restaurants/{restaurant_id}", timeout=25)
         assert get_false.status_code == 200
-        assert get_false.json().get("accepting_orders") is False
+        assert not get_false.json().get("accepting_orders")
 
         patch_true = restaurant_session.patch(
             f"{BASE_URL}/api/restaurants/{restaurant_id}/status",
@@ -115,11 +115,11 @@ def test_restaurant_status_patch_persists_via_get(restaurant_session: requests.S
             timeout=25,
         )
         assert patch_true.status_code == 200, patch_true.text
-        assert patch_true.json().get("accepting_orders") is True
+        assert patch_true.json().get("accepting_orders")
 
         get_true = restaurant_session.get(f"{BASE_URL}/api/restaurants/{restaurant_id}", timeout=25)
         assert get_true.status_code == 200
-        assert get_true.json().get("accepting_orders") is True
+        assert get_true.json().get("accepting_orders")
     finally:
         if original_accepting is not True:
             restaurant_session.patch(

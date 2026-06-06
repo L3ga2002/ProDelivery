@@ -97,6 +97,16 @@ const ProDeliveryMark = ({ dark = true, testId = "prodelivery-mark" }) => (
   </div>
 );
 
+const getCurrentStepLabel = (order) => {
+  if (!order) return "Fără comandă";
+  const labels = {
+    ASSIGNED: "Comandă primită",
+    ACCEPTED: "Mergi la restaurant",
+    PICKED_UP: "Livrează clientului",
+  };
+  return labels[order.status] || "Finalizată";
+};
+
 const DriverApp = () => {
   const { user, logout } = useAuth();
   const [currentOrder, setCurrentOrder] = useState(null);
@@ -373,9 +383,7 @@ const DriverApp = () => {
     activeTime: driver.schedule_today_hours ? `${driver.schedule_today_hours}h` : "0h",
   };
   const statusLabel = driver.operational_status_label || "Offline";
-  const currentStepLabel = currentOrder
-    ? currentOrder.status === "ASSIGNED" ? "Comandă primită" : currentOrder.status === "ACCEPTED" ? "Mergi la restaurant" : currentOrder.status === "PICKED_UP" ? "Livrează clientului" : "Finalizată"
-    : "Fără comandă";
+  const currentStepLabel = getCurrentStepLabel(currentOrder);
 
   const renderHome = () => (
     <div className="space-y-4" data-testid="driver-home-tab">

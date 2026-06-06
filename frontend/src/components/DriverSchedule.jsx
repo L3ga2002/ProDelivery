@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useReducer } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button";
@@ -39,6 +39,13 @@ const DAYS = [
 const DRIVER_HOURS = Array.from({ length: 12 }, (_, i) => `${String(i + 10).padStart(2, "0")}:00`);
 // Night: 22-23, 23-00, 00-01, 01-02 (admin only, read-only for driver)
 const NIGHT_HOURS = ["22:00", "23:00", "00:00", "01:00"];
+const isScheduleNightHour = (hour) => NIGHT_HOURS.includes(hour);
+const driverWeekStartReducer = (state, action) => {
+  if (action.type !== "shift") return state;
+  const next = new Date(state);
+  next.setDate(next.getDate() + action.dir * 7);
+  return next;
+};
 const ALL_HOURS = [...DRIVER_HOURS, ...NIGHT_HOURS];
 
 function formatInterval(hour) {
@@ -68,7 +75,7 @@ function toISODate(d) {
 }
 
 export const DriverSchedule = ({ driverId }) => {
-  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  const [weekStart, dispatchWeekStart] = useReducer(driverWeekStartReducer, undefined, () => getMonday(new Date()));
   const [slots, setSlots] = useState({});
   const [selectedDay, setSelectedDay] = useState("monday");
   const [saving, setSaving] = useState(false);
@@ -110,10 +117,6 @@ export const DriverSchedule = ({ driverId }) => {
     fetchSchedule();
   }, [fetchSchedule]);
 
-  const isNightHour = (hour) => NIGHT_HOURS.includes(hour);
-  const isAdminSlot = (dayKey, hour) => (slots[dayKey] || []).some((s) => s.start === hour && s.added_by === "admin");
-  const isEmergencySlot = (dayKey, hour) => (slots[dayKey] || []).some((s) => s.start === hour && s.added_by === "emergency");
-
   const getAvailableEmergency = (dayKey, hour) => {
     // Only show emergency slots where driver has NO schedule at this hour
     const hasSchedule = (slots[dayKey] || []).some((s) => s.start === hour);
@@ -122,9 +125,10 @@ export const DriverSchedule = ({ driverId }) => {
   };
 
   const toggleHour = (dayKey, hour) => {
-    if (isNightHour(hour)) return;
-    if (isAdminSlot(dayKey, hour)) return;
-    if (isEmergencySlot(dayKey, hour)) return;
+    const daySlots = slots[dayKey] || [];
+    if (isScheduleNightHour(hour)) return;
+    if (daySlots.some((slot) => slot.start === hour && slot.added_by === "admin")) return;
+    if (daySlots.some((slot) => slot.start === hour && slot.added_by === "emergency")) return;
     if (!windowOpen) return;
 
     setSlots((prev) => {
@@ -153,7 +157,7 @@ export const DriverSchedule = ({ driverId }) => {
     if (slot?.added_by === "admin") return { key: "admin", label: "Admin", tone: "bg-blue-500 text-white border-blue-400", dot: "bg-blue-200", interactive: false };
     if (slot) return { key: "driver", label: "Ora ta", tone: "bg-orange-500 text-white border-orange-400", dot: "bg-orange-200", interactive: windowOpen };
     if (availableEmergency) return { key: "available-emergency", label: `${availableEmergency.remaining_spots} locuri urgență`, tone: "bg-red-500/15 text-red-100 border-red-500/60", dot: "bg-red-400", interactive: true, emergency: availableEmergency };
-    if (isNightHour(hour)) return { key: "night", label: "Noapte blocată", tone: "bg-slate-800 text-slate-400 border-slate-700", dot: "bg-slate-500", interactive: false };
+    if (isScheduleNightHour(hour)) return { key: "night", label: "Noapte blocată", tone: "bg-slate-800 text-slate-400 border-slate-700", dot: "bg-slate-500", interactive: false };
     if (!windowOpen) return { key: "closed", label: "Liber", tone: "bg-white/[0.04] text-zinc-500 border-white/10", dot: "bg-zinc-700", interactive: false };
     return { key: "free", label: "Liber", tone: "bg-white/[0.04] text-zinc-300 border-white/10", dot: "bg-zinc-600", interactive: true };
   };
@@ -205,13 +209,7 @@ export const DriverSchedule = ({ driverId }) => {
     }
   };
 
-  const shiftWeek = (dir) => {
-    setWeekStart((prev) => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + dir * 7);
-      return d;
-    });
-  };
+  const shiftWeek = useCallback((dir) => dispatchWeekStart({ type: "shift", dir }), []);
 
   const selectFullDay = (dayKey) => {
     if (!windowOpen) return;
@@ -371,7 +369,7 @@ export const DriverSchedule = ({ driverId }) => {
                   onClick={() => {
                     if (slotType.emergency) {
                       setClaimDialog(slotType.emergency);
-                    } else if (canClick && !isNightHour(hour)) {
+                    } else if (canClick && !isScheduleNightHour(hour)) {
                       toggleHour(selectedDay, hour);
                     }
                   }}
@@ -383,7 +381,7 @@ export const DriverSchedule = ({ driverId }) => {
                     <span className={`h-3 w-3 rounded-full ${slotType.dot}`} />
                     <span>
                       <span className="block font-mono text-sm font-black">{formatInterval(hour)}</span>
-                      <span className="block text-[11px] font-bold opacity-80">{isNightHour(hour) ? "Interval de noapte" : "Interval standard"}</span>
+                      <span className="block text-[11px] font-bold opacity-80">{isScheduleNightHour(hour) ? "Interval de noapte" : "Interval standard"}</span>
                     </span>
                   </span>
                   <span className="rounded-full bg-black/20 px-2 py-1 text-xs font-black">{slotType.label}</span>

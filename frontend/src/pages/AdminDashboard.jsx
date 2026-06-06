@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -114,7 +113,10 @@ const getSourceBadge = (source) => {
 };
 
 const getDriverStatusMeta = (driver) => {
-  const status = driver.operational_status || (driver.current_order_id ? "delivery" : driver.is_active ? "active" : "offline");
+  let status = driver.operational_status;
+  if (!status && driver.current_order_id) status = "delivery";
+  if (!status && driver.is_active) status = "active";
+  if (!status) status = "offline";
   const meta = {
     active: { label: "Activ", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100" },
     delivery: { label: "În livrare", className: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-100" },
@@ -122,6 +124,12 @@ const getDriverStatusMeta = (driver) => {
     offline: { label: "Offline", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100" },
   };
   return meta[status] || meta.offline;
+};
+
+const getAssignDriverRowClass = ({ selected, assignable }) => {
+  if (selected) return "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30";
+  if (assignable) return "bg-card hover:bg-muted/60";
+  return "bg-muted/40";
 };
 
 const OrderLocationMapEvents = ({ onChange }) => {
@@ -360,8 +368,7 @@ const AdminDashboard = () => {
         axios.get(`${API_URL}/api/restaurants`),
         axios.get(`${API_URL}/api/stats`),
         axios.get(`${API_URL}/api/stats/hourly`),
-        axios.get(`${API_URL}/api/stats/analytics`).catch((error) => {
-          console.warn("Optional analytics endpoint unavailable", error);
+        axios.get(`${API_URL}/api/stats/analytics`).catch(() => {
           return { data: null };
         }),
       ]);
@@ -371,8 +378,7 @@ const AdminDashboard = () => {
       setStats(statsRes.data);
       setHourlyData(hourlyRes.data);
       if (analyticsRes.data) setAnalyticsData(analyticsRes.data);
-    } catch (error) {
-      console.error("Failed to fetch admin dashboard data", error);
+    } catch {
       toast.error("Eroare la încărcarea datelor");
     } finally {
       setIsLoading(false);
@@ -395,8 +401,7 @@ const AdminDashboard = () => {
       .then((response) => {
         if (!cancelled) setRestaurantAnalytics(response.data);
       })
-      .catch((error) => {
-        console.error("Failed to fetch restaurant analytics", error);
+      .catch(() => {
         if (!cancelled) {
           setRestaurantAnalytics((previous) => (
             previous?.restaurant?.id === effectiveRestaurantId ? null : previous
@@ -451,8 +456,7 @@ const AdminDashboard = () => {
       setIsAssignDialogOpen(false);
       setIsOrderSelectionLocked(false);
       fetchData();
-    } catch (error) {
-      console.error("Failed to assign order", error);
+    } catch {
       toast.error("Eroare la alocare");
     }
   };
@@ -490,8 +494,7 @@ const AdminDashboard = () => {
         source: "S"
       });
       fetchData();
-    } catch (error) {
-      console.error("Failed to create order", error);
+    } catch {
       toast.error("Eroare la creare comandă");
     }
   };
@@ -526,8 +529,7 @@ const AdminDashboard = () => {
       } else {
         toast.error("Adresa este în afara zonelor acestui restaurant");
       }
-    } catch (error) {
-      console.error("Failed to detect delivery zone", error);
+    } catch {
       toast.error("Nu am putut detecta zona");
     }
   }, [newOrder.restaurant_id, setNewOrder]);
@@ -565,8 +567,7 @@ const AdminDashboard = () => {
       setIsNewDriverDialogOpen(false);
       setNewDriver({ name: "", phone: "", email: "", vehicle_type: "scooter" });
       fetchData();
-    } catch (error) {
-      console.error("Failed to create driver", error);
+    } catch {
       toast.error("Eroare la creare livrator");
     }
   };
@@ -596,8 +597,7 @@ const AdminDashboard = () => {
       });
       setSelectedRestaurantId(res.data.restaurant_id);
       fetchData();
-    } catch (error) {
-      console.error("Failed to create restaurant", error);
+    } catch {
       toast.error("Eroare la creare restaurant");
     }
   };
@@ -1138,7 +1138,7 @@ const AdminDashboard = () => {
                     key={driver.id}
                     type="button"
                     disabled={!isAssignable}
-                    className={`w-full rounded-md border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${selectedDriver === driver.id ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : isAssignable ? "bg-card hover:bg-muted/60" : "bg-muted/40"}`}
+                    className={`w-full rounded-md border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${getAssignDriverRowClass({ selected: selectedDriver === driver.id, assignable: isAssignable })}`}
                     onClick={() => {
                       if (!isAssignable) return;
                       setSelectedDriver(driver.id);
