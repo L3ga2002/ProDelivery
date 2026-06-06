@@ -718,15 +718,23 @@ const AdminDashboard = () => {
 
   const activeOrders = orders.filter((o) => o.status !== "DELIVERED");
   const activeDrivers = drivers.filter((d) => ["active", "delivery", "break"].includes(d.operational_status) || d.is_active);
-  const availableDrivers = drivers.filter((d) => (d.operational_status === "active" || (d.is_active && !d.operational_status)) && !d.current_order_id);
+  const canAssignDriver = (driver) => (driver.operational_status === "active" || (driver.is_active && !driver.operational_status)) && !driver.current_order_id;
+  const driverAvailabilityLabel = (driver) => {
+    if (canAssignDriver(driver)) return "Disponibil";
+    if (driver.current_order_id || driver.operational_status === "delivery") return "În livrare";
+    if (driver.operational_status === "break") return "În pauză";
+    return "Offline";
+  };
   const assignableOrders = activeOrders.filter((order) => ["NEW", "PREPARING", "READY"].includes(order.status));
-  const filteredAvailableDrivers = availableDrivers
+  const filteredDriverCandidates = drivers
     .filter((driver) => {
       if (!debouncedAssignDriverSearch) return true;
       const haystack = `${driver.name || ""} ${driver.phone || ""} ${driver.vehicle_type || ""}`.toLowerCase();
       return haystack.includes(debouncedAssignDriverSearch);
     })
     .sort((a, b) => {
+      const availabilitySort = Number(canAssignDriver(b)) - Number(canAssignDriver(a));
+      if (availabilitySort !== 0) return availabilitySort;
       const term = debouncedAssignDriverSearch;
       const aStarts = term && a.name?.toLowerCase().startsWith(term) ? 1 : 0;
       const bStarts = term && b.name?.toLowerCase().startsWith(term) ? 1 : 0;
@@ -1122,12 +1130,17 @@ const AdminDashboard = () => {
                 />
               </div>
               <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border bg-muted/20 p-2" data-testid="assign-driver-options">
-                {filteredAvailableDrivers.map((driver) => (
+                {filteredDriverCandidates.map((driver) => {
+                  const isAssignable = canAssignDriver(driver);
+                  const availabilityLabel = driverAvailabilityLabel(driver);
+                  return (
                   <button
                     key={driver.id}
                     type="button"
-                    className={`w-full rounded-md border p-3 text-left transition-colors ${selectedDriver === driver.id ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : "bg-card hover:bg-muted/60"}`}
+                    disabled={!isAssignable}
+                    className={`w-full rounded-md border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${selectedDriver === driver.id ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : isAssignable ? "bg-card hover:bg-muted/60" : "bg-muted/40"}`}
                     onClick={() => {
+                      if (!isAssignable) return;
                       setSelectedDriver(driver.id);
                       setAssignDriverSearch(driver.name || "");
                     }}
@@ -1135,13 +1148,16 @@ const AdminDashboard = () => {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">{driver.name}</span>
-                      <Badge variant="outline" className="text-xs">Scor {driver.ranking_score || 0}</Badge>
+                      <div className="flex shrink-0 gap-1">
+                        <Badge variant="outline" className="text-xs">Scor {driver.ranking_score || 0}</Badge>
+                        <Badge className={`border-0 text-xs ${isAssignable ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100"}`} data-testid={`assign-driver-status-${driver.id}`}>{availabilityLabel}</Badge>
+                      </div>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{driver.phone} · {driver.vehicle_type === "car" ? "Mașină" : "Scuter"}</p>
                   </button>
-                ))}
-                {filteredAvailableDrivers.length === 0 && (
-                  <p className="p-3 text-sm text-muted-foreground" data-testid="assign-driver-empty-state">Niciun livrator disponibil pentru filtrul curent.</p>
+                );})}
+                {filteredDriverCandidates.length === 0 && (
+                  <p className="p-3 text-sm text-muted-foreground" data-testid="assign-driver-empty-state">Niciun livrator găsit pentru filtrul curent.</p>
                 )}
               </div>
             </div>
