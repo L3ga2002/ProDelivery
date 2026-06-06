@@ -13,6 +13,7 @@ import { RestaurantAnalyticsPanel } from "../components/admin/RestaurantAnalytic
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -646,6 +647,7 @@ const RestaurantApp = () => {
               <AlertTriangle className="w-5 h-5 text-orange-500" />
               Confirmare - Comanda Gata
             </DialogTitle>
+            <DialogDescription>Confirmă trecerea comenzii în status gata pentru ridicare.</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-base">
@@ -673,7 +675,7 @@ const RestaurantApp = () => {
 
       <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
         <DialogContent className="max-w-2xl" data-testid="restaurant-schedule-dialog">
-          <DialogHeader><DialogTitle>Program de lucru restaurant</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Program de lucru restaurant</DialogTitle><DialogDescription>Setează zilele active și intervalele orare ale restaurantului.</DialogDescription></DialogHeader>
           <div className="max-h-[65vh] space-y-3 overflow-y-auto">
             {RESTAURANT_DAYS.map((day) => {
               const value = scheduleForm[day.key] || { enabled: true, open_time: "10:00", close_time: "22:00" };
@@ -686,7 +688,7 @@ const RestaurantApp = () => {
 
       <Dialog open={!!problemOrder} onOpenChange={(open) => !open && setProblemOrder(null)}>
         <DialogContent data-testid="restaurant-problem-order-dialog">
-          <DialogHeader><DialogTitle>Comandă cu problemă · {problemOrder?.order_number}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Comandă cu problemă · {problemOrder?.order_number}</DialogTitle><DialogDescription>Creează o comandă nouă legată de comanda originală.</DialogDescription></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2"><Button type="button" variant={problemForm.problem_type === "missing_product" ? "default" : "outline"} onClick={() => setProblemForm((prev) => ({ ...prev, problem_type: "missing_product" }))} data-testid="problem-type-missing-button">Produs lipsă</Button><Button type="button" variant={problemForm.problem_type === "new_product" ? "default" : "outline"} onClick={() => setProblemForm((prev) => ({ ...prev, problem_type: "new_product" }))} data-testid="problem-type-new-button">Produs nou</Button></div>
             <div><Label>Produs</Label><Input value={problemForm.item_name} onChange={(event) => setProblemForm((prev) => ({ ...prev, item_name: event.target.value }))} placeholder="Ex: Sos usturoi / Pizza extra" data-testid="problem-item-name-input" /></div>
@@ -705,6 +707,7 @@ const RestaurantApp = () => {
               <XCircle className="w-5 h-5" />
               Anulare Comandă {cancelOrder?.order_number}
             </DialogTitle>
+            <DialogDescription>Completează motivul anulării pentru trasabilitate.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">

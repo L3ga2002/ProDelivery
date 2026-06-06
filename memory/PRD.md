@@ -115,6 +115,11 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - Validation 16 Mai 2026 Admin/Restaurant: self-test Playwright PASS pe Admin laptop 1920 și mobil 390 fără overflow, Restaurant desktop/mobil fără overflow; curl PASS pentru login restaurant, GET/PATCH status restaurant. Testing Agent iteration 26: toate flow-urile Admin/Restaurant/Driver cerute PASS; singurul fail rămas este CORS preflight extern la ingress.
 - Driver Individual Calendar Cleanup 16 Mai 2026: eliminate controalele rapide `-5…+5` din calendarul individual al livratorului din dashboard admin; rămâne doar click direct pe celulele orare pentru adăugare/scoatere și un text scurt explicativ.
 - Validation 16 Mai 2026 Driver Calendar Cleanup: lint frontend PASS; Playwright smoke PASS în Admin > Livratori > Dashboard livrator > Calendar, cu `driver-quick-slot-*` count 0 și celule calendar vizibile.
+- Phase Curentă Advanced Restaurant/Admin 06 Iun 2026: Restaurant App are acum pauză rapidă 15/20/30/45/60 minute + închidere zi cu timer persistat, program lucru pe zile/ore, filtre Active/În lucru/Livrate/Istoric/Analytics, istoric cu search și analytics propriu accesibil rolului restaurant.
+- Phase Curentă Advanced Restaurant/Admin 06 Iun 2026: Restaurant App afișează telefonul clientului pe cardurile de comandă, verifică disponibilitatea livratorilor înainte de timpi scurți de preparare și poate crea comenzi legate pentru probleme de tip produs lipsă/produs nou.
+- Phase Curentă Advanced Restaurant/Admin 06 Iun 2026: Admin alocare manuală păstrează comanda selectată inițial în modal; harta live folosește iconițe simple, pin pentru client și trasee mai groase/vizibile, fără eticheta „Offline ascuns”.
+- Phase Curentă Advanced Restaurant/Admin 06 Iun 2026: Livratorii au soft-disable (`PATCH /api/drivers/{id}/disable`) protejat de comenzi active; calendarul individual permite alegerea sloturilor normale verzi sau urgență roșii; upload avatar acceptă 10MB și comprimă WebP.
+- Validation 06 Iun 2026 Phase Curentă: lint frontend/backend PASS; self-test API PASS pentru restaurant pause/schedule/analytics/prep-availability/problem-order și disable guard; Playwright smoke PASS Restaurant filters/history/analytics; Testing Agent iteration 27 backend 100%, frontend 93%, funcționalitățile principale PASS. Rămâne doar CORS preflight extern la Ingress și Admin Settings MOCKED/demo.
 
 ## Key API Endpoints - Zone
 - `GET /api/zones` - lista toate zonele
@@ -148,6 +153,10 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - `POST /api/auth/login` - acceptă identificator email sau telefon pentru autentificare
 - `GET /api/restaurants/{restaurant_id}` - returnează profilul restaurantului curent/admin, inclusiv statusul operațional
 - `PATCH /api/restaurants/{restaurant_id}/status` - restaurantul/adminul setează dacă acceptă comenzi; folosit de Restaurant App
+- `PATCH /api/restaurants/{restaurant_id}/schedule-settings` - salvează programul restaurantului pe zile și ore
+- `GET /api/orders/restaurant/{restaurant_id}/prep-availability` - disponibilitate livratori pentru validarea timpilor de pregătire
+- `POST /api/orders/{order_id}/problem` - creează comandă legată pentru produs lipsă/produs nou
+- `PATCH /api/drivers/{driver_id}/disable` - dezactivează soft contul livratorului, blocat dacă are comenzi active
 
 ## DB Schema - delivery_zones
 ```
@@ -173,6 +182,8 @@ Platformă de management livrări și ride-sharing pentru zona Bacău, România.
 - P1: Refactorizare UI Calendar livrator pentru a înlocui complet componenta veche `DriverSchedule` cu o experiență dark/orange nativă, dacă utilizatorul cere polish total.
 - P1: Refactor AdminDashboard în componente mai mici; fișierul rămâne mare, deși UI-ul responsive a fost îmbunătățit.
 - P1: Conectare reală Admin Settings, care rămâne MOCKED/demo.
+- P1: CORS preflight extern încă returnează wildcard la nivel Ingress; codul aplicației rămâne valid, dar fixul cere setări edge/deployment.
+- P1: Refactor RestaurantApp/AdminDashboard în componente mai mici după batch-ul mare Faza curentă.
 - P1: suport real pentru multi-comandă pe același livrator dacă business-ul confirmă că livratorii pot prelua încă o comandă simultan
 - P2: polish vizual suplimentar pe toate ecranele după feedback client — fără aplicație client final și fără pregătire Faza 3 în acest scope
 - Phase 3: GPS tracking în timp real (WebSockets) + Alocare automată comenzi

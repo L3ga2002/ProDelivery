@@ -30,3 +30,8 @@
 - Backend trimite cod prin Resend și salvează doar hash-ul codului
 - Livratorul confirmă prin `POST /api/drivers/{driver_id}/verify-email`
 - `/api/auth/me` include `email_verified` și `vehicle_type` pentru aplicația livratorului
+
+## Driver Soft Disable Add-on
+- Admin dezactivează livratorul prin `PATCH /api/drivers/{driver_id}/disable` cu `reason` opțional.
+- Backend blochează dezactivarea dacă livratorul are comenzi active.
+- După dezactivare, `users.account_disabled=true` și `drivers.account_disabled=true`; login-ul și `/api/auth/me` trebuie să returneze 403 pentru contul dezactivat.
