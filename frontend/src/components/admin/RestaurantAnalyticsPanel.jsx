@@ -21,10 +21,10 @@ const getOrderStatusBadge = (status) => {
 
 const MetricTile = ({ label, value, icon: Icon, tone = "blue", testId }) => {
   const toneClasses = {
-    blue: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/25 dark:text-blue-100",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100",
-    amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-100",
-    slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100",
+    blue: "border-blue-500/40 bg-blue-500/15 text-blue-100",
+    green: "border-emerald-500/40 bg-emerald-500/15 text-emerald-100",
+    amber: "border-orange-500/40 bg-orange-500/15 text-orange-100",
+    slate: "border-slate-600 bg-slate-800 text-slate-100",
   };
 
   return (
@@ -41,20 +41,20 @@ const MetricTile = ({ label, value, icon: Icon, tone = "blue", testId }) => {
 };
 
 const RestaurantChartCard = ({ title, icon: Icon, data, color = "hsl(215 75% 22%)", testId, interval }) => (
-  <Card className="border-slate-200 shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md" data-testid={testId}>
+  <Card className="border-zinc-800 bg-zinc-950 text-zinc-50 shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md" data-testid={testId}>
     <CardHeader className="pb-2">
       <CardTitle className="flex items-center gap-2 text-base">
-        {Icon && <Icon className="h-5 w-5 text-slate-700 dark:text-slate-100" />}
+        {Icon && <Icon className="h-5 w-5 text-orange-400" />}
         {title}
       </CardTitle>
     </CardHeader>
     <CardContent>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data || []}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 88%)" />
-          <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={interval} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px" }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.22)" />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#d4d4d8" }} interval={interval} />
+          <YAxis tick={{ fontSize: 11, fill: "#d4d4d8" }} />
+          <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "13px", background: "#18181b", border: "1px solid #3f3f46", color: "#fafafa" }} />
           <Bar dataKey="count" name="Comenzi" fill={color} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -101,7 +101,7 @@ export const RestaurantAnalyticsPanel = ({ analytics, isLoading }) => {
         <RestaurantChartCard title="Comenzi pe săptămâni" icon={TrendingUp} data={charts.by_week || []} color="hsl(217 33% 35%)" testId="restaurant-chart-week" />
         <RestaurantChartCard title="Comenzi pe luni" icon={TrendingUp} data={charts.by_month || []} color="hsl(24 90% 50%)" testId="restaurant-chart-month" />
         <RestaurantChartCard title="Comenzi pe ani" icon={BarChart3} data={charts.by_year || []} color="hsl(220 14% 46%)" testId="restaurant-chart-year" />
-        <Card className="border-slate-200 bg-slate-950 text-white shadow-sm" data-testid="restaurant-analytics-insight-card">
+        <Card className="border-orange-500/30 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,.24),transparent_32%),#09090b] text-white shadow-sm" data-testid="restaurant-analytics-insight-card">
           <CardContent className="flex h-full min-h-[220px] flex-col justify-between p-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Insight operațional</p>

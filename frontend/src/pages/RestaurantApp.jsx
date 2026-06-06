@@ -41,6 +41,9 @@ import {
   Phone,
   Search,
   PlusCircle,
+  Settings,
+  BookOpen,
+  SlidersHorizontal,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -128,19 +131,21 @@ const getStatusConfig = (status) => {
   return config[status] || { label: status, color: "bg-gray-500", textColor: "text-gray-800 dark:text-slate-100", bgColor: "bg-gray-100 dark:bg-slate-800" };
 };
 
-const RestaurantStatTile = ({ label, value, tone, testId }) => {
+const RestaurantStatTile = ({ label, value, tone, testId, active, onClick }) => {
   const tones = {
-    amber: "border-orange-500/30 bg-orange-500/10 text-orange-100",
-    indigo: "border-blue-500/30 bg-blue-500/10 text-blue-100",
-    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+    amber: "border-orange-500/35 bg-orange-500/10 text-orange-100 hover:bg-orange-500/15",
+    indigo: "border-blue-500/35 bg-blue-500/10 text-blue-100 hover:bg-blue-500/15",
+    emerald: "border-emerald-500/35 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/15",
   };
   return (
-    <Card className={`border ${tones[tone]} shadow-[0_18px_45px_-32px_rgba(0,0,0,0.9)]`} data-testid={testId}>
+    <button type="button" onClick={onClick} className="text-left" data-testid={testId}>
+    <Card className={`border transition-all ${tones[tone]} ${active ? "ring-2 ring-orange-400 shadow-[0_18px_45px_-28px_rgba(249,115,22,0.75)]" : "shadow-[0_18px_45px_-32px_rgba(0,0,0,0.9)]"}`}>
       <CardContent className="p-4 text-center">
         <p className="text-3xl font-black tracking-tight">{value}</p>
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.15em] opacity-70">{label}</p>
       </CardContent>
     </Card>
+    </button>
   );
 };
 
@@ -166,8 +171,11 @@ const RestaurantApp = () => {
   const [lateAlertedOrders, setLateAlertedOrders] = useState(new Set());
   const [acceptingOrders, setAcceptingOrders] = useState(true);
   const [restaurantPauseUntil, setRestaurantPauseUntil] = useState(null);
-  const [activeView, setActiveView] = useState("active");
+  const [activeView, setActiveView] = useState("new");
+  const [moreDialogOpen, setMoreDialogOpen] = useState(false);
+  const [manualPauseMinutes, setManualPauseMinutes] = useState(30);
   const [historySearch, setHistorySearch] = useState("");
+  const [historyDetailOrder, setHistoryDetailOrder] = useState(null);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [scheduleForm, setScheduleForm] = useState(defaultScheduleSettings);
   const [problemOrder, setProblemOrder] = useState(null);
@@ -401,10 +409,11 @@ const RestaurantApp = () => {
   const inWorkOrders = orders.filter(o => ['PREPARING', 'READY', 'ASSIGNED', 'ACCEPTED', 'PICKED_UP'].includes(o.status));
   const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
   const visibleOrders = useMemo(() => {
+    if (activeView === "new") return orders.filter(o => o.status === "NEW");
     if (activeView === "work") return inWorkOrders;
     if (activeView === "delivered") return deliveredOrders;
     return activeOrders;
-  }, [activeOrders, activeView, deliveredOrders, inWorkOrders]);
+  }, [activeOrders, activeView, deliveredOrders, inWorkOrders, orders]);
   const historyOrders = useMemo(() => {
     const term = historySearch.trim().toLowerCase();
     const base = orders.filter(o => ['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
@@ -416,6 +425,12 @@ const RestaurantApp = () => {
   const preparingCount = orders.filter(o => o.status === 'PREPARING').length;
   const readyCount = orders.filter(o => o.status === 'READY').length;
   const pauseSeconds = getPauseSeconds({ pause_until: restaurantPauseUntil }, now);
+
+  const openMoreView = (view) => {
+    setActiveView(view);
+    setMoreDialogOpen(false);
+    if (view === "analytics") fetchAnalytics();
+  };
 
   if (isLoading) {
     return (
@@ -439,8 +454,14 @@ const RestaurantApp = () => {
                 {user?.restaurant_name || 'Restaurant'}
               </h1>
             </div>
+            <Button variant="outline" size="sm" onClick={() => setMoreDialogOpen(true)} className="hidden border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 sm:inline-flex" data-testid="restaurant-more-left-button">
+              <Settings className="mr-2 h-4 w-4" /> Mai mult
+            </Button>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setMoreDialogOpen(true)} className="text-zinc-300 hover:bg-zinc-800 hover:text-white sm:hidden" data-testid="restaurant-more-settings-button">
+              <Settings className="h-5 w-5" />
+            </Button>
             {!acceptingOrders && pauseSeconds > 0 && (
               <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-200" data-testid="restaurant-pause-countdown">
                 Pauză {formatSeconds(pauseSeconds)}
@@ -493,45 +514,27 @@ const RestaurantApp = () => {
           </div>
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-[1.2fr_1fr]" data-testid="restaurant-operations-panel">
-          <Card className="border-zinc-800 bg-zinc-900 text-zinc-50">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><TimerReset className="h-5 w-5 text-orange-400" /> Pauză restaurant</CardTitle></CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500" onClick={() => setRestaurantStatus({ accepting: true })} data-testid="restaurant-resume-orders-button">Online</Button>
-              {PAUSE_OPTIONS.map((minutes) => (
-                <Button key={minutes} size="sm" variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950" onClick={() => setRestaurantStatus({ accepting: false, pauseMinutes: minutes })} data-testid={`restaurant-pause-${minutes}-button`}>{minutes} min</Button>
-              ))}
-              <Button size="sm" variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20" onClick={() => setRestaurantStatus({ accepting: false, closedToday: true })} data-testid="restaurant-close-today-button">Închide azi</Button>
-            </CardContent>
-          </Card>
-          <Card className="border-zinc-800 bg-zinc-900 text-zinc-50">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-5 w-5 text-orange-400" /> Program lucru</CardTitle></CardHeader>
-            <CardContent className="flex items-center justify-between gap-3">
-              <p className="text-sm text-zinc-400">Setează zilele și orele în care restaurantul apare disponibil.</p>
-              <Button className="bg-orange-500 font-black text-zinc-950 hover:bg-orange-400" onClick={() => setScheduleDialogOpen(true)} data-testid="restaurant-open-schedule-settings-button">Editează</Button>
-            </CardContent>
-          </Card>
-        </section>
-
         <div className="grid grid-cols-3 gap-3">
-          <RestaurantStatTile label="Noi" value={newCount} tone="amber" testId="restaurant-stat-new" />
-          <RestaurantStatTile label="În lucru" value={preparingCount} tone="indigo" testId="restaurant-stat-preparing" />
-          <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" testId="restaurant-stat-delivered" />
+          <RestaurantStatTile label="Noi" value={newCount} tone="amber" active={activeView === "new"} onClick={() => setActiveView("new")} testId="restaurant-stat-new" />
+          <RestaurantStatTile label="În lucru" value={inWorkOrders.length} tone="indigo" active={activeView === "work"} onClick={() => setActiveView("work")} testId="restaurant-stat-preparing" />
+          <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" active={activeView === "delivered"} onClick={() => setActiveView("delivered")} testId="restaurant-stat-delivered" />
         </div>
 
-        <section className="flex flex-wrap gap-2" data-testid="restaurant-order-filters">
-          {[
-            { key: "active", label: `Active (${activeOrders.length})` },
-            { key: "work", label: `În lucru (${inWorkOrders.length})` },
-            { key: "delivered", label: `Livrate (${deliveredOrders.length})` },
-            { key: "history", label: "Istoric" },
-            { key: "analytics", label: "Analytics" },
-          ].map((tab) => (
-            <button key={tab.key} type="button" onClick={() => setActiveView(tab.key)} className={`rounded-full border px-4 py-2 text-sm font-black transition-colors ${activeView === tab.key ? "border-orange-400 bg-orange-500 text-zinc-950" : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600"}`} data-testid={`restaurant-filter-${tab.key}-button`}>{tab.label}</button>
-          ))}
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3" data-testid="restaurant-compact-pause-bar">
+          <div className="flex items-center gap-2 text-sm text-zinc-300">
+            <TimerReset className="h-4 w-4 text-orange-400" />
+            <span className="font-black text-zinc-100">Pauză restaurant</span>
+            {!acceptingOrders && pauseSeconds > 0 && <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-mono text-amber-200" data-testid="restaurant-compact-pause-countdown">{formatSeconds(pauseSeconds)}</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500" onClick={() => setRestaurantStatus({ accepting: true })} data-testid="restaurant-compact-online-button">Online</Button>
+            <Input type="number" min="1" max="720" value={manualPauseMinutes} onChange={(event) => setManualPauseMinutes(Number(event.target.value) || 30)} className="h-9 w-24 border-zinc-700 bg-zinc-950 text-zinc-50" data-testid="restaurant-compact-manual-pause-input" />
+            <Button size="sm" className="bg-orange-500 font-black text-zinc-950 hover:bg-orange-400" onClick={() => setRestaurantStatus({ accepting: false, pauseMinutes: manualPauseMinutes })} data-testid="restaurant-compact-manual-pause-button">Setează min</Button>
+            <Button size="sm" variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20" onClick={() => setRestaurantStatus({ accepting: false, closedToday: true })} data-testid="restaurant-compact-close-today-button">Închide azi</Button>
+          </div>
         </section>
 
-        {prepAvailability.blocked_short_options && activeView !== "analytics" && (
+        {prepAvailability.blocked_short_options && !["analytics", "history"].includes(activeView) && (
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100" data-testid="restaurant-prep-driver-warning">
             <AlertTriangle className="mr-2 inline h-4 w-4" /> Nu există livratori disponibili acum. Timpii sub {prepAvailability.minimum_preparation_minutes} minute sunt blocați ca să nu genereze întârzieri.
           </div>
@@ -544,15 +547,15 @@ const RestaurantApp = () => {
               <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><Input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} className="border-zinc-700 bg-zinc-950 pl-9 text-zinc-100" placeholder="Caută client, telefon, adresă, produs" data-testid="restaurant-history-search-input" /></div>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {historyOrders.map((order) => <article key={order.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3" data-testid={`restaurant-history-order-${order.id}`}><div className="flex justify-between gap-3"><span className="font-mono text-sm font-black text-zinc-300">{order.order_number}</span>{getStatusConfig(order.status).label}</div><p className="mt-2 font-bold">{order.customer_name}</p><p className="text-sm text-zinc-400">{order.customer_phone} · {order.total_amount} RON</p><p className="mt-1 line-clamp-2 text-xs text-zinc-500">{order.customer_address}</p></article>)}
+              {historyOrders.map((order) => <button type="button" onClick={() => setHistoryDetailOrder(order)} key={order.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3 text-left transition-colors hover:border-orange-500/40 hover:bg-orange-500/5" data-testid={`restaurant-history-order-${order.id}`}><div className="flex justify-between gap-3"><span className="font-mono text-sm font-black text-zinc-300">{order.order_number}</span>{getStatusConfig(order.status).label}</div><p className="mt-2 font-bold">{order.customer_name}</p><p className="text-sm text-zinc-400">{order.customer_phone} · {order.total_amount} RON</p><p className="mt-1 line-clamp-2 text-xs text-zinc-500">{order.customer_address}</p></button>)}
               {historyOrders.length === 0 && <p className="text-sm text-zinc-500" data-testid="restaurant-history-empty">Nu am găsit comenzi.</p>}
             </div>
           </section>
         )}
 
         {activeView === "analytics" && (
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-50 p-4 text-zinc-950" data-testid="restaurant-self-analytics-panel">
-            <div className="mb-4 flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-black"><BarChart3 className="h-5 w-5 text-orange-600" /> Analytics restaurant</h2><Button variant="outline" onClick={fetchAnalytics} data-testid="restaurant-refresh-analytics-button">Actualizează</Button></div>
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-zinc-50" data-testid="restaurant-self-analytics-panel">
+            <div className="mb-4 flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-black"><BarChart3 className="h-5 w-5 text-orange-400" /> Analytics restaurant</h2><Button variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100 hover:bg-zinc-800" onClick={fetchAnalytics} data-testid="restaurant-refresh-analytics-button">Actualizează</Button></div>
             <RestaurantAnalyticsPanel analytics={analytics} isLoading={analyticsLoading} />
           </section>
         )}
@@ -629,7 +632,7 @@ const RestaurantApp = () => {
 
                     {['ASSIGNED', 'ACCEPTED'].includes(order.status) && <div className="rounded-xl border border-sky-500/40 bg-sky-500/10 p-4 text-center text-sky-200"><Truck className="mx-auto mb-1 h-8 w-8" /><p className="font-black">LIVRATORUL VINE</p><p className="text-sm opacity-80">{order.driver_name} preia comanda</p></div>}
 
-                    {['NEW', 'PREPARING', 'READY'].includes(order.status) && <Button variant="outline" className="h-11 w-full border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20" onClick={() => { setProblemOrder(order); setProblemForm({ problem_type: "missing_product", item_name: "", quantity: 1, price: 0, problem_description: "" }); }} data-testid={`problem-${order.id}`}><PlusCircle className="mr-2 h-4 w-4" /> Problemă comandă</Button>}
+                    {order.status === 'DELIVERED' && <Button variant="outline" className="h-11 w-full border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20" onClick={() => { setProblemOrder(order); setProblemForm({ problem_type: "missing_product", item_name: "", quantity: 1, price: 0, problem_description: "" }); }} data-testid={`problem-${order.id}`}><PlusCircle className="mr-2 h-4 w-4" /> Problemă comandă</Button>}
                     {['NEW', 'PREPARING', 'READY'].includes(order.status) && <Button variant="outline" className="h-11 w-full border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20" onClick={() => { setCancelOrder(order); setCancelReason(""); }} data-testid={`cancel-${order.id}`}><XCircle className="mr-2 h-4 w-4" /> Anulează</Button>}
                   </div>
                 </article>
@@ -683,6 +686,26 @@ const RestaurantApp = () => {
             })}
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setScheduleDialogOpen(false)} data-testid="restaurant-schedule-cancel-button">Anulează</Button><Button onClick={saveScheduleSettings} data-testid="restaurant-schedule-save-button">Salvează program</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={moreDialogOpen} onOpenChange={setMoreDialogOpen}>
+        <DialogContent className="max-w-xl border-zinc-800 bg-zinc-950 text-zinc-50" data-testid="restaurant-more-dialog">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5 text-orange-400" /> Mai mult</DialogTitle><DialogDescription className="text-zinc-400">Setări operaționale și zone secundare, fără să aglomerăm dashboardul principal.</DialogDescription></DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={() => openMoreView("history")} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left hover:border-orange-500/40" data-testid="restaurant-more-history-button"><History className="mb-3 h-5 w-5 text-orange-400" /><p className="font-black">Istoric comenzi</p><p className="mt-1 text-sm text-zinc-400">Caută și deschide detalii complete.</p></button>
+            <button type="button" onClick={() => openMoreView("analytics")} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left hover:border-orange-500/40" data-testid="restaurant-more-analytics-button"><BarChart3 className="mb-3 h-5 w-5 text-orange-400" /><p className="font-black">Analytics</p><p className="mt-1 text-sm text-zinc-400">Grafice și timpi operaționali.</p></button>
+            <button type="button" onClick={() => { setScheduleDialogOpen(true); setMoreDialogOpen(false); }} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left hover:border-orange-500/40" data-testid="restaurant-more-schedule-button"><CalendarDays className="mb-3 h-5 w-5 text-orange-400" /><p className="font-black">Program lucru</p><p className="mt-1 text-sm text-zinc-400">Zile și ore de funcționare.</p></button>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4" data-testid="restaurant-more-pause-panel"><TimerReset className="mb-3 h-5 w-5 text-orange-400" /><p className="font-black">Pauză restaurant</p><div className="mt-3 flex items-center gap-2"><Input type="number" min="1" max="720" value={manualPauseMinutes} onChange={(event) => setManualPauseMinutes(Number(event.target.value) || 30)} className="border-zinc-700 bg-zinc-950 text-zinc-50" data-testid="restaurant-manual-pause-input" /><span className="text-sm text-zinc-400">min</span></div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" className="bg-emerald-600 hover:bg-emerald-500" onClick={() => setRestaurantStatus({ accepting: true })} data-testid="restaurant-resume-orders-button">Online</Button><Button size="sm" className="bg-orange-500 font-black text-zinc-950 hover:bg-orange-400" onClick={() => setRestaurantStatus({ accepting: false, pauseMinutes: manualPauseMinutes })} data-testid="restaurant-manual-pause-button">Setează pauză</Button><Button size="sm" variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20" onClick={() => setRestaurantStatus({ accepting: false, closedToday: true })} data-testid="restaurant-close-today-button">Închide azi</Button></div></div>
+            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/60 p-4 sm:col-span-2" data-testid="restaurant-more-future-catalog"><BookOpen className="mb-3 h-5 w-5 text-zinc-500" /><p className="font-black text-zinc-300">Catalog produse / meniu</p><p className="mt-1 text-sm text-zinc-500">Pregătit pentru viitoarea aplicație de client: produse, categorii, meniu și disponibilitate.</p></div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!historyDetailOrder} onOpenChange={(open) => !open && setHistoryDetailOrder(null)}>
+        <DialogContent className="max-w-2xl border-zinc-800 bg-zinc-950 text-zinc-50" data-testid="restaurant-history-detail-dialog">
+          <DialogHeader><DialogTitle>Detalii comandă · {historyDetailOrder?.order_number}</DialogTitle><DialogDescription className="text-zinc-400">Toate informațiile salvate pentru comanda selectată.</DialogDescription></DialogHeader>
+          {historyDetailOrder && <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3"><p className="text-xs text-zinc-500">Client</p><p className="font-black">{historyDetailOrder.customer_name}</p><p className="font-mono text-sm text-zinc-300">{historyDetailOrder.customer_phone}</p></div><div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3"><p className="text-xs text-zinc-500">Adresă</p><p className="text-sm text-zinc-300">{historyDetailOrder.customer_address}</p></div><div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3"><p className="text-xs text-zinc-500">Status</p><p className="font-black">{getStatusConfig(historyDetailOrder.status).label}</p></div><div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3"><p className="text-xs text-zinc-500">Total</p><p className="text-2xl font-black text-orange-300">{historyDetailOrder.total_amount} RON</p></div></div><div className="rounded-xl border border-zinc-800 bg-black/30 p-3"><p className="mb-2 font-black">Produse</p>{historyDetailOrder.items?.map((item) => <div key={`${historyDetailOrder.id}-${item.name}`} className="flex justify-between border-b border-zinc-800 py-2 text-sm last:border-0"><span>{item.quantity}× {item.name}</span><span className="font-mono text-zinc-400">{item.price * item.quantity} RON</span></div>)}</div>{historyDetailOrder.driver_name && <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-blue-100"><Truck className="mr-2 inline h-4 w-4" /> Livrator: {historyDetailOrder.driver_name}</div>}{historyDetailOrder.notes && <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-orange-100">Notă: {historyDetailOrder.notes}</div>}{historyDetailOrder.status === "DELIVERED" && <Button className="w-full bg-orange-500 font-black text-zinc-950 hover:bg-orange-400" onClick={() => { setProblemOrder(historyDetailOrder); setHistoryDetailOrder(null); }} data-testid="history-detail-problem-button"><PlusCircle className="mr-2 h-4 w-4" /> Produs lipsă / adaugă produs</Button>}</div>}
         </DialogContent>
       </Dialog>
 
