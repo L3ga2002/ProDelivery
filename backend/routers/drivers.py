@@ -158,9 +158,9 @@ async def _attach_today_schedule_state(driver: dict) -> dict:
         operational_status = "delivery"
     elif raw_status == "break" and break_remaining_seconds > 0:
         operational_status = "break"
-    elif raw_status == "active" and is_on_shift_now:
+    elif raw_status == "active":
         operational_status = "active"
-    elif driver.get("is_active") and is_on_shift_now:
+    elif driver.get("is_active"):
         operational_status = "active"
     else:
         operational_status = "offline"
@@ -698,6 +698,9 @@ async def update_driver_status(
         minutes = max(1, min(int(break_minutes or 30), 180))
         update["break_started_at"] = now.isoformat()
         update["break_until"] = (now + timedelta(minutes=minutes)).isoformat()
+    elif status == "active":
+        update["current_order_id"] = driver.get("current_order_id")
+        update["last_online_at"] = now.isoformat()
     elif status != "break":
         update["break_started_at"] = None
         update["break_until"] = None
