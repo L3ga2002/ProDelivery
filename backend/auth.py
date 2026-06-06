@@ -106,6 +106,8 @@ async def resolve_user_context(user_id: str) -> dict:
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if user.get("account_disabled"):
+        raise HTTPException(status_code=403, detail="Cont dezactivat. Contactează administratorul.")
 
     driver_id = None
     email_verified = user.get("email_verified", True)
@@ -113,6 +115,8 @@ async def resolve_user_context(user_id: str) -> dict:
     if user["role"] == "driver":
         driver = await db.drivers.find_one({"user_id": user["id"]}, {"_id": 0})
         if driver:
+            if driver.get("account_disabled"):
+                raise HTTPException(status_code=403, detail="Cont livrator dezactivat")
             driver_id = driver["id"]
             email_verified = driver.get("email_verified", user.get("email_verified", False))
             vehicle_type = driver.get("vehicle_type", user.get("vehicle_type", "scooter"))

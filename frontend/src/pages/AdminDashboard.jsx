@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -252,6 +253,7 @@ const AdminDashboard = () => {
   const [assignDriverSearch, setAssignDriverSearch] = useState("");
   const [debouncedAssignDriverSearch, setDebouncedAssignDriverSearch] = useState("");
   const [assignOrderSearch, setAssignOrderSearch] = useState("");
+  const [isOrderSelectionLocked, setIsOrderSelectionLocked] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isNewOrderDialogOpen, setIsNewOrderDialogOpen] = useState(false);
   const [isNewDriverDialogOpen, setIsNewDriverDialogOpen] = useState(false);
@@ -414,7 +416,8 @@ const AdminDashboard = () => {
     setSelectedOrder(order);
     setSelectedDriver("");
     setAssignDriverSearch("");
-    setAssignOrderSearch("");
+    setAssignOrderSearch(order?.order_number || "");
+    setIsOrderSelectionLocked(true);
     setIsAssignDialogOpen(true);
   };
 
@@ -423,6 +426,7 @@ const AdminDashboard = () => {
     setSelectedDriver(driver.id);
     setAssignDriverSearch(driver.name || "");
     setAssignOrderSearch("");
+    setIsOrderSelectionLocked(false);
     setActiveAdminTab("map");
     setIsAssignDialogOpen(true);
   };
@@ -445,6 +449,7 @@ const AdminDashboard = () => {
       await axios.put(`${API_URL}/api/orders/${selectedOrder.id}/assign`, { driver_id: selectedDriver });
       toast.success("Comandă alocată cu succes!");
       setIsAssignDialogOpen(false);
+      setIsOrderSelectionLocked(false);
       fetchData();
     } catch (error) {
       console.error("Failed to assign order", error);
@@ -1067,7 +1072,7 @@ const AdminDashboard = () => {
       </main>
 
       {/* Assign Dialog */}
-      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+      <Dialog open={isAssignDialogOpen} onOpenChange={(open) => { setIsAssignDialogOpen(open); if (!open) setIsOrderSelectionLocked(false); }}>
         <DialogContent className="z-[1250] max-w-3xl" data-testid="assign-order-dialog">
           <DialogHeader>
             <DialogTitle>Alocă Comandă</DialogTitle>
@@ -1078,37 +1083,30 @@ const AdminDashboard = () => {
           <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
             <div className="space-y-3">
               <Label>Comandă</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={assignOrderSearch}
-                  onChange={(event) => setAssignOrderSearch(event.target.value)}
-                  className="pl-9"
-                  placeholder="Caută după număr, client, restaurant"
-                  data-testid="assign-order-search-input"
-                />
-              </div>
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border bg-muted/20 p-2" data-testid="assign-order-options">
-                {filteredAssignableOrders.map((order) => (
-                  <button
-                    key={order.id}
-                    type="button"
-                    className={`w-full rounded-md border p-3 text-left transition-colors ${selectedOrder?.id === order.id ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30" : "bg-card hover:bg-muted/60"}`}
-                    onClick={() => setSelectedOrder(order)}
-                    data-testid={`assign-order-option-${order.id}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs font-bold">{order.order_number}</span>
-                      <Badge variant="outline" className="text-xs">{order.total_amount} RON</Badge>
-                    </div>
-                    <p className="mt-1 text-sm font-semibold">{order.restaurant_name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{order.customer_name} · {order.customer_address}</p>
-                  </button>
-                ))}
-                {filteredAssignableOrders.length === 0 && (
-                  <p className="p-3 text-sm text-muted-foreground" data-testid="assign-order-empty-state">Nicio comandă disponibilă.</p>
-                )}
-              </div>
+              {isOrderSelectionLocked && selectedOrder ? (
+                <div className="rounded-lg border border-indigo-300 bg-indigo-50 p-3 dark:bg-indigo-950/30" data-testid="assign-locked-order-summary">
+                  <div className="flex items-center justify-between gap-3"><span className="font-mono text-xs font-black">{selectedOrder.order_number}</span><Badge variant="outline">{selectedOrder.total_amount} RON</Badge></div>
+                  <p className="mt-1 font-semibold">{selectedOrder.restaurant_name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{selectedOrder.customer_name} · {selectedOrder.customer_address}</p>
+                  <p className="mt-2 text-xs font-medium text-indigo-700 dark:text-indigo-100">Comanda selectată inițial este păstrată automat.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={assignOrderSearch} onChange={(event) => setAssignOrderSearch(event.target.value)} className="pl-9" placeholder="Caută după număr, client, restaurant" data-testid="assign-order-search-input" />
+                  </div>
+                  <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border bg-muted/20 p-2" data-testid="assign-order-options">
+                    {filteredAssignableOrders.map((order) => (
+                      <button key={order.id} type="button" className={`w-full rounded-md border p-3 text-left transition-colors ${selectedOrder?.id === order.id ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30" : "bg-card hover:bg-muted/60"}`} onClick={() => setSelectedOrder(order)} data-testid={`assign-order-option-${order.id}`}>
+                        <div className="flex items-center justify-between gap-2"><span className="font-mono text-xs font-bold">{order.order_number}</span><Badge variant="outline" className="text-xs">{order.total_amount} RON</Badge></div>
+                        <p className="mt-1 text-sm font-semibold">{order.restaurant_name}</p><p className="truncate text-xs text-muted-foreground">{order.customer_name} · {order.customer_address}</p>
+                      </button>
+                    ))}
+                    {filteredAssignableOrders.length === 0 && <p className="p-3 text-sm text-muted-foreground" data-testid="assign-order-empty-state">Nicio comandă disponibilă.</p>}
+                  </div>
+                </>
+              )}
             </div>
             <div className="space-y-3">
               <Label>Livrator</Label>

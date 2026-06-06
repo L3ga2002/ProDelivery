@@ -3,10 +3,11 @@ from datetime import datetime, timedelta, timezone
 from shapely.geometry import Point, Polygon
 from database import db
 from auth import get_current_user
-from models.order import Order, OrderCreate, AssignOrder, UpdateOrderStatus, PreparationTime
+from models.order import Order, OrderCreate, AssignOrder, UpdateOrderStatus, PreparationTime, ProblemOrderCreate
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 VALID_ORDER_STATUSES = ["NEW", "PREPARING", "READY", "ASSIGNED", "ACCEPTED", "PICKED_UP", "DELIVERED", "CANCELLED"]
+MIN_PREP_WHEN_NO_DRIVERS = 20
 
 
 def build_shapely_polygon(coords):
@@ -69,6 +70,15 @@ async def clear_driver_assignment(order: dict | None) -> None:
             {"id": order["driver_id"]},
             {"$set": {"current_order_id": None, "driver_status": "active", "is_active": True}}
         )
+
+
+async def get_available_driver_count() -> int:
+    return await db.drivers.count_documents({
+        "is_active": True,
+        "driver_status": "active",
+        "$or": [{"current_order_id": None}, {"current_order_id": {"$exists": False}}],
+        "account_disabled": {"$ne": True},
+    })
 
 
 async def finalize_delivered_order(order: dict | None) -> None:
@@ -153,6 +163,9 @@ async def create_order(order_data: OrderCreate, current_user: dict = Depends(get
         total_amount=total_amount,
         payment_type=order_data.payment_type,
         notes=order_data.notes,
+        linked_problem_order_id=order_data.linked_problem_order_id,
+        problem_type=order_data.problem_type,
+        problem_description=order_data.problem_description,
         zone=detected_zone.get("name") if detected_zone else None,
         delivery_zone_id=detected_zone.get("id") if detected_zone else None,
         delivery_zone_name=detected_zone.get("name") if detected_zone else None,
@@ -201,6 +214,9 @@ async def assign_order(order_id: str, data: AssignOrder, current_user: dict = De
 
 @router.put("/{order_id}/preparing")
 async def set_preparing(order_id: str, data: PreparationTime, current_user: dict = Depends(get_current_user)):
+    available_drivers = await get_available_driver_count()
+    if available_drivers == 0 and data.preparation_time < MIN_PREP_WHEN_NO_DRIVERS:
+        raise HTTPException(status_code=409, detail=f"Nu există livratori disponibili acum. Setează minimum {MIN_PREP_WHEN_NO_DRIVERS} minute sau așteaptă un livrator activ.")
     now = datetime.now(timezone.utc)
     estimated_seconds = data.preparation_time * 60
     due_at = now + timedelta(seconds=estimated_seconds)
@@ -216,6 +232,66 @@ async def set_preparing(order_id: str, data: PreparationTime, current_user: dict
         }}
     )
     return {"message": "Order preparing", "preparation_due_at": due_at.isoformat()}
+
+
+@router.get("/restaurant/{restaurant_id}/prep-availability")
+async def get_restaurant_preparation_availability(restaurant_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] == "restaurant" and current_user.get("restaurant_id") != restaurant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    available_drivers = await get_available_driver_count()
+    return {
+        "available_drivers": available_drivers,
+        "has_available_drivers": available_drivers > 0,
+        "minimum_preparation_minutes": MIN_PREP_WHEN_NO_DRIVERS if available_drivers == 0 else 5,
+        "blocked_short_options": available_drivers == 0,
+    }
+
+
+@router.post("/{order_id}/problem")
+async def create_problem_order(order_id: str, data: ProblemOrderCreate, current_user: dict = Depends(get_current_user)):
+    original = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not original:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if current_user["role"] == "restaurant" and current_user.get("restaurant_id") != original.get("restaurant_id"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if data.problem_type not in ["missing_product", "new_product"]:
+        raise HTTPException(status_code=400, detail="Tip problemă invalid")
+    count = await db.orders.count_documents({})
+    problem_label = "Produs lipsă" if data.problem_type == "missing_product" else "Produs nou"
+    item_name = data.item_name or problem_label
+    subtotal = max(float(data.price), 0) * max(int(data.quantity), 1)
+    order = Order(
+        order_number=f"{original.get('source', 'S')}.{count + 1:04d}P",
+        source=original.get("source", "S"),
+        restaurant_id=original["restaurant_id"],
+        restaurant_name=original["restaurant_name"],
+        customer_name=original["customer_name"],
+        customer_phone=original["customer_phone"],
+        customer_address=original["customer_address"],
+        customer_latitude=original.get("customer_latitude"),
+        customer_longitude=original.get("customer_longitude"),
+        items=[{"name": item_name, "quantity": max(int(data.quantity), 1), "price": max(float(data.price), 0)}],
+        subtotal_amount=subtotal,
+        delivery_fee=0,
+        total_amount=subtotal,
+        payment_type=original.get("payment_type", "CASH"),
+        notes=f"Problemă la {original.get('order_number')}: {data.problem_description.strip()}",
+        zone=original.get("zone"),
+        delivery_zone_id=original.get("delivery_zone_id"),
+        delivery_zone_name=original.get("delivery_zone_name"),
+        delivery_sector=original.get("delivery_sector"),
+        delivery_zone_level=original.get("delivery_zone_level"),
+        linked_problem_order_id=order_id,
+        problem_type=data.problem_type,
+        problem_description=data.problem_description.strip(),
+    )
+    doc = order.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["updated_at"] = doc["updated_at"].isoformat()
+    await db.orders.insert_one(doc)
+    doc.pop("_id", None)
+    await db.orders.update_one({"id": order_id}, {"$set": {"has_problem_followup": True, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"message": "Comandă legată creată", "order": doc}
 
 
 @router.put("/{order_id}/ready")

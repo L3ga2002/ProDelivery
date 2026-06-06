@@ -1,0 +1,66 @@
+{
+  "summary": "Am executat regresie backend + frontend pentru fluxurile cerute Restaurant/Admin: login, filtre, pauză cu timer, schedule settings, analytics restaurant, comenzi cu problemă, prep-availability, alocare manuală și gestionare livrator/calendar. Majoritatea fluxurilor au trecut; defectul critic CORS preflight pe /api/auth/login rămâne activ.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/auth/login (OPTIONS preflight)",
+        "issue": "Răspunsul preflight returnează `access-control-allow-origin: *` pentru cereri credentialed; browserul blochează fluxul corect CORS cu cookies.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin tab Hartă (prima rulare automată)",
+        "issue": "Timeout intermitent la detectarea panoului hărții în primul script; la retest dedicat panoul și containerul s-au încărcat corect.",
+        "affected_selectors": [
+          "[data-testid=\"tab-map\"]",
+          "[data-testid=\"admin-live-map-panel\"]",
+          "[data-testid=\"admin-live-map-container\"]"
+        ]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Dialoguri Restaurant/Admin",
+        "issues": [
+          "În consolă apar avertismente de accesibilitate pentru DialogContent fără Description/aria-describedby."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration27_delivery_requirements_regression.py",
+    "/app/test_reports/pytest/iteration27_results.xml",
+    "/root/.emergent/automation_output/20260606_130109/console_20260606_130109.log",
+    "/root/.emergent/automation_output/20260606_130151/console_20260606_130151.log"
+  ],
+  "action_items": [
+    "Corectează preflight CORS pentru /api/auth/login astfel încât Access-Control-Allow-Origin să fie explicit origin-ul permis, nu wildcard.",
+    "Păstrează validarea regresiei pe tab-ul Hartă (intermitență inițială observată, apoi retest PASS).",
+    "Adaugă DialogDescription unde lipsesc pentru a elimina warning-urile de accesibilitate din UI."
+  ],
+  "critical_code_review_comments": [
+    "`/app/frontend/src/pages/AdminDashboard.jsx` și `/app/frontend/src/pages/RestaurantApp.jsx` sunt fișiere foarte mari (risc de mentenanță/regresie); recomandată separare pe module funcționale.",
+    "`/app/backend/routers/seed.py` folosește ștergeri masive (`delete_many`) pentru seed; comportamentul nu este idempotent friendly pentru actualizare incrementală admin/date.",
+    "Defectul CORS preflight este încă vizibil extern la Ingress (confirmat cu curl pe URL public)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration27_delivery_requirements_regression.py",
+    "/app/test_reports/iteration_27.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "93%"
+  },
+  "test_credentials": "Citite din /app/memory/test_credentials.md și folosite: admin@delivery.ro/admin123, rest-001@delivery.ro/restaurant123.",
+  "seed_data_creation": "Am creat doar date de test tranzitorii (comenzi test pentru validare problem-order/disable-driver) și le-am curățat prin CANCELLED.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend iteration27: 5/5 PASS pe testul nou țintit (analytics restaurant, schedule settings persist, problem order linked + original flag, prep availability contract, disable driver blocat cu comenzi active). Frontend: fluxurile restaurant (pauză 15 cu timer, resume online, schedule save, history + analytics) și admin (assign modal păstrează comanda, driver management tabs, program standard/urgență) au trecut. Hartă admin a avut timeout intermitent în prima rulare, dar retest dedicat PASS și textul 'Offline ascuns' nu apare.",
+  "rca of the issue": "RCA CORS: Repro cu `OPTIONS /api/auth/login` pe URL public + Origin explicit => răspuns `204` cu `access-control-allow-origin: *`. În cereri credentialed (cookies auth), wildcard este invalid conform browser policy și produce blocaj CORS. Probabil preflight este tratat/înlocuit la nivel edge/ingress înainte de middleware-ul explicit origin din aplicație. Mitigare: asigură răspuns preflight cu origin explicit permis și `access-control-allow-credentials: true` pe calea publică efectivă.",
+  "mocked_api": "MOCKED: Admin Settings tab rămâne demo/mock; Twilio SMS este în continuare deferred/neintegrat."
+}

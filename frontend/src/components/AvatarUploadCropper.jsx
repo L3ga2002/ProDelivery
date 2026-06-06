@@ -18,8 +18,8 @@ export const AvatarUploadCropper = ({ onUpload, isUploading = false, testIdPrefi
 
   const loadFile = (file) => {
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      window.alert("Poza depășește limita de 4 MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      window.alert("Poza depășește limita de 10 MB.");
       return;
     }
     setFileName(file.name || "avatar.webp");
@@ -78,6 +78,7 @@ export const AvatarUploadCropper = ({ onUpload, isUploading = false, testIdPrefi
           <Input className="sr-only" type="file" accept="image/*" capture="user" onChange={(event) => loadFile(event.target.files?.[0])} data-testid={`${testIdPrefix}-camera-input`} />
         </Label>
       </div>
+      <p className="text-xs text-muted-foreground" data-testid={`${testIdPrefix}-upload-limit`}>Acceptă poze până la 10MB; aplicația le crop-uiește și le comprimă automat în WebP.</p>
 
       {imageSrc && (
         <div className="rounded-lg border bg-muted/30 p-3" data-testid={`${testIdPrefix}-editor`}>

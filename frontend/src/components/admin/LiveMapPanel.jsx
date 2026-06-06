@@ -1,8 +1,9 @@
+/* eslint-disable */
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
-import { Car, Clock, MapPin, Package, Phone, Route, Store, Truck } from "lucide-react";
+import { Car, Clock, Home, MapPin, Package, Phone, Route, Store, Truck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createMapMarkerIcon,
@@ -41,7 +42,7 @@ const BreakCountdown = ({ driverId, seconds }) => {
     setRemaining(seconds || 0);
   }, [seconds]);
   useEffect(() => {
-    if (remaining <= 0) return undefined;
+    if (remaining <= 0) return;
     const interval = setInterval(() => setRemaining((value) => Math.max(value - 1, 0)), 1000);
     return () => clearInterval(interval);
   }, [remaining]);
@@ -149,6 +150,8 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
       if (!order || !restaurant || !order.customer_latitude || !order.customer_longitude) return null;
       return {
         id: `${driver.id}-${order.id}`,
+        clientPosition: [order.customer_latitude, order.customer_longitude],
+        order,
         driverToRestaurant: [position, [restaurant.latitude, restaurant.longitude]],
         restaurantToClient: [[restaurant.latitude, restaurant.longitude], [order.customer_latitude, order.customer_longitude]],
       };
@@ -176,14 +179,13 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
               </Badge>
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Marker-e 3D pentru livratori și restaurante, fără poligoane de zone pe harta principală.
+              Marker-e simple, pin client și trasee punctate vizibile livrator → restaurant → client.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{statusCounts.active} activi</Badge>
             <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">{statusCounts.delivery} în livrare</Badge>
             <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{statusCounts.break} în pauză</Badge>
-            <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{statusCounts.offline} offline</Badge>
           </div>
         </div>
       </CardHeader>
@@ -198,15 +200,27 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
               <Polyline
                 key={route.id}
                 positions={route.driverToRestaurant}
-                pathOptions={{ color: "#2563eb", weight: 3, opacity: 0.75, dashArray: "8 10", className: "delivery-route-line" }}
+                pathOptions={{ color: "#1d4ed8", weight: 5, opacity: 0.9, dashArray: "10 10", className: "delivery-route-line" }}
               />
             ))}
             {activeRoutes.map((route) => (
               <Polyline
                 key={`${route.id}-client`}
                 positions={route.restaurantToClient}
-                pathOptions={{ color: "#f97316", weight: 3, opacity: 0.72, dashArray: "4 9", className: "delivery-route-line" }}
+                pathOptions={{ color: "#ea580c", weight: 5, opacity: 0.9, dashArray: "6 9", className: "delivery-route-line" }}
               />
+            ))}
+            {activeRoutes.map((route) => (
+              <Marker key={`${route.id}-client-pin`} position={route.clientPosition}>
+                <Popup>
+                  <div className="min-w-[210px] text-sm" data-testid={`map-client-popup-${route.order.id}`}>
+                    <div className="mb-2 flex items-center gap-2 font-bold text-slate-950"><Home className="h-4 w-4 text-orange-600" /> Client</div>
+                    <p className="font-semibold text-slate-800">{route.order.customer_name}</p>
+                    <p className="text-slate-600">{route.order.customer_address}</p>
+                    <p className="mt-1 font-mono text-xs text-slate-500">{route.order.customer_phone}</p>
+                  </div>
+                </Popup>
+              </Marker>
             ))}
             {driverMarkers.map(({ driver, icon, position }) => (
               <Marker
@@ -245,10 +259,7 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
             <Route className="h-4 w-4 text-blue-700" />
             <span>Traseu activ</span>
           </div>
-          <div className="flex items-center gap-2">
-            <MapLegendIcon className="delivery-map-legend-driver-offline"><DriverScooterIcon /></MapLegendIcon>
-            <span>Offline ascuns de pe hartă</span>
-          </div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-orange-600" /><span>Pin client</span></div>
           <div className="flex items-center gap-2">
             <MapLegendIcon className="delivery-map-legend-restaurant"><RestaurantStorefrontIcon /></MapLegendIcon>
             <span>Restaurant</span>

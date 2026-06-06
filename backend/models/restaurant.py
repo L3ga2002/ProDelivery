@@ -30,3 +30,19 @@ class RestaurantCreate(BaseModel):
 class RestaurantAvailabilityRequest(BaseModel):
     lat: float
     lng: float
+
+
+class RestaurantDaySchedule(BaseModel):
+    enabled: bool = True
+    open_time: str = "10:00"
+    close_time: str = "22:00"
+
+
+class RestaurantScheduleSettingsUpdate(BaseModel):
+    monday: Optional[RestaurantDaySchedule] = None
+    tuesday: Optional[RestaurantDaySchedule] = None
+    wednesday: Optional[RestaurantDaySchedule] = None
+    thursday: Optional[RestaurantDaySchedule] = None
+    friday: Optional[RestaurantDaySchedule] = None
+    saturday: Optional[RestaurantDaySchedule] = None
+    sunday: Optional[RestaurantDaySchedule] = None

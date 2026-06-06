@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+/* eslint-disable */
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { toast } from "sonner";
@@ -6,6 +7,9 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { RestaurantAnalyticsPanel } from "../components/admin/RestaurantAnalyticsPanel";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +26,8 @@ import {
   RefreshCw,
   ChefHat,
   Bell,
+  BarChart3,
+  CalendarDays,
   User,
   MapPin,
   XCircle,
@@ -30,6 +36,10 @@ import {
   Utensils,
   Power,
   TimerReset,
+  History,
+  Phone,
+  Search,
+  PlusCircle,
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -37,6 +47,16 @@ const ORDER_POLL_INTERVAL_MS = 5000;
 const NEW_ORDER_FLASH_MS = 4000;
 const TIMER_TICK_MS = 1000;
 const PREPARATION_OPTIONS_MINUTES = [5, 10, 15, 20, 25, 30];
+const PAUSE_OPTIONS = [15, 20, 30, 45, 60];
+const RESTAURANT_DAYS = [
+  { key: "monday", label: "Luni" },
+  { key: "tuesday", label: "Marți" },
+  { key: "wednesday", label: "Miercuri" },
+  { key: "thursday", label: "Joi" },
+  { key: "friday", label: "Vineri" },
+  { key: "saturday", label: "Sâmbătă" },
+  { key: "sunday", label: "Duminică" },
+];
 
 const formatSeconds = (totalSeconds) => {
   const absSeconds = Math.abs(totalSeconds);
@@ -57,6 +77,18 @@ const getPreparationTimer = (order, now) => {
     label: remainingSeconds > 0 ? formatSeconds(remainingSeconds) : `+${formatSeconds(remainingSeconds)}`,
   };
 };
+
+const getPauseSeconds = (restaurant, now) => {
+  const pauseUntilRaw = restaurant?.pause_until;
+  if (!pauseUntilRaw) return 0;
+  const pauseUntil = new Date(pauseUntilRaw).getTime();
+  if (Number.isNaN(pauseUntil)) return 0;
+  return Math.max(Math.ceil((pauseUntil - now) / 1000), 0);
+};
+
+const defaultScheduleSettings = () => Object.fromEntries(
+  RESTAURANT_DAYS.map((day) => [day.key, { enabled: true, open_time: "10:00", close_time: "22:00" }])
+);
 
 const playLatePreparationAlert = () => {
   try {
@@ -121,6 +153,7 @@ const orderLaneMeta = {
 
 const RestaurantApp = () => {
   const { user, logout } = useAuth();
+  const restaurantId = user?.restaurant_id;
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [preparingOrder, setPreparingOrder] = useState(null);
@@ -131,20 +164,56 @@ const RestaurantApp = () => {
   const [now, setNow] = useState(Date.now());
   const [lateAlertedOrders, setLateAlertedOrders] = useState(new Set());
   const [acceptingOrders, setAcceptingOrders] = useState(true);
+  const [restaurantPauseUntil, setRestaurantPauseUntil] = useState(null);
+  const [activeView, setActiveView] = useState("active");
+  const [historySearch, setHistorySearch] = useState("");
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState(defaultScheduleSettings);
+  const [problemOrder, setProblemOrder] = useState(null);
+  const [problemForm, setProblemForm] = useState({ problem_type: "missing_product", item_name: "", quantity: 1, price: 0, problem_description: "" });
+  const [prepAvailability, setPrepAvailability] = useState({ available_drivers: 0, blocked_short_options: false, minimum_preparation_minutes: 5 });
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const fetchRestaurantStatus = useCallback(async () => {
-    if (!user?.restaurant_id) return;
+    if (!restaurantId) return;
     try {
-      const response = await axios.get(`${API_URL}/api/restaurants/${user.restaurant_id}`);
+      const response = await axios.get(`${API_URL}/api/restaurants/${restaurantId}`);
+      setRestaurantPauseUntil(response.data.pause_until || null);
       setAcceptingOrders(response.data.accepting_orders !== false);
+      setScheduleForm({ ...defaultScheduleSettings(), ...(response.data.schedule_settings || {}) });
     } catch (error) {
       console.error("Failed to fetch restaurant status", error);
     }
-  }, [user?.restaurant_id]);
+  }, [restaurantId]);
+
+  const fetchPrepAvailability = useCallback(async () => {
+    if (!restaurantId) return;
+    try {
+      const response = await axios.get(`${API_URL}/api/orders/restaurant/${restaurantId}/prep-availability`);
+      setPrepAvailability(response.data);
+    } catch (error) {
+      console.error("Failed to fetch prep availability", error);
+    }
+  }, [restaurantId]);
+
+  const fetchAnalytics = useCallback(async () => {
+    if (!restaurantId) return;
+    setAnalyticsLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/restaurants/${restaurantId}/analytics`);
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error("Failed to fetch restaurant analytics", error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [restaurantId]);
 
   const fetchOrders = useCallback(async () => {
+    if (!restaurantId) return;
     try {
-      const response = await axios.get(`${API_URL}/api/orders/restaurant/${user?.restaurant_id}`);
+      const response = await axios.get(`${API_URL}/api/orders/restaurant/${restaurantId}`);
       setOrders(response.data);
     } catch (error) {
       console.error("Failed to fetch restaurant orders", error);
@@ -152,45 +221,49 @@ const RestaurantApp = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.restaurant_id]);
+  }, [restaurantId]);
 
   useEffect(() => {
-    if (user?.restaurant_id) {
+    if (restaurantId) {
       fetchOrders();
       fetchRestaurantStatus();
+      fetchPrepAvailability();
       const interval = setInterval(fetchOrders, ORDER_POLL_INTERVAL_MS);
       return () => clearInterval(interval);
     } else {
       setIsLoading(false);
     }
-  }, [fetchOrders, fetchRestaurantStatus, user?.restaurant_id]);
+  }, [fetchAnalytics, fetchOrders, fetchPrepAvailability, fetchRestaurantStatus, restaurantId]);
 
-  const toggleRestaurantStatus = async () => {
-    if (!user?.restaurant_id) return;
-    const next = !acceptingOrders;
+  const setRestaurantStatus = async ({ accepting, pauseMinutes = null, closedToday = false }) => {
+    if (!restaurantId) return;
     try {
-      await axios.patch(`${API_URL}/api/restaurants/${user.restaurant_id}/status`, { accepting_orders: next });
-      setAcceptingOrders(next);
-      toast.success(next ? "Restaurant online pentru comenzi" : "Restaurant pus pe pauză");
+      const response = await axios.patch(`${API_URL}/api/restaurants/${restaurantId}/status`, {
+        accepting_orders: accepting,
+        pause_minutes: pauseMinutes,
+        closed_today: closedToday,
+      });
+      setAcceptingOrders(accepting);
+      setRestaurantPauseUntil(response.data.pause_until || null);
+      toast.success(accepting ? "Restaurant online pentru comenzi" : closedToday ? "Restaurant închis pentru azi" : `Restaurant pus pe pauză ${pauseMinutes} min`);
     } catch (error) {
       toast.error(error.response?.data?.detail || "Nu am putut schimba statusul restaurantului");
     }
   };
 
+  const toggleRestaurantStatus = async () => {
+    await setRestaurantStatus({ accepting: !acceptingOrders, pauseMinutes: !acceptingOrders ? null : 30 });
+  };
+
   // Play sound only once when NEW orders appear for the first time
-  const [seenOrderIds, setSeenOrderIds] = useState(new Set());
+  const seenOrderIdsRef = useRef(new Set());
   
   useEffect(() => {
     const newOrders = orders.filter(o => o.status === 'NEW');
-    const unseenNewOrders = newOrders.filter(o => !seenOrderIds.has(o.id));
+    const unseenNewOrders = newOrders.filter(o => !seenOrderIdsRef.current.has(o.id));
     
     if (unseenNewOrders.length > 0) {
-      // Mark as seen
-      setSeenOrderIds(prev => {
-        const updated = new Set(prev);
-        unseenNewOrders.forEach(o => updated.add(o.id));
-        return updated;
-      });
+      unseenNewOrders.forEach(o => seenOrderIdsRef.current.add(o.id));
       
       // Flash banner
       setNewOrderFlash(true);
@@ -219,12 +292,16 @@ const RestaurantApp = () => {
         console.debug("New order notification audio unavailable", error);
       }
     }
-  }, [orders, seenOrderIds]);
+  }, [orders]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), TIMER_TICK_MS);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (activeView === "analytics") fetchAnalytics();
+  }, [activeView, fetchAnalytics]);
 
   useEffect(() => {
     orders
@@ -239,6 +316,10 @@ const RestaurantApp = () => {
   }, [lateAlertedOrders, now, orders]);
 
   const setPreparationTime = useCallback(async (orderId, minutes) => {
+    if (prepAvailability.blocked_short_options && minutes < prepAvailability.minimum_preparation_minutes) {
+      toast.error(`Nu există livratori disponibili. Alege minimum ${prepAvailability.minimum_preparation_minutes} minute.`);
+      return;
+    }
     try {
       await axios.put(`${API_URL}/api/orders/${orderId}/preparing`, {
         preparation_time: minutes
@@ -250,7 +331,38 @@ const RestaurantApp = () => {
       console.error("Failed to set preparation time", error);
       toast.error("Eroare la setare timp");
     }
-  }, [fetchOrders]);
+  }, [fetchOrders, prepAvailability.blocked_short_options, prepAvailability.minimum_preparation_minutes]);
+
+  const saveScheduleSettings = async () => {
+    try {
+      await axios.patch(`${API_URL}/api/restaurants/${restaurantId}/schedule-settings`, scheduleForm);
+      toast.success("Programul de lucru a fost salvat");
+      setScheduleDialogOpen(false);
+      fetchRestaurantStatus();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut salva programul");
+    }
+  };
+
+  const createProblemOrder = async () => {
+    if (!problemOrder || !problemForm.problem_description.trim()) {
+      toast.error("Descrie problema înainte de salvare");
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/api/orders/${problemOrder.id}/problem`, {
+        ...problemForm,
+        quantity: Number(problemForm.quantity) || 1,
+        price: Number(problemForm.price) || 0,
+      });
+      toast.success("Comandă legată creată pentru problemă");
+      setProblemOrder(null);
+      setProblemForm({ problem_type: "missing_product", item_name: "", quantity: 1, price: 0, problem_description: "" });
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut crea comanda legată");
+    }
+  };
 
   const markAsReady = useCallback(async (orderId) => {
     try {
@@ -285,10 +397,24 @@ const RestaurantApp = () => {
   }, [cancelOrder?.id, cancelReason, fetchOrders]);
 
   const activeOrders = orders.filter(o => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
+  const inWorkOrders = orders.filter(o => ['PREPARING', 'READY', 'ASSIGNED', 'ACCEPTED', 'PICKED_UP'].includes(o.status));
+  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+  const visibleOrders = useMemo(() => {
+    if (activeView === "work") return inWorkOrders;
+    if (activeView === "delivered") return deliveredOrders;
+    return activeOrders;
+  }, [activeOrders, activeView, deliveredOrders, inWorkOrders]);
+  const historyOrders = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    const base = orders.filter(o => ['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
+    if (!term) return base;
+    return base.filter((order) => `${order.order_number || ""} ${order.customer_name || ""} ${order.customer_phone || ""} ${order.customer_address || ""} ${order.items?.map((item) => item.name).join(" ") || ""}`.toLowerCase().includes(term));
+  }, [historySearch, orders]);
   const completedToday = orders.filter(o => o.status === 'DELIVERED').length;
   const newCount = orders.filter(o => o.status === 'NEW').length;
   const preparingCount = orders.filter(o => o.status === 'PREPARING').length;
   const readyCount = orders.filter(o => o.status === 'READY').length;
+  const pauseSeconds = getPauseSeconds({ pause_until: restaurantPauseUntil }, now);
 
   if (isLoading) {
     return (
@@ -314,6 +440,11 @@ const RestaurantApp = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!acceptingOrders && pauseSeconds > 0 && (
+              <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-200" data-testid="restaurant-pause-countdown">
+                Pauză {formatSeconds(pauseSeconds)}
+              </Badge>
+            )}
             <button
               type="button"
               onClick={toggleRestaurantStatus}
@@ -361,21 +492,79 @@ const RestaurantApp = () => {
           </div>
         </section>
 
+        <section className="grid gap-3 lg:grid-cols-[1.2fr_1fr]" data-testid="restaurant-operations-panel">
+          <Card className="border-zinc-800 bg-zinc-900 text-zinc-50">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><TimerReset className="h-5 w-5 text-orange-400" /> Pauză restaurant</CardTitle></CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500" onClick={() => setRestaurantStatus({ accepting: true })} data-testid="restaurant-resume-orders-button">Online</Button>
+              {PAUSE_OPTIONS.map((minutes) => (
+                <Button key={minutes} size="sm" variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950" onClick={() => setRestaurantStatus({ accepting: false, pauseMinutes: minutes })} data-testid={`restaurant-pause-${minutes}-button`}>{minutes} min</Button>
+              ))}
+              <Button size="sm" variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20" onClick={() => setRestaurantStatus({ accepting: false, closedToday: true })} data-testid="restaurant-close-today-button">Închide azi</Button>
+            </CardContent>
+          </Card>
+          <Card className="border-zinc-800 bg-zinc-900 text-zinc-50">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-5 w-5 text-orange-400" /> Program lucru</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-between gap-3">
+              <p className="text-sm text-zinc-400">Setează zilele și orele în care restaurantul apare disponibil.</p>
+              <Button className="bg-orange-500 font-black text-zinc-950 hover:bg-orange-400" onClick={() => setScheduleDialogOpen(true)} data-testid="restaurant-open-schedule-settings-button">Editează</Button>
+            </CardContent>
+          </Card>
+        </section>
+
         <div className="grid grid-cols-3 gap-3">
           <RestaurantStatTile label="Noi" value={newCount} tone="amber" testId="restaurant-stat-new" />
           <RestaurantStatTile label="În lucru" value={preparingCount} tone="indigo" testId="restaurant-stat-preparing" />
           <RestaurantStatTile label="Livrate" value={completedToday} tone="emerald" testId="restaurant-stat-delivered" />
         </div>
 
-        {activeOrders.length === 0 ? (
+        <section className="flex flex-wrap gap-2" data-testid="restaurant-order-filters">
+          {[
+            { key: "active", label: `Active (${activeOrders.length})` },
+            { key: "work", label: `În lucru (${inWorkOrders.length})` },
+            { key: "delivered", label: `Livrate (${deliveredOrders.length})` },
+            { key: "history", label: "Istoric" },
+            { key: "analytics", label: "Analytics" },
+          ].map((tab) => (
+            <button key={tab.key} type="button" onClick={() => setActiveView(tab.key)} className={`rounded-full border px-4 py-2 text-sm font-black transition-colors ${activeView === tab.key ? "border-orange-400 bg-orange-500 text-zinc-950" : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600"}`} data-testid={`restaurant-filter-${tab.key}-button`}>{tab.label}</button>
+          ))}
+        </section>
+
+        {prepAvailability.blocked_short_options && activeView !== "analytics" && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100" data-testid="restaurant-prep-driver-warning">
+            <AlertTriangle className="mr-2 inline h-4 w-4" /> Nu există livratori disponibili acum. Timpii sub {prepAvailability.minimum_preparation_minutes} minute sunt blocați ca să nu genereze întârzieri.
+          </div>
+        )}
+
+        {activeView === "history" && (
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4" data-testid="restaurant-history-panel">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-xl font-black"><History className="h-5 w-5 text-orange-400" /> Istoric comenzi</h2>
+              <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" /><Input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} className="border-zinc-700 bg-zinc-950 pl-9 text-zinc-100" placeholder="Caută client, telefon, adresă, produs" data-testid="restaurant-history-search-input" /></div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {historyOrders.map((order) => <article key={order.id} className="rounded-xl border border-zinc-800 bg-black/20 p-3" data-testid={`restaurant-history-order-${order.id}`}><div className="flex justify-between gap-3"><span className="font-mono text-sm font-black text-zinc-300">{order.order_number}</span>{getStatusConfig(order.status).label}</div><p className="mt-2 font-bold">{order.customer_name}</p><p className="text-sm text-zinc-400">{order.customer_phone} · {order.total_amount} RON</p><p className="mt-1 line-clamp-2 text-xs text-zinc-500">{order.customer_address}</p></article>)}
+              {historyOrders.length === 0 && <p className="text-sm text-zinc-500" data-testid="restaurant-history-empty">Nu am găsit comenzi.</p>}
+            </div>
+          </section>
+        )}
+
+        {activeView === "analytics" && (
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-50 p-4 text-zinc-950" data-testid="restaurant-self-analytics-panel">
+            <div className="mb-4 flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-xl font-black"><BarChart3 className="h-5 w-5 text-orange-600" /> Analytics restaurant</h2><Button variant="outline" onClick={fetchAnalytics} data-testid="restaurant-refresh-analytics-button">Actualizează</Button></div>
+            <RestaurantAnalyticsPanel analytics={analytics} isLoading={analyticsLoading} />
+          </section>
+        )}
+
+        {!["history", "analytics"].includes(activeView) && visibleOrders.length === 0 ? (
           <section className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/70 py-16 text-center" data-testid="restaurant-empty-state">
             <Bell className="mx-auto mb-4 h-16 w-16 text-zinc-600" />
-            <h2 className="text-2xl font-black">Nicio comandă activă</h2>
+            <h2 className="text-2xl font-black">Nicio comandă în filtrul ales</h2>
             <p className="mt-2 text-zinc-400">Vei primi alertă când apare o comandă nouă.</p>
           </section>
-        ) : (
+        ) : !["history", "analytics"].includes(activeView) && (
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="restaurant-kds-grid">
-            {activeOrders.map((order) => {
+            {visibleOrders.map((order) => {
               const timer = getPreparationTimer(order, now);
               const lane = orderLaneMeta[order.status] || orderLaneMeta.NEW;
               const LaneIcon = lane.icon;
@@ -405,6 +594,7 @@ const RestaurantApp = () => {
 
                     <div className="space-y-2 text-sm text-zinc-400">
                       <p className="flex gap-2"><User className="mt-0.5 h-4 w-4 text-zinc-500" /><span className="min-w-0 truncate">{order.customer_name}</span></p>
+                      <p className="flex gap-2"><Phone className="mt-0.5 h-4 w-4 text-zinc-500" /><span className="font-mono text-zinc-200" data-testid={`restaurant-order-phone-${order.id}`}>{order.customer_phone}</span></p>
                       <p className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" /><span className="line-clamp-2">{order.customer_address}</span></p>
                       {order.notes && <p className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-2 text-orange-200">📝 {order.notes}</p>}
                     </div>
@@ -418,7 +608,7 @@ const RestaurantApp = () => {
                         <p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">Setează timp</p>
                         <div className="grid grid-cols-3 gap-2">
                           {PREPARATION_OPTIONS_MINUTES.map((minutes) => (
-                            <Button key={minutes} variant="outline" onClick={() => setPreparationTime(order.id, minutes)} className="h-11 border-zinc-700 bg-zinc-800 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950" data-testid={`prep-${minutes}-${order.id}`}>{minutes}m</Button>
+                            <Button key={minutes} variant="outline" disabled={prepAvailability.blocked_short_options && minutes < prepAvailability.minimum_preparation_minutes} onClick={() => setPreparationTime(order.id, minutes)} className="h-11 border-zinc-700 bg-zinc-800 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950 disabled:opacity-40" data-testid={`prep-${minutes}-${order.id}`}>{minutes}m</Button>
                           ))}
                         </div>
                       </div>
@@ -438,6 +628,7 @@ const RestaurantApp = () => {
 
                     {['ASSIGNED', 'ACCEPTED'].includes(order.status) && <div className="rounded-xl border border-sky-500/40 bg-sky-500/10 p-4 text-center text-sky-200"><Truck className="mx-auto mb-1 h-8 w-8" /><p className="font-black">LIVRATORUL VINE</p><p className="text-sm opacity-80">{order.driver_name} preia comanda</p></div>}
 
+                    {['NEW', 'PREPARING', 'READY'].includes(order.status) && <Button variant="outline" className="h-11 w-full border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20" onClick={() => { setProblemOrder(order); setProblemForm({ problem_type: "missing_product", item_name: "", quantity: 1, price: 0, problem_description: "" }); }} data-testid={`problem-${order.id}`}><PlusCircle className="mr-2 h-4 w-4" /> Problemă comandă</Button>}
                     {['NEW', 'PREPARING', 'READY'].includes(order.status) && <Button variant="outline" className="h-11 w-full border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20" onClick={() => { setCancelOrder(order); setCancelReason(""); }} data-testid={`cancel-${order.id}`}><XCircle className="mr-2 h-4 w-4" /> Anulează</Button>}
                   </div>
                 </article>
@@ -477,6 +668,32 @@ const RestaurantApp = () => {
               Da, Comanda e Gata
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-2xl" data-testid="restaurant-schedule-dialog">
+          <DialogHeader><DialogTitle>Program de lucru restaurant</DialogTitle></DialogHeader>
+          <div className="max-h-[65vh] space-y-3 overflow-y-auto">
+            {RESTAURANT_DAYS.map((day) => {
+              const value = scheduleForm[day.key] || { enabled: true, open_time: "10:00", close_time: "22:00" };
+              return <div key={day.key} className="grid items-center gap-2 rounded-lg border p-3 sm:grid-cols-[110px_1fr_1fr_1fr]" data-testid={`restaurant-schedule-day-${day.key}`}><Label className="font-black">{day.label}</Label><Button type="button" variant={value.enabled ? "default" : "outline"} onClick={() => setScheduleForm((prev) => ({ ...prev, [day.key]: { ...value, enabled: !value.enabled } }))} data-testid={`restaurant-schedule-enabled-${day.key}`}>{value.enabled ? "Deschis" : "Închis"}</Button><Input type="time" value={value.open_time} onChange={(event) => setScheduleForm((prev) => ({ ...prev, [day.key]: { ...value, open_time: event.target.value } }))} data-testid={`restaurant-schedule-open-${day.key}`} /><Input type="time" value={value.close_time} onChange={(event) => setScheduleForm((prev) => ({ ...prev, [day.key]: { ...value, close_time: event.target.value } }))} data-testid={`restaurant-schedule-close-${day.key}`} /></div>;
+            })}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setScheduleDialogOpen(false)} data-testid="restaurant-schedule-cancel-button">Anulează</Button><Button onClick={saveScheduleSettings} data-testid="restaurant-schedule-save-button">Salvează program</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!problemOrder} onOpenChange={(open) => !open && setProblemOrder(null)}>
+        <DialogContent data-testid="restaurant-problem-order-dialog">
+          <DialogHeader><DialogTitle>Comandă cu problemă · {problemOrder?.order_number}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2"><Button type="button" variant={problemForm.problem_type === "missing_product" ? "default" : "outline"} onClick={() => setProblemForm((prev) => ({ ...prev, problem_type: "missing_product" }))} data-testid="problem-type-missing-button">Produs lipsă</Button><Button type="button" variant={problemForm.problem_type === "new_product" ? "default" : "outline"} onClick={() => setProblemForm((prev) => ({ ...prev, problem_type: "new_product" }))} data-testid="problem-type-new-button">Produs nou</Button></div>
+            <div><Label>Produs</Label><Input value={problemForm.item_name} onChange={(event) => setProblemForm((prev) => ({ ...prev, item_name: event.target.value }))} placeholder="Ex: Sos usturoi / Pizza extra" data-testid="problem-item-name-input" /></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Cantitate</Label><Input type="number" min="1" value={problemForm.quantity} onChange={(event) => setProblemForm((prev) => ({ ...prev, quantity: event.target.value }))} data-testid="problem-quantity-input" /></div><div><Label>Preț</Label><Input type="number" min="0" value={problemForm.price} onChange={(event) => setProblemForm((prev) => ({ ...prev, price: event.target.value }))} data-testid="problem-price-input" /></div></div>
+            <div><Label>Descriere problemă</Label><Textarea value={problemForm.problem_description} onChange={(event) => setProblemForm((prev) => ({ ...prev, problem_description: event.target.value }))} placeholder="Ce trebuie să știe dispeceratul/livratorul?" data-testid="problem-description-input" /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setProblemOrder(null)} data-testid="problem-cancel-button">Anulează</Button><Button onClick={createProblemOrder} data-testid="problem-submit-button">Creează comandă legată</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

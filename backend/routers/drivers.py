@@ -10,6 +10,7 @@ from models.driver import (
     DriverEmailVerification,
     DriverProfileUpdate,
     DriverSelfProfileUpdate,
+    DriverDisableUpdate,
     DriverRankingUpdate,
     DriverStatusUpdate,
 )
@@ -264,7 +265,7 @@ async def _create_and_send_verification(driver_id: str, user_id: str, email: str
 
 @router.get("")
 async def get_drivers(current_user: dict = Depends(get_current_user)):
-    drivers = await db.drivers.find({}, {"_id": 0}).to_list(100)
+    drivers = await db.drivers.find({"account_disabled": {"$ne": True}}, {"_id": 0}).to_list(100)
     enriched_drivers = []
     for driver in drivers:
         ranking = await build_driver_ranking_payload(db, driver)
@@ -275,7 +276,7 @@ async def get_drivers(current_user: dict = Depends(get_current_user)):
 
 @router.get("/rankings")
 async def get_driver_rankings(current_user: dict = Depends(get_current_user)):
-    drivers = await db.drivers.find({}, {"_id": 0}).to_list(100)
+    drivers = await db.drivers.find({"account_disabled": {"$ne": True}}, {"_id": 0}).to_list(100)
     rankings = []
     for driver in drivers:
         ranking = await build_driver_ranking_payload(db, driver)
@@ -499,6 +500,33 @@ async def upload_driver_avatar(driver_id: str, file: UploadFile = File(...), cur
     await _log_driver_audit(driver_id, current_user, "driver_avatar_uploaded", {"status": status, "avatar_id": avatar_doc["id"]})
     avatar_doc.pop("file_path", None)
     return {"message": "Poza a fost încărcată" if is_admin_upload else "Poza a fost trimisă la aprobare", "avatar": avatar_doc}
+
+
+@router.patch("/{driver_id}/disable")
+async def disable_driver_account(driver_id: str, data: DriverDisableUpdate | None = Body(default=None), current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    driver = await db.drivers.find_one({"id": driver_id}, {"_id": 0})
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    active_orders = await db.orders.count_documents({"driver_id": driver_id, "status": {"$nin": ["DELIVERED", "CANCELLED"]}})
+    if active_orders > 0:
+        raise HTTPException(status_code=409, detail="Livratorul are comenzi active. Reasignează sau finalizează comenzile înainte de dezactivare.")
+    now = datetime.now(timezone.utc).isoformat()
+    update = {
+        "account_disabled": True,
+        "account_disabled_at": now,
+        "account_disabled_by": current_user.get("user_id"),
+        "account_disabled_reason": (data.reason if data else None) or "Dezactivat manual de admin",
+        "driver_status": "offline",
+        "is_active": False,
+        "break_started_at": None,
+        "break_until": None,
+    }
+    await db.drivers.update_one({"id": driver_id}, {"$set": update})
+    await db.users.update_one({"id": driver.get("user_id")}, {"$set": update})
+    await _log_driver_audit(driver_id, current_user, "driver_account_disabled", update)
+    return {"message": "Cont livrator dezactivat", "driver_id": driver_id}
 
 
 @router.patch("/{driver_id}/avatars/{avatar_id}")

@@ -177,23 +177,19 @@
 .delivery-map-marker {
   position: relative;
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   place-items: center;
-  border: 2px solid rgb(255 255 255 / 0.98);
-  border-radius: 18px 18px 18px 5px;
-  box-shadow:
-    0 22px 34px -20px rgb(15 23 42 / 0.95),
-    inset 0 8px 14px rgb(255 255 255 / 0.34),
-    inset 0 -12px 18px rgb(15 23 42 / 0.26),
-    0 0 0 1px rgb(15 23 42 / 0.14);
-  transform: rotate(-45deg);
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  transform: none;
 }
 
 .delivery-map-marker-restaurant {
-  width: 34px;
-  height: 34px;
-  border-radius: 13px 13px 13px 4px;
+  width: 24px;
+  height: 24px;
 }
 
 .delivery-map-marker-restaurant::before {
@@ -211,7 +207,7 @@
 }
 
 .delivery-map-marker::before {
-  content: "";
+  content: none;
   position: absolute;
   left: 9px;
   top: 7px;
@@ -223,7 +219,7 @@
 }
 
 .delivery-map-marker::after {
-  content: "";
+  content: none;
   position: absolute;
   right: -5px;
   bottom: -5px;
@@ -240,39 +236,39 @@
   z-index: 1;
   display: block;
   line-height: 1;
-  transform: rotate(45deg);
-  filter: drop-shadow(0 1px 1px rgb(15 23 42 / 0.22));
+  transform: none;
+  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 0.45));
 }
 
 .delivery-map-marker-icon svg {
-  width: 29px;
-  height: 29px;
+  width: 34px;
+  height: 34px;
   display: block;
 }
 
 .delivery-map-marker-restaurant .delivery-map-marker-icon svg {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
 }
 
 .delivery-map-marker-driver-active {
-  background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
+  color: rgb(16 185 129);
 }
 
 .delivery-map-marker-driver-delivery {
-  background: linear-gradient(135deg, rgb(37 99 235), rgb(29 78 216));
+  color: rgb(37 99 235);
 }
 
 .delivery-map-marker-driver-break {
-  background: linear-gradient(135deg, rgb(245 158 11), rgb(217 119 6));
+  color: rgb(245 158 11);
 }
 
 .delivery-map-marker-driver-offline {
-  background: linear-gradient(135deg, rgb(100 116 139), rgb(51 65 85));
+  color: rgb(100 116 139);
 }
 
 .delivery-map-marker-restaurant {
-  background: linear-gradient(135deg, rgb(249 115 22), rgb(234 88 12));
+  color: rgb(249 115 22);
 }
 
 .delivery-map-legend-icon {
@@ -312,8 +308,8 @@
 
 .delivery-map-marker-status-dot {
   position: absolute;
-  right: -4px;
-  top: 5px;
+  right: -2px;
+  top: -1px;
   z-index: 2;
   width: 13px;
   height: 13px;
@@ -335,7 +331,7 @@
 }
 
 .delivery-route-line {
-  filter: drop-shadow(0 5px 8px rgb(15 23 42 / 0.28));
+  filter: drop-shadow(0 4px 5px rgb(15 23 42 / 0.55));
 }
 
 .dark .bg-white,

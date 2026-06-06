@@ -108,9 +108,9 @@ export const createMapMarkerIcon = ({ kind, status = "active", id = "marker", ve
         ${badge}
       </div>
     `,
-    iconSize: isDriver ? [48, 54] : [34, 38],
-    iconAnchor: isDriver ? [24, 48] : [17, 34],
-    popupAnchor: [0, isDriver ? -42 : -30],
+    iconSize: isDriver ? [36, 36] : [24, 24],
+    iconAnchor: isDriver ? [18, 18] : [12, 12],
+    popupAnchor: [0, isDriver ? -18 : -14],
   });
 };
 

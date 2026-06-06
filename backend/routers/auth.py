@@ -119,6 +119,9 @@ async def login(credentials: UserLogin, request: Request, response: Response):
     if not user:
         await _record_failed_login(request, login_identifier)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if user.get("account_disabled"):
+        await _record_failed_login(request, login_identifier)
+        raise HTTPException(status_code=403, detail="Cont dezactivat. Contactează administratorul.")
 
     if not verify_password(credentials.password, user["password_hash"]):
         await _record_failed_login(request, login_identifier)

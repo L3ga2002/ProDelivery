@@ -1,17 +1,19 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import uuid
 from shapely.geometry import Point, Polygon
 from database import db
 from auth import hash_password, get_current_user
-from models.restaurant import RestaurantCreate, RestaurantAvailabilityRequest
+from models.restaurant import RestaurantCreate, RestaurantAvailabilityRequest, RestaurantScheduleSettingsUpdate
 
 router = APIRouter(prefix="/restaurants", tags=["restaurants"])
 
 
 class RestaurantStatusUpdate(BaseModel):
     accepting_orders: bool
+    pause_minutes: int | None = None
+    closed_today: bool | None = None
 
 
 @router.get("")
@@ -165,6 +167,9 @@ async def create_restaurant(data: RestaurantCreate, current_user: dict = Depends
         "longitude": data.longitude,
         "location_source": data.location_source,
         "accepting_orders": True,
+        "pause_until": None,
+        "closed_today": False,
+        "schedule_settings": _default_schedule_settings(),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -229,19 +234,56 @@ async def update_restaurant_status(restaurant_id: str, data: RestaurantStatusUpd
     restaurant = await db.restaurants.find_one({"id": restaurant_id}, {"_id": 0})
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    now = datetime.now(timezone.utc)
     update = {
         "accepting_orders": data.accepting_orders,
-        "status_updated_at": datetime.now(timezone.utc).isoformat(),
+        "status_updated_at": now.isoformat(),
         "status_updated_by": current_user.get("user_id"),
+        "pause_until": None,
+        "closed_today": False,
     }
+    if not data.accepting_orders and data.closed_today:
+        tomorrow = now + timedelta(days=1)
+        update["closed_today"] = True
+        update["pause_until"] = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    elif not data.accepting_orders and data.pause_minutes:
+        minutes = max(1, min(int(data.pause_minutes), 720))
+        update["pause_until"] = (now + timedelta(minutes=minutes)).isoformat()
     await db.restaurants.update_one({"id": restaurant_id}, {"$set": update})
     return {"message": "Status restaurant actualizat", **update}
 
 
+def _default_schedule_settings() -> dict:
+    return {
+        day: {"enabled": True, "open_time": "10:00", "close_time": "22:00"}
+        for day in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    }
+
+
+@router.patch("/{restaurant_id}/schedule-settings")
+async def update_restaurant_schedule_settings(restaurant_id: str, data: RestaurantScheduleSettingsUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] == "restaurant" and current_user.get("restaurant_id") != restaurant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if current_user["role"] not in ["restaurant", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    restaurant = await db.restaurants.find_one({"id": restaurant_id}, {"_id": 0})
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    schedule = _default_schedule_settings()
+    incoming = data.model_dump(exclude_none=True)
+    for day, value in incoming.items():
+        schedule[day] = value
+    update = {"schedule_settings": schedule, "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.restaurants.update_one({"id": restaurant_id}, {"$set": update})
+    return {"message": "Program restaurant actualizat", **update}
+
+
 @router.get("/{restaurant_id}/analytics")
 async def get_restaurant_analytics(restaurant_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin only")
+    if current_user["role"] == "restaurant" and current_user.get("restaurant_id") != restaurant_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if current_user["role"] not in ["admin", "restaurant"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     restaurant = await db.restaurants.find_one({"id": restaurant_id}, {"_id": 0})
     if not restaurant:

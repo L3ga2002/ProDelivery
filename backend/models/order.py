@@ -36,6 +36,9 @@ class Order(BaseModel):
     delivery_zone_name: Optional[str] = None
     delivery_sector: Optional[str] = None
     delivery_zone_level: Optional[int] = None
+    linked_problem_order_id: Optional[str] = None
+    problem_type: Optional[str] = None
+    problem_description: Optional[str] = None
     preparation_time: Optional[int] = None
     preparation_started_at: Optional[str] = None
     preparation_due_at: Optional[str] = None
@@ -65,6 +68,9 @@ class OrderCreate(BaseModel):
     payment_type: str = "CASH"
     notes: Optional[str] = None
     source: str = "S"
+    linked_problem_order_id: Optional[str] = None
+    problem_type: Optional[str] = None
+    problem_description: Optional[str] = None
 
 
 class AssignOrder(BaseModel):
@@ -78,3 +84,11 @@ class UpdateOrderStatus(BaseModel):
 
 class PreparationTime(BaseModel):
     preparation_time: int
+
+
+class ProblemOrderCreate(BaseModel):
+    problem_type: str
+    problem_description: str
+    item_name: Optional[str] = None
+    quantity: int = 1
+    price: float = 0

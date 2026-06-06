@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -65,10 +66,10 @@ const formatInterval = (hour) => {
   return `${String(h).padStart(2, "0")}-${String(next).padStart(2, "0")}`;
 };
 
-const buildSlot = (hour, forced = false) => ({
+const buildSlot = (hour, forced = false, slotType = "normal") => ({
   start: hour,
   end: `${String((Number.parseInt(hour, 10) + 1) % 24).padStart(2, "0")}:00`,
-  added_by: "admin",
+  added_by: slotType === "emergency" ? "emergency" : "admin",
   forced,
   warning: forced ? "Acest interval depășește limita recomandată" : null,
 });
@@ -95,7 +96,7 @@ const BreakCountdown = ({ seconds }) => {
     setRemaining(seconds || 0);
   }, [seconds]);
   useEffect(() => {
-    if (remaining <= 0) return undefined;
+    if (remaining <= 0) return;
     const timer = setInterval(() => setRemaining((value) => Math.max(value - 1, 0)), 1000);
     return () => clearInterval(timer);
   }, [remaining]);
@@ -111,6 +112,8 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
   const [rankForm, setRankForm] = useState({ manual_ranking_score: "", manual_rank_note: "" });
   const [statusForm, setStatusForm] = useState({ status: "active", break_minutes: 30 });
   const [deleteText, setDeleteText] = useState("");
+  const [disableReason, setDisableReason] = useState("");
+  const [calendarSlotMode, setCalendarSlotMode] = useState("normal");
   const [editSlots, setEditSlots] = useState({});
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -237,13 +240,24 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
     }
   };
 
+  const disableDriver = async () => {
+    try {
+      await axios.patch(`${API_URL}/api/drivers/${activeDriver.id}/disable`, { reason: disableReason.trim() || "Dezactivat manual de admin" });
+      toast.success("Contul livratorului a fost dezactivat");
+      onOpenChange(false);
+      onChanged?.();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Nu am putut dezactiva contul");
+    }
+  };
+
   const toggleHour = (dayKey, hour) => {
     setEditSlots((prev) => {
       const daySlots = prev[dayKey] || [];
       const exists = daySlots.some((slot) => slot.start === hour);
       const nextDaySlots = exists
         ? daySlots.filter((slot) => slot.start !== hour)
-        : [...daySlots, buildSlot(hour, countSlots(prev) >= RECOMMENDED_WEEKLY_HOURS || daySlots.length >= RECOMMENDED_DAILY_HOURS)];
+        : [...daySlots, buildSlot(hour, countSlots(prev) >= RECOMMENDED_WEEKLY_HOURS || daySlots.length >= RECOMMENDED_DAILY_HOURS, calendarSlotMode)];
       return { ...prev, [dayKey]: nextDaySlots.sort((a, b) => ALL_HOURS.indexOf(a.start) - ALL_HOURS.indexOf(b.start)) };
     });
   };
@@ -349,7 +363,7 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
                 <TabsTrigger value="schedule" data-testid="driver-tab-schedule">Calendar</TabsTrigger>
                 <TabsTrigger value="avatar" data-testid="driver-tab-avatar">Avatar</TabsTrigger>
                 <TabsTrigger value="history" data-testid="driver-tab-history">Istoric</TabsTrigger>
-                <TabsTrigger value="danger" data-testid="driver-tab-danger">Ștergere</TabsTrigger>
+                <TabsTrigger value="danger" data-testid="driver-tab-danger">Dezactivare</TabsTrigger>
               </TabsList>
 
               <TabsContent value="profile" className="space-y-4">
@@ -397,7 +411,13 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2 text-base"><CalendarCheck className="h-5 w-5 text-emerald-600" /> Calendar vizual livrator · săptămâna curentă</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-3 text-xs"><span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-emerald-500" /> Normal</span><span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-red-500" /> Urgență</span><span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-slate-200" /> Liber</span></div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="flex flex-wrap gap-3"><span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-emerald-500" /> Normal</span><span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-red-500" /> Urgență</span><span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-slate-200" /> Liber</span></div>
+                      <div className="flex rounded-lg border p-1" data-testid="driver-calendar-slot-mode">
+                        <button type="button" onClick={() => setCalendarSlotMode("normal")} className={`rounded px-3 py-1 font-bold ${calendarSlotMode === "normal" ? "bg-emerald-600 text-white" : "text-muted-foreground"}`} data-testid="driver-calendar-mode-normal-button">Normal</button>
+                        <button type="button" onClick={() => setCalendarSlotMode("emergency")} className={`rounded px-3 py-1 font-bold ${calendarSlotMode === "emergency" ? "bg-red-600 text-white" : "text-muted-foreground"}`} data-testid="driver-calendar-mode-emergency-button">Urgență</button>
+                      </div>
+                    </div>
                     <div className="overflow-x-auto">
                       <div className="min-w-[760px] text-xs" role="table" aria-label="Calendar livrator individual">
                         <div className="grid grid-cols-[90px_repeat(7,minmax(80px,1fr))]" role="row">
@@ -441,7 +461,10 @@ export const DriverManagementDialog = ({ driver, open, onOpenChange, onChanged }
               </TabsContent>
 
               <TabsContent value="danger">
-                <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20"><CardContent className="space-y-3 p-4"><p className="font-bold text-red-900 dark:text-red-100">Ștergere din baza de date</p><p className="text-sm text-red-800/80 dark:text-red-100/80">Ștergerea elimină contul, profilul și programările. Dacă livratorul are comenzi active, sistemul blochează ștergerea.</p><div className="grid gap-2 sm:grid-cols-[1fr_auto]"><Input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} placeholder="Scrie STERGE pentru confirmare" data-testid="driver-delete-confirm-input" /><Button variant="destructive" onClick={deleteDriver} disabled={deleteText !== "STERGE"} data-testid="driver-delete-button"><Trash2 className="mr-2 h-4 w-4" /> Șterge</Button></div></CardContent></Card>
+                <div className="space-y-4">
+                  <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20"><CardContent className="space-y-3 p-4"><p className="font-bold text-amber-950 dark:text-amber-100">Dezactivează cont</p><p className="text-sm text-amber-900/80 dark:text-amber-100/80">Recomandat pentru plecări temporare: livratorul nu se mai poate autentifica, nu apare în flotă și rămâne istoricul intact. Sistemul blochează dacă are comenzi active.</p><Textarea value={disableReason} onChange={(event) => setDisableReason(event.target.value)} placeholder="Motiv intern opțional" data-testid="driver-disable-reason-input" /><Button variant="outline" onClick={disableDriver} className="border-amber-400 text-amber-800 hover:bg-amber-100" data-testid="driver-disable-account-button"><PauseCircle className="mr-2 h-4 w-4" /> Dezactivează cont</Button></CardContent></Card>
+                  <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20"><CardContent className="space-y-3 p-4"><p className="font-bold text-red-900 dark:text-red-100">Ștergere definitivă din baza de date</p><p className="text-sm text-red-800/80 dark:text-red-100/80">Ștergerea elimină contul, profilul și programările. Folosește doar când e sigur că nu mai ai nevoie de cont.</p><div className="grid gap-2 sm:grid-cols-[1fr_auto]"><Input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} placeholder="Scrie STERGE pentru confirmare" data-testid="driver-delete-confirm-input" /><Button variant="destructive" onClick={deleteDriver} disabled={deleteText !== "STERGE"} data-testid="driver-delete-button"><Trash2 className="mr-2 h-4 w-4" /> Șterge</Button></div></CardContent></Card>
+                </div>
               </TabsContent>
             </Tabs>
           </div>

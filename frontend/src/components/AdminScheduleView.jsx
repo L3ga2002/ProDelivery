@@ -585,7 +585,7 @@ export const AdminScheduleView = () => {
                             data-testid={`schedule-calendar-cell-${day.key}-${hour}`}
                           >
                             <span className="block leading-tight">
-                              {hasStandard ? `Standard ${metrics.standardTotal}` : hasEmergency ? "Urgență" : "Liber"}
+                              {hasStandard && hasEmergency ? "Standard + Urgență" : hasStandard ? `Standard ${metrics.standardTotal}` : hasEmergency ? "Urgență" : "Liber"}
                             </span>
                             {hasStandard && (
                               <span className="mt-0.5 block text-[10px] font-medium opacity-85" data-testid={`schedule-standard-count-${day.key}-${hour}`}>

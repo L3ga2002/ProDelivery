@@ -82,3 +82,7 @@ class DriverStatusUpdate(BaseModel):
 class DriverAvatarModeration(BaseModel):
     action: Literal["approve", "reject"]
     note: Optional[str] = None
+
+
+class DriverDisableUpdate(BaseModel):
+    reason: Optional[str] = None
