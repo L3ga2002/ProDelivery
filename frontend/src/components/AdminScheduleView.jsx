@@ -150,16 +150,21 @@ export const AdminScheduleView = () => {
     setEditDriver(driver);
   };
 
-  const toggleHour = (dayKey, hour) => {
+  const buildAdminSlot = (hour, addedBy = "admin") => {
+    const endH = (parseInt(hour, 10) + 1) % 24;
+    return { start: hour, end: `${String(endH).padStart(2, "0")}:00`, added_by: addedBy };
+  };
+
+  const toggleHour = (dayKey, hour, type = "standard") => {
     setEditSlots((prev) => {
       const daySlots = prev[dayKey] || [];
-      const exists = daySlots.find((s) => s.start === hour);
+      const isEmergencyToggle = type === "emergency";
+      const exists = daySlots.find((s) => s.start === hour && (isEmergencyToggle ? s.added_by === "emergency" : s.added_by !== "emergency"));
       let newDaySlots;
       if (exists) {
-        newDaySlots = daySlots.filter((s) => s.start !== hour);
+        newDaySlots = daySlots.filter((s) => !(s.start === hour && (isEmergencyToggle ? s.added_by === "emergency" : s.added_by !== "emergency")));
       } else {
-        const endH = (parseInt(hour) + 1) % 24;
-        newDaySlots = [...daySlots, { start: hour, end: `${String(endH).padStart(2, "0")}:00`, added_by: "admin" }];
+        newDaySlots = [...daySlots, buildAdminSlot(hour, isEmergencyToggle ? "emergency" : "admin")];
       }
       return { ...prev, [dayKey]: newDaySlots };
     });
@@ -168,6 +173,7 @@ export const AdminScheduleView = () => {
   const isSelected = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour);
   const isAdminSlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by === "admin");
   const isDriverSlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by !== "admin");
+  const isEmergencySlot = (dayKey, hour) => (editSlots[dayKey] || []).some((s) => s.start === hour && s.added_by === "emergency");
 
   const quickAdjustDriverDay = (dayKey, amount) => {
     setEditSlots((prev) => {
@@ -445,8 +451,9 @@ export const AdminScheduleView = () => {
   }, { standard: 0, emergencyTotal: 0, emergencyRemaining: 0 });
 
   const editTotalHours = Object.values(editSlots).reduce((s, ds) => s + ds.length, 0);
-  const editDriverHours = Object.values(editSlots).reduce((s, ds) => s + ds.filter((sl) => sl.added_by !== "admin").length, 0);
-  const editAdminHours = editTotalHours - editDriverHours;
+  const editEmergencyHours = Object.values(editSlots).reduce((s, ds) => s + ds.filter((sl) => sl.added_by === "emergency").length, 0);
+  const editDriverHours = Object.values(editSlots).reduce((s, ds) => s + ds.filter((sl) => sl.added_by !== "admin" && sl.added_by !== "emergency").length, 0);
+  const editAdminHours = Object.values(editSlots).reduce((s, ds) => s + ds.filter((sl) => sl.added_by === "admin").length, 0);
 
   return (
     <div className="space-y-6" data-testid="admin-schedule-view">
@@ -1178,14 +1185,15 @@ export const AdminScheduleView = () => {
               Program simplu · {editDriver?.driver_name}
             </DialogTitle>
             <DialogDescription>
-              Verde = are program. Gri = liber. Click pe ore pentru adăugare/scoatere rapidă.
+              Fiecare oră este împărțită în Standard și Urgență. Click pe jumătatea dorită pentru activare/dezactivare.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-4">
+          <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-5">
             <div data-testid="driver-simple-total-hours"><span className="text-muted-foreground">Total</span><br /><strong>{editTotalHours}h</strong></div>
             <div><span className="text-muted-foreground">Din aplicație</span><br /><strong className="text-orange-600">{editDriverHours}h</strong></div>
             <div><span className="text-muted-foreground">Adăugat admin</span><br /><strong className="text-emerald-600">{editAdminHours}h</strong></div>
+            <div><span className="text-muted-foreground">Urgențe</span><br /><strong className="text-red-600">{editEmergencyHours}h</strong></div>
             <div className="flex items-center gap-2"><Moon className="h-4 w-4 text-indigo-500" /><span>Tura de noapte marcată discret</span></div>
           </div>
 
@@ -1195,20 +1203,11 @@ export const AdminScheduleView = () => {
                 <tr>
                   <th className="text-left p-2 w-20"><Clock className="w-3 h-3 inline mr-1" />Ora</th>
                   {DAYS.map((d) => (
-                    <th key={d.key} className="p-2 text-center min-w-[88px] font-semibold">
+                    <th key={d.key} className="p-2 text-center min-w-[104px] font-semibold">
                       <div>{d.label.substring(0, 3)}</div>
-                      <div className="mt-1 grid grid-cols-3 gap-1">
-                        {[-3, -2, -1, 1, 2, 3].map((amount) => (
-                          <button
-                            key={amount}
-                            type="button"
-                            onClick={() => quickAdjustDriverDay(d.key, amount)}
-                            className={`rounded px-1 py-0.5 text-[10px] ${amount > 0 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
-                            data-testid={`driver-simple-quick-${d.key}-${amount}`}
-                          >
-                            {amount > 0 ? `+${amount}` : amount}
-                          </button>
-                        ))}
+                      <div className="mt-1 grid grid-cols-2 overflow-hidden rounded border text-[10px] font-bold" data-testid={`driver-simple-day-header-${d.key}`}>
+                        <span className="bg-emerald-50 px-1 py-0.5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-100">Std</span>
+                        <span className="bg-red-50 px-1 py-0.5 text-red-700 dark:bg-red-950/30 dark:text-red-100">Urg</span>
                       </div>
                     </th>
                   ))}
@@ -1224,33 +1223,35 @@ export const AdminScheduleView = () => {
                         {formatInterval(hour)}
                       </td>
                       {DAYS.map((d) => {
-                        const sel = isSelected(d.key, hour);
-                        const byDriver = isDriverSlot(d.key, hour);
-                        const isEmergency = (editSlots[d.key] || []).some((s) => s.start === hour && s.added_by === "emergency");
-
-                        let cellClass = "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300";
-                        let label = "Liber";
-                        if (isEmergency) {
-                          cellClass = "border-red-300 bg-red-500 text-white hover:bg-red-400";
-                          label = "Urg";
-                        } else if (sel && byDriver) {
-                          cellClass = "border-orange-300 bg-orange-500 text-white hover:bg-orange-400";
-                          label = "Liv";
-                        } else if (sel) {
-                          cellClass = "border-emerald-300 bg-emerald-500 text-white hover:bg-emerald-400";
-                          label = "Admin";
-                        }
+                        const standardSlot = (editSlots[d.key] || []).find((s) => s.start === hour && s.added_by !== "emergency");
+                        const emergencySlot = (editSlots[d.key] || []).find((s) => s.start === hour && s.added_by === "emergency");
+                        const standardLabel = standardSlot ? (standardSlot.added_by === "admin" ? "Admin" : "Liv") : "Liber";
+                        const emergencyLabel = emergencySlot ? "Urg" : "Liber";
 
                         return (
                           <td key={d.key} className="p-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => toggleHour(d.key, hour)}
-                              className={`h-10 w-full rounded border text-[11px] font-bold transition-colors ${cellClass}`}
-                              data-testid={`driver-simple-cell-${d.key}-${hour}`}
-                            >
-                              {label}
-                            </button>
+                            <div className="grid h-[58px] w-full overflow-hidden rounded border border-slate-200 bg-white text-[10px] font-black shadow-sm dark:border-slate-800 dark:bg-slate-950" data-testid={`driver-simple-split-cell-${d.key}-${hour}`}>
+                              <button
+                                type="button"
+                                onClick={() => toggleHour(d.key, hour, "standard")}
+                                className={`min-h-[29px] border-b px-1 transition-colors ${standardSlot ? (standardSlot.added_by === "admin" ? "border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-500" : "border-orange-400 bg-orange-500 text-white hover:bg-orange-400") : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-emerald-950/30"}`}
+                                data-testid={`driver-simple-standard-cell-${d.key}-${hour}`}
+                                title="Standard: click pentru adăugare/scoatere"
+                              >
+                                <span className="block leading-tight">Std</span>
+                                <span className="block leading-tight opacity-90">{standardLabel}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleHour(d.key, hour, "emergency")}
+                                className={`min-h-[29px] px-1 transition-colors ${emergencySlot ? "bg-red-600 text-white hover:bg-red-500" : "bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-red-950/30"}`}
+                                data-testid={`driver-simple-emergency-cell-${d.key}-${hour}`}
+                                title="Urgență: click pentru adăugare/scoatere"
+                              >
+                                <span className="block leading-tight">Urg</span>
+                                <span className="block leading-tight opacity-90">{emergencyLabel}</span>
+                              </button>
+                            </div>
                           </td>
                         );
                       })}
