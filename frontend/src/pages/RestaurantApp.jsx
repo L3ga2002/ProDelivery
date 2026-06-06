@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -112,8 +111,8 @@ const playLatePreparationAlert = () => {
       osc.stop(startedAt + offset + 0.38);
     });
     if (navigator.vibrate) navigator.vibrate([250, 80, 250, 80, 350]);
-  } catch (error) {
-    console.debug("Preparation alert audio unavailable", error);
+  } catch {
+    // Browser audio can be unavailable until user interaction.
   }
 };
 
@@ -191,8 +190,8 @@ const RestaurantApp = () => {
       setRestaurantPauseUntil(response.data.pause_until || null);
       setAcceptingOrders(response.data.accepting_orders !== false);
       setScheduleForm({ ...defaultScheduleSettings(), ...(response.data.schedule_settings || {}) });
-    } catch (error) {
-      console.error("Failed to fetch restaurant status", error);
+    } catch {
+      toast.error("Nu am putut încărca statusul restaurantului");
     }
   }, [restaurantId]);
 
@@ -201,8 +200,8 @@ const RestaurantApp = () => {
     try {
       const response = await axios.get(`${API_URL}/api/orders/restaurant/${restaurantId}/prep-availability`);
       setPrepAvailability(response.data);
-    } catch (error) {
-      console.error("Failed to fetch prep availability", error);
+    } catch {
+      // Availability warning is non-blocking for the restaurant screen.
     }
   }, [restaurantId]);
 
@@ -212,8 +211,8 @@ const RestaurantApp = () => {
     try {
       const response = await axios.get(`${API_URL}/api/restaurants/${restaurantId}/analytics`);
       setAnalytics(response.data);
-    } catch (error) {
-      console.error("Failed to fetch restaurant analytics", error);
+    } catch {
+      toast.error("Nu am putut încărca analytics-ul restaurantului");
     } finally {
       setAnalyticsLoading(false);
     }
@@ -224,8 +223,7 @@ const RestaurantApp = () => {
     try {
       const response = await axios.get(`${API_URL}/api/orders/restaurant/${restaurantId}`);
       setOrders(response.data);
-    } catch (error) {
-      console.error("Failed to fetch restaurant orders", error);
+    } catch {
       toast.error("Nu am putut încărca comenzile restaurantului");
     } finally {
       setIsLoading(false);
@@ -242,7 +240,7 @@ const RestaurantApp = () => {
     } else {
       setIsLoading(false);
     }
-  }, [fetchAnalytics, fetchOrders, fetchPrepAvailability, fetchRestaurantStatus, restaurantId]);
+  }, [fetchOrders, fetchPrepAvailability, fetchRestaurantStatus, restaurantId]);
 
   const setRestaurantStatus = async ({ accepting, pauseMinutes = null, closedToday = false }) => {
     if (!restaurantId) return;
@@ -297,8 +295,8 @@ const RestaurantApp = () => {
         playBeep(1200, 0.4, 0.25);
         // Vibrate
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-      } catch (error) {
-        console.debug("New order notification audio unavailable", error);
+      } catch {
+        // Audio/vibration may be blocked by browser permissions.
       }
     }
   }, [orders]);
@@ -336,8 +334,7 @@ const RestaurantApp = () => {
       toast.success(`Timp pregătire setat: ${minutes} minute`);
       setPreparingOrder(null);
       fetchOrders();
-    } catch (error) {
-      console.error("Failed to set preparation time", error);
+    } catch {
       toast.error("Eroare la setare timp");
     }
   }, [fetchOrders, prepAvailability.blocked_short_options, prepAvailability.minimum_preparation_minutes]);
@@ -379,8 +376,7 @@ const RestaurantApp = () => {
       toast.success("Comanda este GATA pentru ridicare!");
       setConfirmReadyOrder(null);
       fetchOrders();
-    } catch (error) {
-      console.error("Failed to mark order ready", error);
+    } catch {
       toast.error("Eroare la marcare gata");
     }
   }, [fetchOrders]);
@@ -399,17 +395,16 @@ const RestaurantApp = () => {
       setCancelOrder(null);
       setCancelReason("");
       fetchOrders();
-    } catch (error) {
-      console.error("Failed to cancel restaurant order", error);
+    } catch {
       toast.error("Eroare la anulare");
     }
   }, [cancelOrder?.id, cancelReason, fetchOrders]);
 
-  const activeOrders = orders.filter(o => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(o.status));
-  const inWorkOrders = orders.filter(o => ['PREPARING', 'READY', 'ASSIGNED', 'ACCEPTED', 'PICKED_UP'].includes(o.status));
-  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
+  const activeOrders = useMemo(() => orders.filter((order) => !['DELIVERED', 'PICKED_UP', 'CANCELLED'].includes(order.status)), [orders]);
+  const inWorkOrders = useMemo(() => orders.filter((order) => ['PREPARING', 'READY', 'ASSIGNED', 'ACCEPTED', 'PICKED_UP'].includes(order.status)), [orders]);
+  const deliveredOrders = useMemo(() => orders.filter((order) => order.status === 'DELIVERED'), [orders]);
   const visibleOrders = useMemo(() => {
-    if (activeView === "new") return orders.filter(o => o.status === "NEW");
+    if (activeView === "new") return orders.filter((order) => order.status === "NEW");
     if (activeView === "work") return inWorkOrders;
     if (activeView === "delivered") return deliveredOrders;
     return activeOrders;
@@ -420,10 +415,10 @@ const RestaurantApp = () => {
     if (!term) return base;
     return base.filter((order) => `${order.order_number || ""} ${order.customer_name || ""} ${order.customer_phone || ""} ${order.customer_address || ""} ${order.items?.map((item) => item.name).join(" ") || ""}`.toLowerCase().includes(term));
   }, [historySearch, orders]);
-  const completedToday = orders.filter(o => o.status === 'DELIVERED').length;
-  const newCount = orders.filter(o => o.status === 'NEW').length;
-  const preparingCount = orders.filter(o => o.status === 'PREPARING').length;
-  const readyCount = orders.filter(o => o.status === 'READY').length;
+  const completedToday = deliveredOrders.length;
+  const newCount = useMemo(() => orders.filter((order) => order.status === 'NEW').length, [orders]);
+  const preparingCount = useMemo(() => orders.filter((order) => order.status === 'PREPARING').length, [orders]);
+  const readyCount = useMemo(() => orders.filter((order) => order.status === 'READY').length, [orders]);
   const pauseSeconds = getPauseSeconds({ pause_until: restaurantPauseUntil }, now);
 
   const openMoreView = (view) => {

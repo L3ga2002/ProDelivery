@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -105,7 +104,7 @@ export const DriverSchedule = ({ driverId }) => {
       setSlots({});
       setTotalHours(0);
     }
-  }, [driverId, weekStart, setEmergencySlots, setScheduleWindowInfo, setSlots, setTotalHours, setWindowOpen]);
+  }, [driverId, weekStart]);
 
   useEffect(() => {
     fetchSchedule();

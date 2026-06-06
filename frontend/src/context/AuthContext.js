@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, [clearAuthState]);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     try {
       const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
@@ -120,19 +120,19 @@ export const AuthProvider = ({ children }) => {
         error: formatApiErrorDetail(error.response?.data?.detail) || error.message,
       };
     }
-  };
+  }, [applyAuthState]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await axios.post(`${API_URL}/api/auth/logout`, {});
     } finally {
       clearAuthState();
     }
-  };
+  }, [clearAuthState]);
 
   const value = useMemo(
     () => ({ user, token, login, logout, isLoading }),
-    [user, token, isLoading],
+    [user, token, login, logout, isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

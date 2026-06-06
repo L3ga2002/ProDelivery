@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -185,15 +184,14 @@ const DriverApp = () => {
             playBeep(800, 0.2, 0.15);
             playBeep(1000, 0.4, 0.25);
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-          } catch (error) {
-            console.debug("Driver notification audio unavailable", error);
+          } catch {
+            // Audio/vibration may be blocked until user interaction.
           }
         }
       }
       
       setCurrentOrder(activeOrder || null);
-    } catch (error) {
-      console.error("Failed to fetch driver order", error);
+    } catch {
       toast.error("Nu am putut încărca livrarea curentă");
     } finally {
       setIsLoading(false);
@@ -222,8 +220,8 @@ const DriverApp = () => {
         ...prev,
         status: status === "delivery" ? "active" : status,
       }));
-    } catch (error) {
-      console.error("Failed to fetch driver profile", error);
+    } catch {
+      toast.error("Nu am putut încărca profilul livratorului");
     }
   }, [user?.driver_id, user?.email, user?.name, user?.phone]);
 
@@ -322,8 +320,7 @@ const DriverApp = () => {
       } else {
         fetchOrder();
       }
-    } catch (error) {
-      console.error("Failed to update driver order status", error);
+    } catch {
       toast.error("Eroare la actualizare status");
     } finally {
       setIsUpdating(false);
@@ -345,8 +342,7 @@ const DriverApp = () => {
       setCancelReason("");
       setCurrentOrder(null);
       fetchOrder();
-    } catch (error) {
-      console.error("Failed to cancel driver order", error);
+    } catch {
       toast.error("Eroare la anulare");
     }
   }, [cancelReason, currentOrder?.id, fetchOrder]);
