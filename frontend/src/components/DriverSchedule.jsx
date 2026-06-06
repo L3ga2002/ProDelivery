@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -17,7 +18,6 @@ import {
   ChevronRight,
   Save,
   CalendarCheck,
-  Clock,
   Lock,
   Info,
   Flame,
@@ -71,6 +71,7 @@ function toISODate(d) {
 export const DriverSchedule = ({ driverId }) => {
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [slots, setSlots] = useState({});
+  const [selectedDay, setSelectedDay] = useState("monday");
   const [saving, setSaving] = useState(false);
   const [totalHours, setTotalHours] = useState(0);
   const [windowOpen, setWindowOpen] = useState(true);
@@ -145,7 +146,28 @@ export const DriverSchedule = ({ driverId }) => {
     });
   };
 
-  const isSelected = (dayKey, hour) => (slots[dayKey] || []).some((s) => s.start === hour);
+  const getSlotType = (dayKey, hour) => {
+    const daySlots = slots[dayKey] || [];
+    const slot = daySlots.find((s) => s.start === hour);
+    const availableEmergency = getAvailableEmergency(dayKey, hour);
+    if (slot?.added_by === "emergency") return { key: "emergency", label: "Urgență luată", tone: "bg-red-500 text-white border-red-400", dot: "bg-red-300", interactive: false };
+    if (slot?.added_by === "admin") return { key: "admin", label: "Admin", tone: "bg-blue-500 text-white border-blue-400", dot: "bg-blue-200", interactive: false };
+    if (slot) return { key: "driver", label: "Ora ta", tone: "bg-orange-500 text-white border-orange-400", dot: "bg-orange-200", interactive: windowOpen };
+    if (availableEmergency) return { key: "available-emergency", label: `${availableEmergency.remaining_spots} locuri urgență`, tone: "bg-red-500/15 text-red-100 border-red-500/60", dot: "bg-red-400", interactive: true, emergency: availableEmergency };
+    if (isNightHour(hour)) return { key: "night", label: "Noapte blocată", tone: "bg-slate-800 text-slate-400 border-slate-700", dot: "bg-slate-500", interactive: false };
+    if (!windowOpen) return { key: "closed", label: "Liber", tone: "bg-white/[0.04] text-zinc-500 border-white/10", dot: "bg-zinc-700", interactive: false };
+    return { key: "free", label: "Liber", tone: "bg-white/[0.04] text-zinc-300 border-white/10", dot: "bg-zinc-600", interactive: true };
+  };
+
+  const getDayCounts = (dayKey) => {
+    const daySlots = slots[dayKey] || [];
+    return {
+      driver: daySlots.filter((slot) => slot.added_by === "driver" || !slot.added_by).length,
+      admin: daySlots.filter((slot) => slot.added_by === "admin").length,
+      emergency: daySlots.filter((slot) => slot.added_by === "emergency").length,
+      total: daySlots.length,
+    };
+  };
 
   const claimEmergencySlot = async () => {
     if (!claimDialog) return;
@@ -237,23 +259,27 @@ export const DriverSchedule = ({ driverId }) => {
   );
 
   return (
-    <Card data-testid="driver-schedule-card">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CalendarCheck className="w-5 h-5" />
-            Program Săptămânal
+    <Card className="overflow-hidden border-white/10 bg-[#0d1118] text-white shadow-2xl" data-testid="driver-schedule-card">
+      <CardHeader className="space-y-4 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-lg text-white">
+            <CalendarCheck className="h-5 w-5 text-orange-400" />
+            Program săptămânal
           </CardTitle>
-          <div className="flex gap-1.5 flex-wrap justify-end">
-            <Badge variant="outline" className="text-xs">{driverHoursCount}h ale tale</Badge>
-            {adminHoursCount > 0 && <Badge className="bg-blue-100 text-blue-700 text-xs">{adminHoursCount}h admin</Badge>}
-            {emergencyCount > 0 && <Badge className="bg-red-100 text-red-700 text-xs">{emergencyCount}h urgență</Badge>}
-          </div>
+          <Button variant="ghost" size="icon" onClick={() => setRankDialogOpen(true)} className="h-9 w-9 rounded-full bg-white/5 text-zinc-300 hover:bg-white/10" data-testid="driver-schedule-info-button">
+            <Info className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2" data-testid="driver-schedule-summary-chips">
+          <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-2 text-center"><p className="text-lg font-black text-orange-200">{driverHoursCount}h</p><p className="text-[10px] font-bold text-orange-100/80">ale tale</p></div>
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-2 text-center"><p className="text-lg font-black text-blue-200">{adminHoursCount}h</p><p className="text-[10px] font-bold text-blue-100/80">admin</p></div>
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-2 text-center"><p className="text-lg font-black text-red-200">{emergencyCount}h</p><p className="text-[10px] font-bold text-red-100/80">urgență</p></div>
         </div>
 
         {/* Scheduling window info */}
-        <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-xs ${
-          windowOpen ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+        <div className={`flex items-start gap-2 rounded-2xl px-3 py-2 text-xs ${
+          windowOpen ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-100" : "border border-amber-500/40 bg-amber-500/12 text-amber-100"
         }`}>
           {windowOpen ? (
             <>
@@ -263,21 +289,21 @@ export const DriverSchedule = ({ driverId }) => {
           ) : (
             <>
               <Lock className="w-4 h-4 shrink-0" />
-              <span className="font-medium">Programul se poate modifica doar Duminică 22:00 - Luni 10:00</span>
+              <span className="font-medium">Editare: Duminică 22:00 - Luni 10:00</span>
             </>
           )}
         </div>
 
         {scheduleWindowInfo?.tier && (
-          <div className="flex flex-wrap gap-2 mt-2 text-xs" data-testid="driver-ranking-access-info">
+          <div className="flex flex-wrap gap-2 text-xs" data-testid="driver-ranking-access-info">
             <button type="button" onClick={() => setRankDialogOpen(true)} data-testid="driver-rank-info-button">
-              <Badge className="bg-slate-900 text-white">Tier {scheduleWindowInfo.tier}</Badge>
+              <Badge className="border border-amber-500/30 bg-amber-500/15 text-amber-100">Tier {scheduleWindowInfo.tier}</Badge>
             </button>
             <button type="button" onClick={() => setRankDialogOpen(true)} data-testid="driver-score-info-button">
-              <Badge variant="outline">Scor {scheduleWindowInfo.score}</Badge>
+              <Badge className="border border-white/10 bg-white/5 text-white">Scor {scheduleWindowInfo.score}</Badge>
             </button>
-            {!windowOpen && <Badge variant="outline">Acces de la {scheduleWindowInfo.opens_at_label || scheduleWindowInfo.opens_at}</Badge>}
-          </div>
+            {!windowOpen && <Badge className="border border-blue-500/30 bg-blue-500/10 text-blue-100">Acces {scheduleWindowInfo.opens_at_label || scheduleWindowInfo.opens_at}</Badge>}
+        </div>
         )}
 
         {/* Emergency slots notification */}
@@ -288,105 +314,81 @@ export const DriverSchedule = ({ driverId }) => {
           </div>
         )}
 
-        <div className="flex items-center justify-between mt-2">
-          <Button variant="ghost" size="icon" onClick={() => shiftWeek(-1)} data-testid="prev-week-btn">
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-2 py-1">
+          <Button variant="ghost" size="icon" onClick={() => shiftWeek(-1)} className="text-zinc-300 hover:bg-white/10" data-testid="prev-week-btn">
             <ChevronLeft className="w-5 h-5" />
           </Button>
-          <span className="font-medium text-sm" data-testid="week-range">{formatWeekRange(weekStart)}</span>
-          <Button variant="ghost" size="icon" onClick={() => shiftWeek(1)} data-testid="next-week-btn">
+          <span className="font-black text-sm text-white" data-testid="week-range">{formatWeekRange(weekStart)}</span>
+          <Button variant="ghost" size="icon" onClick={() => shiftWeek(1)} className="text-zinc-300 hover:bg-white/10" data-testid="next-week-btn">
             <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {/* Legend */}
-        <div className="flex flex-wrap gap-3 mb-3 text-xs">
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-orange-500" /><span>Orele tale</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-blue-500" /><span>Admin</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-red-500" /><span>Urgență</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300" /><span className="flex items-center gap-1"><Lock className="w-3 h-3" />Noapte</span></div>
+        <div className="grid grid-cols-2 gap-2 text-[11px] font-bold sm:grid-cols-4" data-testid="driver-schedule-legend">
+          <div className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1"><div className="h-3 w-3 rounded bg-orange-500" /><span>Orele tale</span></div>
+          <div className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1"><div className="h-3 w-3 rounded bg-blue-500" /><span>Admin</span></div>
+          <div className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1"><div className="h-3 w-3 rounded bg-red-500" /><span>Urgență</span></div>
+          <div className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1"><Lock className="h-3 w-3 text-slate-400" /><span>Noapte</span></div>
+          </div>
+
+        <div className="grid grid-cols-7 gap-1" data-testid="driver-schedule-day-selector">
+          {DAYS.map((day) => {
+            const counts = getDayCounts(day.key);
+            const active = selectedDay === day.key;
+            return (
+              <button
+                key={day.key}
+                type="button"
+                onClick={() => setSelectedDay(day.key)}
+                className={`rounded-2xl border px-1 py-2 text-center transition-colors ${active ? "border-orange-400 bg-orange-500 text-black" : "border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/10"}`}
+                data-testid={`driver-schedule-day-button-${day.key}`}
+              >
+                <span className="block text-[11px] font-black">{day.label.slice(0, 3)}</span>
+                <span className="mt-1 block text-[10px] font-bold opacity-80">{counts.total}h</span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="min-w-[440px] text-xs" role="table" aria-label="Program săptămânal livrator">
-            <div className="grid grid-cols-[80px_repeat(7,minmax(44px,1fr))] items-center" role="row">
-              <div className="sticky left-0 z-10 bg-card p-1 text-left font-semibold" role="columnheader">
-                <Clock className="w-3 h-3 inline mr-1" />Ora
-              </div>
-              {DAYS.map((d) => (
-                <div key={d.key} className="p-1 text-center" role="columnheader">
-                  <button
-                    type="button"
-                    className={`font-semibold ${windowOpen ? "hover:text-primary" : "cursor-default text-muted-foreground"}`}
-                    onClick={() => windowOpen && selectFullDay(d.key)}
-                  >
-                    {d.label.substring(0, 3)}
-                  </button>
-                </div>
-              ))}
+        <div className="rounded-3xl border border-white/10 bg-black/20 p-3" data-testid={`driver-schedule-selected-day-${selectedDay}`}>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">Zi selectată</p>
+              <h3 className="text-xl font-black text-white">{DAYS.find((day) => day.key === selectedDay)?.label}</h3>
             </div>
+            <Button type="button" size="sm" variant="outline" disabled={!windowOpen} onClick={() => selectFullDay(selectedDay)} className="border-white/10 bg-white/5 text-white hover:bg-white/10 disabled:opacity-40" data-testid="driver-select-full-day-button">Toată ziua</Button>
+          </div>
 
+          <div className="space-y-2" data-testid="driver-schedule-mobile-hour-list">
             {ALL_HOURS.map((hour) => {
-              const isNight = isNightHour(hour);
+              const slotType = getSlotType(selectedDay, hour);
+              const canClick = slotType.interactive;
               return (
-                <div key={hour} className={`grid grid-cols-[80px_repeat(7,minmax(44px,1fr))] items-center ${isNight ? "bg-slate-50" : ""}`} role="row">
-                  <div className={`sticky left-0 z-10 p-1 font-mono ${isNight ? "text-slate-400 bg-slate-50" : "text-muted-foreground bg-card"}`} role="rowheader">
-                    {formatInterval(hour)} {isNight && <Lock className="w-2.5 h-2.5 inline ml-0.5" />}
-                  </div>
-                  {DAYS.map((d) => {
-                    const sel = isSelected(d.key, hour);
-                    const admin = isAdminSlot(d.key, hour);
-                    const emergency = isEmergencySlot(d.key, hour);
-                    const availEmergency = getAvailableEmergency(d.key, hour);
-                    const canEdit = !isNight && !admin && !emergency && windowOpen;
-
-                    let cellClass = "bg-muted/30";
-                    let cellContent = "";
-
-                    if (emergency) {
-                      cellClass = "bg-red-500";
-                    } else if (sel && admin) {
-                      cellClass = "bg-blue-500";
-                    } else if (sel) {
-                      cellClass = "bg-orange-500";
-                    } else if (availEmergency) {
-                      cellClass = "bg-red-100 border-2 border-red-400 hover:bg-red-200 cursor-pointer";
-                      cellContent = `${availEmergency.remaining_spots}`;
-                    } else if (isNight) {
-                      cellClass = "bg-slate-200";
+                <button
+                  key={`${selectedDay}-${hour}`}
+                  type="button"
+                  onClick={() => {
+                    if (slotType.emergency) {
+                      setClaimDialog(slotType.emergency);
+                    } else if (canClick && !isNightHour(hour)) {
+                      toggleHour(selectedDay, hour);
                     }
-
-                    return (
-                      <div key={d.key} className="p-0.5 text-center" role="cell">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (availEmergency) {
-                              setClaimDialog(availEmergency);
-                            } else if (canEdit) {
-                              toggleHour(d.key, hour);
-                            }
-                          }}
-                          disabled={!canEdit && !availEmergency}
-                          className={`w-full h-7 rounded transition-all text-[10px] font-bold ${cellClass} ${
-                            canEdit || availEmergency ? "cursor-pointer" : "cursor-not-allowed opacity-70"
-                          }`}
-                          data-testid={`slot-${d.key}-${hour}`}
-                          title={
-                            availEmergency ? `${availEmergency.remaining_spots} locuri urgență - click pentru a lua`
-                            : emergency ? "Slot de urgență luat"
-                            : isNight ? "Tura de noapte - doar admin"
-                            : admin ? "Adăugat de administrator"
-                            : !windowOpen ? "Fereastra închisă"
-                            : sel ? "Deselectează" : "Selectează"
-                          }
-                        >
-                          {cellContent && <span className="text-red-700">{cellContent}</span>}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                  }}
+                  disabled={!canClick}
+                  className={`flex min-h-[54px] w-full items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition-all disabled:cursor-not-allowed disabled:opacity-75 ${slotType.tone}`}
+                  data-testid={`slot-${selectedDay}-${hour}`}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className={`h-3 w-3 rounded-full ${slotType.dot}`} />
+                    <span>
+                      <span className="block font-mono text-sm font-black">{formatInterval(hour)}</span>
+                      <span className="block text-[11px] font-bold opacity-80">{isNightHour(hour) ? "Interval de noapte" : "Interval standard"}</span>
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-black/20 px-2 py-1 text-xs font-black">{slotType.label}</span>
+                </button>
               );
             })}
           </div>

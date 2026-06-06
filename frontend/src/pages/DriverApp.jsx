@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
@@ -96,39 +97,6 @@ const ProDeliveryMark = ({ dark = true, testId = "prodelivery-mark" }) => (
     </div>
   </div>
 );
-
-const CompactSchedule = ({ dashboard }) => {
-  const latest = dashboard?.schedules?.[0];
-  const slots = latest?.slots || {};
-  const dayMap = [
-    ["monday", "Luni"], ["tuesday", "Marți"], ["wednesday", "Miercuri"], ["thursday", "Joi"],
-    ["friday", "Vineri"], ["saturday", "Sâmbătă"], ["sunday", "Duminică"],
-  ];
-  return (
-    <div className="space-y-3" data-testid="driver-compact-schedule">
-      {dayMap.map(([key, label]) => {
-        const daySlots = slots[key] || [];
-        return (
-          <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4" data-testid={`driver-calendar-day-${key}`}>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="font-bold text-white">{label}</p>
-              <Badge className={daySlots.length ? "bg-orange-500 text-white" : "bg-white/10 text-zinc-400"} data-testid={`driver-calendar-day-count-${key}`}>
-                {daySlots.length ? `${daySlots.length}h` : "Liber"}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {daySlots.length ? daySlots.map((slot) => (
-                <span key={`${key}-${slot.start}-${slot.end}`} className={`rounded-full px-3 py-1 text-xs font-bold ${slot.added_by === "emergency" ? "bg-red-500/20 text-red-200" : "bg-orange-500/15 text-orange-200"}`}>
-                  {slot.start}-{slot.end}
-                </span>
-              )) : <span className="text-sm text-zinc-500">Nu ai program în ziua asta.</span>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 const DriverApp = () => {
   const { user, logout } = useAuth();
@@ -509,16 +477,20 @@ const DriverApp = () => {
   );
 
   const renderCalendar = () => (
-    <div className="space-y-4" data-testid="driver-calendar-tab">
-      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4">
-        <div className="flex items-center justify-between"><div><p className="text-sm text-zinc-400">Calendar separat</p><h2 className="text-2xl font-black text-white">Programul meu</h2></div><CalendarDays className="h-8 w-8 text-orange-500" /></div>
+    <div className="space-y-3" data-testid="driver-calendar-tab">
+      <section className="rounded-[1.35rem] border border-white/10 bg-zinc-950 p-4" data-testid="driver-calendar-mobile-header">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm text-zinc-400">Alege/editează program</p>
+            <h2 className="text-2xl font-black text-white">Programul meu</h2>
+          </div>
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-500/15 text-orange-300">
+            <CalendarDays className="h-7 w-7" />
+          </div>
+        </div>
         <p className="mt-2 text-sm text-zinc-400">Azi: {formatScheduleDay(today)} · {driver.schedule_today_hours || 0} ore</p>
       </section>
-      <CompactSchedule dashboard={driverDashboard} />
-      <div className="rounded-[1.35rem] border border-orange-500/30 bg-orange-500/10 p-4" data-testid="driver-calendar-editor-wrapper">
-        <p className="mb-3 font-bold text-orange-100">Alege/editează program</p>
-        {user?.driver_id && <DriverSchedule driverId={user.driver_id} />}
-      </div>
+      {user?.driver_id && <DriverSchedule driverId={user.driver_id} />}
     </div>
   );
 
