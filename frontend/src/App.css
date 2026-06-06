@@ -267,7 +267,11 @@
   color: rgb(100 116 139);
 }
 
-.delivery-map-marker-restaurant {
+.delivery-map-marker-restaurant-active {
+  color: rgb(16 185 129);
+}
+
+.delivery-map-marker-restaurant-paused {
   color: rgb(249 115 22);
 }
 
@@ -303,7 +307,7 @@
 }
 
 .delivery-map-legend-restaurant {
-  background: linear-gradient(135deg, rgb(249 115 22), rgb(234 88 12));
+  background: linear-gradient(135deg, rgb(16 185 129), rgb(5 150 105));
 }
 
 .delivery-map-marker-status-dot {

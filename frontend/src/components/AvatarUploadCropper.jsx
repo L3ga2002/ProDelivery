@@ -69,11 +69,11 @@ export const AvatarUploadCropper = ({ onUpload, isUploading = false, testIdPrefi
   return (
     <div className="space-y-4" data-testid={`${testIdPrefix}-cropper`}>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Label className="cursor-pointer rounded-lg border border-dashed border-orange-300 bg-orange-50 px-3 py-2 text-center text-sm font-semibold text-orange-800 transition-colors hover:bg-orange-100" data-testid={`${testIdPrefix}-gallery-label`}>
+        <Label className="cursor-pointer rounded-lg border border-orange-300 bg-orange-50 px-3 py-3 text-center text-sm font-black text-orange-800 shadow-sm transition-colors hover:bg-orange-100 dark:border-orange-400 dark:bg-orange-500 dark:text-white dark:hover:bg-orange-400" data-testid={`${testIdPrefix}-gallery-label`}>
           <ImagePlus className="mr-2 inline h-4 w-4" /> Din galerie
           <Input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => loadFile(event.target.files?.[0])} data-testid={`${testIdPrefix}-gallery-input`} />
         </Label>
-        <Label className="cursor-pointer rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100" data-testid={`${testIdPrefix}-camera-label`}>
+        <Label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-3 text-center text-sm font-black text-slate-800 shadow-sm transition-colors hover:bg-slate-100 dark:border-slate-500 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600" data-testid={`${testIdPrefix}-camera-label`}>
           <Camera className="mr-2 inline h-4 w-4" /> Selfie
           <Input className="sr-only" type="file" accept="image/*" capture="user" onChange={(event) => loadFile(event.target.files?.[0])} data-testid={`${testIdPrefix}-camera-input`} />
         </Label>

@@ -140,7 +140,7 @@ export const LiveMapPanel = ({ drivers, restaurants, driverPositions, orders = [
   const restaurantMarkers = useMemo(() => restaurants.map((restaurant) => ({
     restaurant,
     position: [restaurant.latitude, restaurant.longitude],
-    icon: createMapMarkerIcon({ kind: "restaurant", id: restaurant.id }),
+    icon: createMapMarkerIcon({ kind: "restaurant", id: restaurant.id, status: restaurant.accepting_orders === false ? "break" : "active" }),
   })), [restaurants]);
 
   const activeRoutes = useMemo(() => driverMarkers
